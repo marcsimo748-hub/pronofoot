@@ -39,7 +39,8 @@ TA CONNAISSANCE DU SITE PRONO :
 - ANNONCES (/prono-annonces) : petites annonces de la communauté style Leboncoin, avec photos.
 - Covoiturage (/prono-voyage) : billets d'avion et de train (liens officiels Kayak, Google Flights, Trainline, FlixBus) + covoiturage communautaire.
 - MESSAGERIE PRIVÉE (/messages) : chat interne lié aux comptes. On discute d'abord sur le site, les coordonnées (numéro/email) ne sont révélées QUE si le propriétaire de l'annonce accepte. Badge ✓ vert = email vérifié.
-- NOTIFICATIONS : cloche 🔔 dans le header (nouveaux messages, discussions, coordonnées partagées).
+- NOTIFICATIONS : cloche 🔔 dans le header pour les MESSAGES PRIVÉS uniquement (nouveaux messages, nouvelles discussions, coordonnées partagées). Il n'y a PAS de notifications push pour les coup d'envoi de matchs : ne promets jamais ça.
+- SCORES EN DIRECT : la page « Scores » affiche les matchs en cours. Si le contexte ci-dessous contient des matchs en cours, utilise-les pour répondre ; sinon dis honnêtement que tu ne vois pas ce match en direct et invite à consulter la page Scores.
 - APPLICATION MOBILE : le site est une PWA installable gratuitement. Android : menu Chrome puis Ajouter à l'écran d'accueil. iPhone : bouton Partager dans Safari puis Sur l'écran d'accueil.
 - COMPTE : inscription gratuite avec email + mot de passe, mot de passe oublié récupérable. 100% gratuit.
 - IA : c'est toi ! L'admin peut brancher les clés Groq ou Gemini dans Admin > 🤖 Assistant IA.`;
@@ -64,6 +65,42 @@ export async function buildContext(userId?: string): Promise<string> {
             upcoming
               .map((m) => `- ${m.home_team} - ${m.away_team} (${m.league}, ${new Date(m.match_date).toLocaleString("fr-FR")})`)
               .join("\n")
+        );
+      }
+
+      // Matchs EN COURS (flux live) — pour répondre aux questions du moment
+      const { data: live } = await supabase
+        .from("live_scores")
+        .select("league, home_team, away_team, home_score, away_score, status, elapsed, match_date")
+        .in("status", ["1H", "HT", "2H", "ET", "BT", "P", "LIVE"])
+        .order("match_date")
+        .limit(12);
+      if (live?.length) {
+        parts.push(
+          "Matchs EN COURS en ce moment même :\n" +
+            live
+              .map(
+                (m) =>
+                  `- ${m.home_team} ${m.home_score ?? 0}-${m.away_score ?? 0} ${m.away_team} (${m.league}, ${m.elapsed ? `${m.elapsed}'` : "en jeu"})`
+              )
+              .join("\n")
+        );
+      }
+
+      // Matchs démarrés ces 4 dernières heures (même sans flux live)
+      const fourHoursAgo = new Date(Date.now() - 4 * 3600_000).toISOString();
+      const { data: playing } = await supabase
+        .from("matches")
+        .select("league, home_team, away_team, match_date, status")
+        .in("status", ["scheduled", "missed", "live"])
+        .gte("match_date", fourHoursAgo)
+        .lte("match_date", new Date().toISOString())
+        .order("match_date")
+        .limit(12);
+      if (playing?.length) {
+        parts.push(
+          "Matchs qui viennent de démarrer (moins de 4 h) :\n" +
+            playing.map((m) => `- ${m.home_team} - ${m.away_team} (${m.league}, coup d'envoi ${new Date(m.match_date).toLocaleTimeString("fr-FR", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" })})`).join("\n")
         );
       }
 
@@ -295,7 +332,7 @@ function localFallback(message: string, context: string): string {
   if (/emploi|job|travail|jobbing/.test(q)) {
     return "💼 Offres d'emploi en Allemagne : page « Emploi », candidature directe depuis le site.";
   }
-  if (/app|installer|téléphone|mobile|écran d'accueil/.test(q)) {
+  if (/\bapp\b|\bapplication\b|installer|téléphone|\bmobile\b|écran d'accueil/.test(q)) {
     return "📱 Installe PRONO : Android → menu Chrome → Ajouter à l'écran d'accueil. iPhone → Partager → Sur l'écran d'accueil.";
   }
   if (/compte|inscription|mot de passe|connexion/.test(q)) {
