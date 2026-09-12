@@ -12,6 +12,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 import { safeQuery } from "@/lib/utils";
 
+/** Modèle Groq par défaut (surchargeable via la variable GROQ_MODEL) */
+const GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b";
+
 const SYSTEM_PROMPT = `Tu es l'assistant intelligent de PRONO (développé par Leprince Matt pour MalihaprodBerlin), la Super-App de la diaspora africaine.
 
 TON RÔLE : tu es un VRAI assistant conversationnel, comme ChatGPT ou Claude. Tu réponds à TOUT type de question : football, sport, actualité générale, culture, histoire, maths, traduction, conseils, vie quotidienne, technologie... ET en expert tu connais parfaitement le site PRONO.
@@ -162,7 +165,7 @@ export async function getAiKeyStatus(): Promise<{ groq: boolean; gemini: boolean
 async function* groqStream(messages: ChatMsg[], system: string): AsyncGenerator<string> {
   const { groq: key } = await loadSecrets();
   if (!key) throw new Error("no_key");
-  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  const model = process.env.GROQ_MODEL || GROQ_DEFAULT_MODEL;
 
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -171,8 +174,9 @@ async function* groqStream(messages: ChatMsg[], system: string): AsyncGenerator<
       model,
       messages: [{ role: "system", content: system }, ...messages.slice(-10)],
       temperature: 0.6,
-      max_tokens: 700,
+      max_tokens: 900,
       stream: true,
+      reasoning_effort: "low",
     }),
   });
   if (!res.ok || !res.body) throw new Error(`Groq ${res.status}`);
@@ -350,7 +354,7 @@ export async function diagnoseAi(): Promise<{
   groq_error: string | null;
 }> {
   const { groq, gemini } = await loadSecrets();
-  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  const model = process.env.GROQ_MODEL || GROQ_DEFAULT_MODEL;
   let groq_error: string | null = null;
   if (groq) {
     try {
@@ -360,7 +364,8 @@ export async function diagnoseAi(): Promise<{
         body: JSON.stringify({
           model,
           messages: [{ role: "user", content: "Réponds juste : ok" }],
-          max_tokens: 5,
+          max_tokens: 60,
+          reasoning_effort: "low",
         }),
       });
       if (!res.ok) {
