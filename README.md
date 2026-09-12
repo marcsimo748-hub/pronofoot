@@ -161,6 +161,8 @@ Dans **Authentication → URL Configuration** :
 6. Clique **Deploy** → attends ~2 minutes → 🎉 ton site est en ligne sur `https://pronofoot-xxxx.vercel.app`.
 7. Ajoute le domaine exact dans **Settings → Environment Variables → `NEXT_PUBLIC_SITE_URL`**, et mets ce même domaine dans **Supabase → Authentication → URL Configuration** (Site URL + Redirect URLs) puis **Redeploy** (Deployments → ⋯ → Redeploy).
 
+> ⚠️ **Note Cron Jobs Vercel** : le plan **Hobby (gratuit)** limite les crons natifs Vercel à **1 exécution par jour maximum**. C'est pourquoi `vercel.json` ne contient que le **nettoyage quotidien des matchs passés** (tous les jours à 4h00 UTC). Les syncs fréquents (scores toutes les 15 min, news toutes les 10 min) sont assurés par **cron-job.org** — gratuit et illimité — voir l'ÉTAPE 5, et par le **SyncManager intégré** au site dès qu'un visiteur est connecté.
+
 ✅ **Le site est LIVE.** Chaque `git push` sur GitHub redéploie automatiquement le site.
 
 ---
