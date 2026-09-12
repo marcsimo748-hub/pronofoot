@@ -65,5 +65,6 @@ function pageKeyOf(pathname: string): string {
   if (pathname === "/" || pathname === "") return "home";
   const first = pathname.split("/").filter(Boolean)[0] ?? "home";
   if (first === "admin") return "dashboard";
-  return first;
+  // Pages sans dossier dédiée (ex : modules /prono-job) → fond par défaut du site
+  return PAGE_BACKGROUNDS[first] ? first : "home";
 }

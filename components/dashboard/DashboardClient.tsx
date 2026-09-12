@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GroupsPanel } from "@/components/classement/GroupsPanel";
+import { PronoJobApplications } from "@/components/dashboard/PronoJobApplications";
 import { cn, formatMatchDate } from "@/lib/utils";
 import { LEAGUES } from "@/lib/constants";
 import type { Match, Prediction } from "@/lib/types";
@@ -112,6 +113,9 @@ export function DashboardClient({ username, data, userId }: { username: string; 
           <GroupsPanel currentUserId={userId} />
         </TabsContent>
       </Tabs>
+
+      {/* 🆕 Module PronoJob — mes candidatures emploi (visible si ≥ 1 candidature) */}
+      <PronoJobApplications />
     </div>
   );
 }

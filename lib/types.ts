@@ -174,3 +174,61 @@ export interface ApiResponse<T = unknown> {
   skipped?: string;
   provider?: string;
 }
+
+
+// ============================================================
+// MODULE PRONOJOB — agrégateur d'offres d'emploi (/prono-job)
+// ============================================================
+
+/** Offre d'emploi normalisée, quelle que soit la source (Arbeitnow, Remotive, Adzuna, JSearch) */
+export interface PronoJob {
+  id: string;
+  source: string;          // arbeitnow | remotive | adzuna | jsearch
+  source_id: string;
+  title: string;
+  company: string;
+  city: string | null;
+  country: string | null;
+  contract_type: string;   // full-time | part-time | contract | internship | freelance | other
+  remote: boolean;
+  description_short: string | null;  // extrait ≤ 280 caractères (conformité légale)
+  url: string;             // lien vers l'offre ORIGINALE
+  salary_min: number | null;
+  salary_max: number | null;
+  published_at: string | null;
+}
+
+/** Préférences emploi d'un joueur (alimentent le PronoScore) */
+export interface JobPrefs {
+  keywords: string;        // mots-clés métier, ex : "chauffeur, cuisine, logistique"
+  city: string;            // ville souhaitée
+  remote_only: boolean;
+  german_level: string;    // none | A1 | A2 | B1 | B2 | C1 | C2
+  english_level: string;   // none | A1 | A2 | B1 | B2 | C1 | C2
+  contract: string;        // "" = tous les contrats
+}
+
+/** Filtres de recherche d'emploi */
+export interface JobFilters {
+  q?: string;
+  city?: string;
+  country?: string;
+  contract?: string;
+  remote?: boolean;
+  source?: string;
+  page?: number;
+}
+
+/** Offre + PronoScore (probabilité de match avec le profil, 0-99) */
+export interface PronoScoredJob extends PronoJob {
+  score: number | null;    // null = profil non renseigné
+  reasons: string[];       // explication du score
+}
+
+/** Candidature enregistrée via "Postuler depuis Pronofoot" */
+export interface JobApplication {
+  id: string;
+  created_at: string;
+  status: string;          // sent | viewed | interview | rejected
+  job: PronoJob | null;
+}

@@ -255,3 +255,33 @@ vercel.json     → crons
 ✉️ [marcsimo748@gmail.com](mailto:marcsimo748@gmail.com)
 
 Bon jeu et bonne saison ! ⚽🏆
+
+## 🆕 MODULE PRONOJOB — agrégateur d'offres d'emploi (`/prono-job`)
+
+Recherche d'emploi Allemagne / Europe / télétravail, 100% légale (API officielles, aucun scraping).
+
+### Sources
+| Source | Couverture | Clé requise |
+|---|---|---|
+| **Arbeitnow** | Allemagne + Europe | ❌ Aucune |
+| **Remotive** | Télétravail mondial | ❌ Aucune |
+| **Adzuna** | Monde (de, fr…) | ✅ Gratuite sur [developer.adzuna.com](https://developer.adzuna.com) → `ADZUNA_APP_ID` + `ADZUNA_APP_KEY` |
+| **JSearch** (RapidAPI) | Indeed + LinkedIn | ✅ Gratuite sur [rapidapi.com](https://rapidapi.com) → `RAPIDAPI_KEY` (plan gratuit limité, optionnel) |
+
+### Activation (2 minutes)
+1. **Exécuter le SQL** `supabase/migrations/004_prono_jobs.sql` dans Supabase → SQL Editor
+   (tables `prono_jobs`, `prono_job_prefs`, `prono_applications`).
+   → Active le PronoScore personnalisé + le suivi des candidatures.
+   ⚠️ Sans ce script, la page fonctionne quand même en **lecture directe des API**.
+2. **Cron 6 h** sur [cron-job.org](https://cron-job.org) :
+   - URL : `https://pronofoot-phi.vercel.app/api/cron/jobs`
+   - Toutes les **6 heures** (0 */6 * * *)
+   - (Optionnel) Header `Authorization: Bearer <CRON_SECRET>` si défini.
+3. (Optionnel) Ajouter `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` dans Vercel → Settings → Environment Variables.
+
+### Ce que fait le module
+- 🔍 Filtres : recherche, ville, pays, contrat, télétravail, source.
+- 🎯 **PronoScore** : % de compatibilité entre ton profil (mots-clés, ville, allemand, anglais, contrat) et chaque offre.
+- 🚀 **Postuler depuis Pronofoot** : ouvre l'offre originale + enregistre la candidature dans ton dashboard.
+- ⚖️ Légal : titre + extrait court + lien source uniquement, jamais la description complète.
+- 🧹 Purge automatique des offres de plus de 30 jours.

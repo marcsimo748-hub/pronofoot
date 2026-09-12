@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Trophy, Radio, Newspaper, Music4, BarChart3, Settings } from "lucide-react";
+import { Trophy, Radio, Newspaper, Music4, BarChart3, Settings, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/lib/store/uiStore";
 import type { SessionUser } from "@/lib/types";
@@ -23,6 +23,7 @@ export function MobileNav({ user }: { user: SessionUser | null }) {
     { href: "/scores", label: "Scores", icon: Radio },
     { href: "/news", label: "News", icon: Newspaper },
     { href: "/music", label: "Musique", icon: Music4 },
+    { href: "/prono-job", label: "Emploi", icon: Briefcase },
   ];
 
   return (
@@ -30,7 +31,7 @@ export function MobileNav({ user }: { user: SessionUser | null }) {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-white/5 bg-background/90 backdrop-blur-xl md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="grid h-14 grid-cols-6">
+      <div className="grid h-14 grid-cols-7">
         {items.map((item) => (
           <Link
             key={item.href}

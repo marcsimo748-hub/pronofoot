@@ -12,8 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Radio, Newspaper, Music4, BarChart3, LayoutDashboard, Settings, LogOut,
-  Menu, X, User2, Zap,
-} from "lucide-react";
+  Menu, X, User2, Zap, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -29,6 +28,7 @@ const NAV_LINKS = [
   { href: "/news", tKey: "nav.news", icon: Newspaper },
   { href: "/music", tKey: "nav.music", icon: Music4 },
   { href: "/classement", tKey: "nav.classement", icon: BarChart3 },
+  { href: "/prono-job", tKey: "nav.job", icon: Briefcase },
 ] as const;
 
 export function Header({ user }: { user: SessionUser | null }) {
