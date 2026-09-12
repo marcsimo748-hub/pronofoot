@@ -10,6 +10,7 @@ import { CalendarDays, ChevronRight } from "lucide-react";
 import { formatMatchDate, cn } from "@/lib/utils";
 import { LEAGUES } from "@/lib/constants";
 import type { Match } from "@/lib/types";
+import { TeamLogo } from "@/components/ui/TeamLogo";
 
 export function NextMatches({ matches }: { matches: Match[] }) {
   if (!matches.length) return null;
@@ -51,9 +52,15 @@ export function NextMatches({ matches }: { matches: Match[] }) {
                 <span className="text-[11px] text-muted-foreground">{formatMatchDate(m.match_date)}</span>
               </div>
               <p className={cn("font-semibold")}>
-                <span className="block truncate">{m.home_team}</span>
+                <span className="flex items-center justify-center gap-2">
+                  <TeamLogo name={m.home_team} size={18} />
+                  <span className="truncate">{m.home_team}</span>
+                </span>
                 <span className="my-1 block text-center text-xs font-bold text-muted-foreground">CONTRE</span>
-                <span className="block truncate">{m.away_team}</span>
+                <span className="flex items-center justify-center gap-2">
+                  <TeamLogo name={m.away_team} size={18} />
+                  <span className="truncate">{m.away_team}</span>
+                </span>
               </p>
             </motion.div>
           );

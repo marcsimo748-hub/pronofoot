@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Hero } from "@/components/landing/Hero";
 import { FeaturesGrid } from "@/components/landing/FeaturesGrid";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { AboutSection } from "@/components/landing/AboutSection";
 import { NextMatches } from "@/components/landing/NextMatches";
 import { LiveTicker } from "@/components/scores/LiveTicker";
 import { getUpcomingMatches } from "@/lib/services/football.service";
@@ -48,6 +49,7 @@ export default async function LandingPage() {
       <FeaturesGrid />
       <NextMatches matches={upcoming} />
       <HowItWorks />
+      <AboutSection />
 
       {/* CTA final */}
       <section className="container pb-20">

@@ -16,16 +16,13 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn, formatMatchDate, computePoints } from "@/lib/utils";
 import { LEAGUES, FEATURED_TEAMS } from "@/lib/constants";
 import type { Match, Prediction } from "@/lib/types";
+import { TeamLogo } from "@/components/ui/TeamLogo";
 
-function teamColor(name: string): string | null {
-  return FEATURED_TEAMS.find((t) => t.name === name)?.color ?? null;
-}
 
 function TeamName({ name }: { name: string }) {
-  const color = teamColor(name);
   return (
     <span className="flex items-center gap-1.5 font-semibold">
-      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color ?? "hsl(var(--muted-foreground) / 0.4)" }} />
+      <TeamLogo name={name} size={20} />
       <span className="truncate">{name}</span>
     </span>
   );

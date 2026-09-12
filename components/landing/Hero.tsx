@@ -8,7 +8,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Zap, Trophy, Radio, Newspaper, Music4, Bot, BarChart3, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SITE_NAME } from "@/lib/constants";
+import { useT } from "@/lib/i18n";
 
 const FEATURES = [
   { icon: Trophy, label: "Pronostics", href: "/pronos" },
@@ -28,6 +28,7 @@ export function Hero({
   stats: { players: number; matches: number; teams: number };
   loggedIn: boolean;
 }) {
+  const { t } = useT();
   return (
     <section className="relative overflow-hidden">
       {/* Fond d'écran global (Admin > 🖼️ Fonds d'Écran Globaux) */}
@@ -45,7 +46,7 @@ export function Hero({
           animate={{ opacity: 1, y: 0 }}
           className="rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary"
         >
-          ⚡ {SITE_NAME} — 100% gratuit · propulsé par l'IA
+          {t("hero.badge")}
         </motion.span>
 
         <motion.h1
@@ -54,9 +55,9 @@ export function Hero({
           transition={{ delay: 0.1 }}
           className="max-w-4xl text-4xl font-black leading-tight tracking-tight sm:text-5xl md:text-7xl"
         >
-          PRÉDICT. <span className="text-gradient">COMPÈTE.</span>
+          {t("hero.t1")} <span className="text-gradient">{t("hero.t2")}</span>
           <br />
-          DOMINE. <span className="align-middle text-3xl md:text-5xl">⚽</span>
+          {t("hero.t3")} <span className="align-middle text-3xl md:text-5xl">⚽</span>
         </motion.h1>
 
         <motion.p
@@ -65,8 +66,7 @@ export function Hero({
           transition={{ delay: 0.2 }}
           className="max-w-2xl text-balance text-muted-foreground md:text-lg"
         >
-          Pronostique les matchs des 19 plus grands clubs européens, suis les scores en direct,
-          écoute ta playlist et chatte avec l'assistant IA — tout-en-un, gratuit pour toujours.
+          {t("hero.subtitle")}
         </motion.p>
 
         <motion.div
@@ -78,19 +78,19 @@ export function Hero({
           {loggedIn ? (
             <Link href="/pronos">
               <Button size="xl" variant="glow" className="gap-2">
-                <Trophy className="h-5 w-5" /> Faire mes pronostics
+                <Trophy className="h-5 w-5" /> {t("hero.ctaPronos")}
               </Button>
             </Link>
           ) : (
             <Link href="/signup">
               <Button size="xl" variant="glow" className="gap-2">
-                <Zap className="h-5 w-5" /> Commencer gratuitement
+                <Zap className="h-5 w-5" /> {t("hero.ctaStart")}
               </Button>
             </Link>
           )}
           <Link href="/scores">
             <Button size="xl" variant="outline" className="gap-2">
-              <Radio className="h-5 w-5" /> Voir les scores
+              <Radio className="h-5 w-5" /> {t("hero.ctaScores")}
             </Button>
           </Link>
         </motion.div>
@@ -103,9 +103,9 @@ export function Hero({
           className="mt-4 grid grid-cols-3 gap-6 md:gap-12"
         >
           {[
-            { value: stats.players, label: "joueurs" },
-            { value: stats.matches, label: "matchs 2026-27" },
-            { value: stats.teams, label: "équipes vedettes" },
+            { value: stats.players, label: t("hero.statPlayers") },
+            { value: stats.matches, label: t("hero.statMatches") },
+            { value: stats.teams, label: t("hero.statTeams") },
           ].map((s) => (
             <div key={s.label}>
               <dt className="text-2xl font-black text-primary md:text-3xl">{s.value.toLocaleString("fr-FR")}</dt>

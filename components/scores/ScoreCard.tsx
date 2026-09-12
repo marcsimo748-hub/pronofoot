@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn, formatMatchDate, matchStatusLabel } from "@/lib/utils";
 import type { LiveScoreRow, Match } from "@/lib/types";
 import { LEAGUES } from "@/lib/constants";
+import { TeamLogo } from "@/components/ui/TeamLogo";
 
 interface ScoreCardProps {
   match: LiveScoreRow | Match;
@@ -62,13 +63,19 @@ export function ScoreCard({ match, variant = "full", className }: ScoreCardProps
       {/* Équipes + score */}
       <div className={cn("grid items-center font-semibold", variant === "ticker" ? "gap-1" : "gap-2 text-base")}>
         <div className="flex items-center justify-between gap-3">
-          <span className="truncate">{match.home_team}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <TeamLogo name={match.home_team} size={variant === "ticker" ? 14 : 20} />
+            <span className="truncate">{match.home_team}</span>
+          </span>
           <span className={cn("shrink-0 tabular-nums", hasScore && isFinished && "text-muted-foreground")}>
             {hasScore ? match.home_score : "–"}
           </span>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span className="truncate">{match.away_team}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <TeamLogo name={match.away_team} size={variant === "ticker" ? 14 : 20} />
+            <span className="truncate">{match.away_team}</span>
+          </span>
           <span className={cn("shrink-0 tabular-nums", hasScore && isFinished && "text-muted-foreground")}>
             {hasScore ? match.away_score : "–"}
           </span>

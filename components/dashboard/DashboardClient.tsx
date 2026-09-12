@@ -17,6 +17,7 @@ import { GroupsPanel } from "@/components/classement/GroupsPanel";
 import { cn, formatMatchDate } from "@/lib/utils";
 import { LEAGUES } from "@/lib/constants";
 import type { Match, Prediction } from "@/lib/types";
+import { TeamLogo } from "@/components/ui/TeamLogo";
 
 interface DashboardData {
   totalPoints: number;
@@ -130,7 +131,13 @@ function PredictionRow({ prediction: p }: { prediction: Prediction & { matches: 
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">
-          {m.home_team} <span className="text-muted-foreground">vs</span> {m.away_team}
+          <span className="flex min-w-0 items-center gap-1.5">
+            <TeamLogo name={m.home_team} size={16} />
+            <span className="truncate">{m.home_team}</span>
+            <span className="text-muted-foreground">vs</span>
+            <TeamLogo name={m.away_team} size={16} />
+            <span className="truncate">{m.away_team}</span>
+          </span>
         </p>
         <p className="text-[11px] text-muted-foreground">{formatMatchDate(m.match_date)}</p>
       </div>

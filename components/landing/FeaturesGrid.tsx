@@ -1,67 +1,38 @@
 "use client";
 
 /**
- * Grille des fonctionnalités de la landing.
+ * Grille des fonctionnalités de la landing — FR / EN / DE via useT().
  */
 
 import { motion } from "framer-motion";
 import { Trophy, Radio, Newspaper, Music4, Bot, Users } from "lucide-react";
+import { useT, type Dict } from "@/lib/i18n";
 
 const FEATURES = [
-  {
-    icon: Trophy,
-    title: "Pronostics football",
-    desc: "Score exact, vainqueur ou nul : pronostique les matchs de la Ligue des Champions et des 5 grands championnats. Verrouillage automatique au coup d'envoi.",
-    tag: "5 pts score exact",
-  },
-  {
-    icon: Radio,
-    title: "Scores live instantanés",
-    desc: "Résultats en direct rafraîchis toutes les 90 secondes. Le site lit son cache Supabase — jamais l'API directement.",
-    tag: "maj 90 s",
-  },
-  {
-    icon: Newspaper,
-    title: "Actus monde en direct",
-    desc: "Un bandeau défilant avec les dernières actualités internationales, mis à jour toutes les 10 minutes.",
-    tag: "10 min",
-  },
-  {
-    icon: Music4,
-    title: "Lecteur de musique",
-    desc: "Playlist intégrée avec lecture aléatoire, répétition et barre de progression. La musique continue pendant que tu navigues !",
-    tag: "global",
-  },
-  {
-    icon: Bot,
-    title: "Assistant IA",
-    desc: "Pose tes questions à l'assistant du site : prochains matchs, barème, scores, navigation. Groq Llama 3.1 + Gemini en secours.",
-    tag: "24/7",
-  },
-  {
-    icon: Users,
-    title: "Classements & groupes",
-    desc: "Classement général, par championnat, mensuel et entre amis avec des groupes privés à code d'invitation.",
-    tag: "entre amis",
-  },
-];
+  { icon: Trophy, k: "f1" },
+  { icon: Radio, k: "f2" },
+  { icon: Newspaper, k: "f3" },
+  { icon: Music4, k: "f4" },
+  { icon: Bot, k: "f5" },
+  { icon: Users, k: "f6" },
+] as const;
 
 export function FeaturesGrid() {
+  const { t } = useT();
+
   return (
     <section id="ia" className="container py-16">
       <div className="mb-10 text-center">
         <h2 className="text-3xl font-black md:text-4xl">
-          Tout ce qu'il faut. <span className="text-gradient">Rien de superflu.</span>
+          {t("features.titleA")} <span className="text-gradient">{t("features.titleB")}</span>
         </h2>
-        <p className="mt-3 text-muted-foreground">
-          Une plateforme complète pensée pour les passionnés de foot.
-        </p>
+        <p className="mt-3 text-muted-foreground">{t("features.sub")}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((f, i) => (
           <motion.div
-            key={f.title}
+            key={f.k}
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
@@ -73,11 +44,11 @@ export function FeaturesGrid() {
                 <f.icon className="h-5 w-5" />
               </span>
               <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-bold uppercase text-muted-foreground">
-                {f.tag}
+                {t(`features.${f.k}g` as keyof Dict)}
               </span>
             </div>
-            <h3 className="mb-2 font-bold">{f.title}</h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+            <h3 className="mb-2 font-bold">{t(`features.${f.k}t` as keyof Dict)}</h3>
+            <p className="text-sm leading-relaxed text-muted-foreground">{t(`features.${f.k}d` as keyof Dict)}</p>
           </motion.div>
         ))}
       </div>

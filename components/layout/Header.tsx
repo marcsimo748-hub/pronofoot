@@ -19,16 +19,17 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/lib/store/uiStore";
+import { LANGS, useT } from "@/lib/i18n";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { SessionUser } from "@/lib/types";
 
 const NAV_LINKS = [
-  { href: "/pronos", label: "Pronos", icon: Trophy },
-  { href: "/scores", label: "Scores", icon: Radio },
-  { href: "/news", label: "News", icon: Newspaper },
-  { href: "/music", label: "Musique", icon: Music4 },
-  { href: "/classement", label: "Classement", icon: BarChart3 },
-];
+  { href: "/pronos", tKey: "nav.pronos", icon: Trophy },
+  { href: "/scores", tKey: "nav.scores", icon: Radio },
+  { href: "/news", tKey: "nav.news", icon: Newspaper },
+  { href: "/music", tKey: "nav.music", icon: Music4 },
+  { href: "/classement", tKey: "nav.classement", icon: BarChart3 },
+] as const;
 
 export function Header({ user }: { user: SessionUser | null }) {
   const pathname = usePathname();
@@ -37,6 +38,7 @@ export function Header({ user }: { user: SessionUser | null }) {
   const [loggingOut, setLoggingOut] = useState(false);
   const adminUnlocked = useUiStore((s) => s.adminUnlocked);
   const setAdminUnlocked = useUiStore((s) => s.setAdminUnlocked);
+  const { lang, setLang, t } = useT();
 
   // --- Easter egg : 5 clics sur le logo ---
   const clicks = useRef(0);
@@ -106,7 +108,7 @@ export function Header({ user }: { user: SessionUser | null }) {
                 pathname.startsWith(link.href) ? "text-foreground bg-secondary" : "text-muted-foreground"
               )}
             >
-              {link.label}
+              {t(link.tKey)}
             </Link>
           ))}
           {showAdmin && (
@@ -117,19 +119,34 @@ export function Header({ user }: { user: SessionUser | null }) {
                 pathname.startsWith("/admin") ? "text-amber-400 bg-amber-500/10" : "text-amber-400/80"
               )}
             >
-              ⚙️ Admin
+              {t("nav.admin")}
             </Link>
           )}
         </nav>
 
         {/* Zone utilisateur */}
         <div className="flex items-center gap-2">
+          {/* Sélecteur de langue FR / EN / DE */}
+          <div className="hidden items-center gap-0.5 rounded-lg border border-white/5 bg-secondary/50 p-0.5 sm:flex" role="group" aria-label="Langue / Language / Sprache">
+            {LANGS.map((l) => (
+              <button
+                key={l.code}
+                onClick={() => setLang(l.code)}
+                className={cn(
+                  "rounded-md px-2 py-1 text-[11px] font-bold transition-colors",
+                  lang === l.code ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
           {user ? (
             <>
               <Link href="/dashboard" className="hidden sm:block">
                 <Button variant="ghost" size="sm" className="gap-2">
                   <LayoutDashboard className="h-4 w-4" />
-                  <span className="hidden lg:inline">Mon espace</span>
+                  <span className="hidden lg:inline">{t("nav.space")}</span>
                   <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-bold text-primary">
                     {user.total_points} pts
                   </span>
@@ -154,11 +171,11 @@ export function Header({ user }: { user: SessionUser | null }) {
           ) : (
             <>
               <Link href="/login">
-                <Button variant="ghost" size="sm">Connexion</Button>
+                <Button variant="ghost" size="sm">{t("nav.login")}</Button>
               </Link>
               <Link href="/signup" className="hidden sm:block">
                 <Button size="sm" variant="glow" className="gap-1.5">
-                  <Zap className="h-4 w-4" /> Jouer gratuitement
+                  <Zap className="h-4 w-4" /> {t("nav.playFree")}
                 </Button>
               </Link>
             </>
@@ -196,7 +213,7 @@ export function Header({ user }: { user: SessionUser | null }) {
                     pathname.startsWith(link.href) ? "bg-secondary text-foreground" : "text-muted-foreground"
                   )}
                 >
-                  <link.icon className="h-4 w-4" /> {link.label}
+                  <link.icon className="h-4 w-4" /> {t(link.tKey)}
                 </Link>
               ))}
               <Link
