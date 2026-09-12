@@ -117,7 +117,12 @@ export function ChatThread({ initial, myId }: { initial: ChatThread; myId: strin
           <AvatarFallback>{other.slice(0, 1).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-bold">{other}</p>
+          <p className="truncate font-bold">
+            {other}
+            {thread.other_email_verified && (
+              <span className="ml-1 text-sm font-normal text-emerald-400" title="Email vérifié">✓ Vérifié</span>
+            )}
+          </p>
           <p className="truncate text-xs text-muted-foreground">
             {thread.conversation.context_type === "annonce" ? "📢" : "🚗"} {thread.context_title}
             {thread.am_owner ? " · tu es le propriétaire" : ""}

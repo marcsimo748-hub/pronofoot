@@ -19,7 +19,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="container py-8">
-      <DashboardClient username={user.username} data={data} userId={user.id} />
+      <DashboardClient username={user.username} data={data} userId={user.id} emailVerified={user.email_verified} email={user.email} />
     </div>
   );
 }

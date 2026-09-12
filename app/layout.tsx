@@ -5,6 +5,7 @@ import { NewsTicker } from "@/components/news/NewsTicker";
 import { MusicPlayer } from "@/components/music/MusicPlayer";
 import { AiAssistantWidget } from "@/components/ai/AiAssistantWidget";
 import { SyncManager } from "@/components/layout/SyncManager";
+import { PWARegister } from "@/components/pwa/PWARegister";
 import { getSettings } from "@/lib/services/settings.service";
 import { getLatestNews } from "@/lib/services/news.service";
 import { getSongs } from "@/lib/services/music.service";
@@ -23,6 +24,15 @@ export const metadata: Metadata = {
   description:
     "Pronostics, Emploi, Visa, Logement et Annonces : la Super-App de la Diaspora. Scores live, news et assistant IA inclus. 100% gratuit.",
   applicationName: SITE_NAME,
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: SITE_NAME,
+  },
+  icons: {
+    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -61,6 +71,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <MusicPlayer initialSongs={songs as Song[]} />
         <AiAssistantWidget />
         <SyncManager />
+        <PWARegister />
         <Toaster position="top-center" />
         {/* user passé pour hydratation éventuelle (audit) */}
         <span hidden data-user={user?.username ?? ""} />

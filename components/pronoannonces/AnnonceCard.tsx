@@ -85,6 +85,9 @@ export function AnnonceCard({ annonce, isOwner, onOpen, onHide, onDelete }: Prop
             </AvatarFallback>
           </Avatar>
           <span className="truncate">{annonce.author?.username ?? "Anonyme"}</span>
+          {annonce.author?.email_verified && (
+            <span className="shrink-0 text-emerald-400" title="Email vérifié">✓</span>
+          )}
         </div>
 
         {isOwner ? (

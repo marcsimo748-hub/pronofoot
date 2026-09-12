@@ -6,6 +6,21 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+/** Select auteur avec badge ✓ vérifié (colonne profiles.email_verified, migration 011) */
+const AUTHOR_VERIFIED = "*, author:profiles(username, avatar_url, email_verified)";
+const AUTHOR_BASIC = "*, author:profiles(username, avatar_url)";
+
+/** Migration 011 pas encore exécutée → retomber sur l'ancien select */
+function missingVerified(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST204" ||
+    msg.includes("email_verified") ||
+    msg.includes("could not find the column")
+  );
+}
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { PronoAnnonce } from "@/lib/types";
 
@@ -33,22 +48,26 @@ export async function listAnnonces(
 ): Promise<PronoAnnonce[]> {
   try {
     const supabase = createSupabaseServerClient();
-    let query = supabase
-      .from("prono_annonces")
-      .select("*, author:profiles(username, avatar_url)")
-      .order("created_at", { ascending: false })
-      .limit(60);
+    const build = (select: string) => {
+      let query = supabase
+        .from("prono_annonces")
+        .select(select)
+        .order("created_at", { ascending: false })
+        .limit(60);
 
-    if (filters.id) query = query.eq("id", filters.id);
-    if (opts.mine && opts.userId) query = query.eq("user_id", opts.userId);
-    if (filters.category) query = query.eq("category", filters.category);
-    if (filters.city) query = query.ilike("city", `%${filters.city.replace(/[%(),]/g, " ")}%`);
-    if (filters.q) {
-      const q = filters.q.replace(/[%(),]/g, " ").trim();
-      if (q) query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
-    }
+      if (filters.id) query = query.eq("id", filters.id);
+      if (opts.mine && opts.userId) query = query.eq("user_id", opts.userId);
+      if (filters.category) query = query.eq("category", filters.category);
+      if (filters.city) query = query.ilike("city", `%${filters.city.replace(/[%(),]/g, " ")}%`);
+      if (filters.q) {
+        const q = filters.q.replace(/[%(),]/g, " ").trim();
+        if (q) query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
+      }
+      return query;
+    };
 
-    const { data, error } = await query;
+    let { data, error } = await build(AUTHOR_VERIFIED);
+    if (missingVerified(error)) ({ data, error } = await build(AUTHOR_BASIC));
     if (error || !data) return [];
     return data as unknown as PronoAnnonce[];
   } catch {
@@ -95,7 +114,7 @@ export async function createAnnonce(
     const { data, error } = await supabase
       .from("prono_annonces")
       .insert(row)
-      .select("*, author:profiles(username, avatar_url)")
+      .select(AUTHOR_BASIC)
       .single();
     if (error) {
       if (error.message.includes("exist") || error.code === "PGRST205") {

@@ -419,3 +419,18 @@ Discussions privées liées au compte : les coordonnées ne sortent JAMAIS du si
 - ⚠️ MIGRATION 010 OBLIGATOIRE dans Supabase SQL Editor : supabase/migrations/010_prono_chat.sql
   (copie les contacts existants vers les tables privées puis supprime les colonnes publiques ;
   tant qu'elle n'est pas exécutée, la publication d'annonces/trajets échoue proprement avec le code no_contact_table)
+
+## Mission 10 — Notifications 🔔 + Vérification profil ✓ + PWA 📱 (2026-09-12)
+- Notifications in-app : cloche dans le header (badge non-lus, menu déroulant, tout marquer lu).
+  Créées par des triggers SQL (impossible de spammer les autres membres) :
+  nouveau message, nouvelle discussion sur une annonce/un trajet, coordonnées partagées.
+  Limite automatique de 50 notifications par membre.
+- Vérification de profil : badge ✓ vert (email vérifié) sur les annonces, trajets,
+  covoiturage et chat + bannière sur le dashboard avec bouton Renvoyer l'email.
+  Les comptes déjà confirmés sont marqués vérifiés automatiquement (backfill).
+- PWA : site installable sur mobile (Android : Ajouter à l'écran d'accueil,
+  iOS : Partager puis Sur l'écran d'accueil). Icône verte P, manifest, page hors-ligne,
+  service worker prudent (jamais de cache sur les API ni les pages dynamiques).
+- ⚠️ MIGRATION 011 à exécuter dans Supabase SQL Editor (APRÈS 009 et 010) :
+  supabase/migrations/011_prono_notifications_verified.sql
+  Sans elle le site fonctionne quand même : notifications vides et badge absent (fallback propre).

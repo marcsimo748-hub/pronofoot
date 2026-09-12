@@ -142,7 +142,13 @@ export function AnnonceDetail({
           </Avatar>
           <div className="text-sm">
             <span className="font-medium">{annonce.author?.username ?? "Anonyme"}</span>
-            <span className="ml-2 text-muted-foreground">· Membre PRONO</span>
+            {annonce.author?.email_verified ? (
+              <span className="ml-1.5 text-emerald-400" title="Email vérifié">
+                ✓ <span className="text-xs text-emerald-400/80">Vérifié</span>
+              </span>
+            ) : (
+              <span className="ml-2 text-muted-foreground">· Membre PRONO</span>
+            )}
           </div>
           <Badge variant="secondary" className="ml-auto">
             {cat.emoji} {cat.label}

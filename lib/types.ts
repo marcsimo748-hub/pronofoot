@@ -27,6 +27,8 @@ export interface Profile {
 export interface SessionUser {
   id: string;
   email: string | null;
+  /** Email confirmé (badge ✓ vérifié) */
+  email_verified: boolean;
   username: string;
   avatar_url: string | null;
   is_admin: boolean;
@@ -303,7 +305,7 @@ export interface PronoAnnonce {
   reports_count: number;
   created_at: string;
   updated_at: string;
-  author?: { username: string | null; avatar_url: string | null } | null;
+  author?: { username: string | null; avatar_url: string | null; email_verified?: boolean } | null;
 }
 
 // ---------- MODULE 6 : PRONO-VOYAGE ----------
@@ -320,7 +322,7 @@ export interface PronoVoyageTrip {
   reports_count: number;
   created_at: string;
   updated_at: string;
-  author?: { username: string | null; avatar_url: string | null } | null;
+  author?: { username: string | null; avatar_url: string | null; email_verified?: boolean } | null;
 }
 
 // ---------- MODULE 7 : MESSAGERIE INTERNE ----------
@@ -356,6 +358,7 @@ export interface ChatThreadSummary {
   context_title: string;
   other_username: string | null;
   other_avatar: string | null;
+  other_email_verified: boolean | null;
   last_message: string | null;
   last_message_at: string | null;
   unread: number;
@@ -370,7 +373,19 @@ export interface ChatThread {
   am_owner: boolean;
   other_username: string | null;
   other_avatar: string | null;
+  other_email_verified: boolean | null;
   context_title: string;
   /** Coordonnées du propriétaire, visibles uniquement si contact_revealed */
   contact: { preference: string; value: string } | null;
+}
+
+/** Notification in-app (table prono_notifications, migration 011) */
+export interface PronoNotification {
+  id: string;
+  type: "chat_message" | "chat_new" | "chat_contact" | "system";
+  title: string;
+  body: string | null;
+  link: string | null;
+  read: boolean;
+  created_at: string;
 }

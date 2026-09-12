@@ -82,6 +82,9 @@ export function ChatList() {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <p className="truncate font-semibold">{c.other_username ?? "Membre PRONO"}</p>
+              {c.other_email_verified && (
+                <span className="text-emerald-400" title="Email vérifié">✓</span>
+              )}
               {c.contact_revealed && <span title="Coordonnées révélées">🔓</span>}
               <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
                 {timeShort(c.last_message_at)}

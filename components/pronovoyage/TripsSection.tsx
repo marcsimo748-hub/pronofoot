@@ -402,6 +402,9 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
                   </AvatarFallback>
                 </Avatar>
                 <span className="truncate">{t.author?.username ?? "Anonyme"}</span>
+                {t.author?.email_verified && (
+                  <span className="shrink-0 text-emerald-400" title="Email vérifié">✓</span>
+                )}
               </div>
               <div className="mt-3">
                 {isOwnerOf(t, userId) ? (
@@ -452,6 +455,9 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
                   📅 {humanDateFr(selected.trip_date)} · 💺 {seatsLabel(selected.seats)} · 💶{" "}
                   {selected.price_eur > 0 ? `${selected.price_eur} €` : "gratuit"} · par{" "}
                   {selected.author?.username ?? "Anonyme"}
+                  {selected.author?.email_verified && (
+                    <span className="text-emerald-400" title="Email vérifié">✓</span>
+                  )}
                 </DialogDescription>
               </DialogHeader>
 

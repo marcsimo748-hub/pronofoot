@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Radio, Newspaper, Music4, BarChart3, LayoutDashboard, Settings, LogOut,
   Menu, X, User2, Zap, Briefcase, UserRound, ShieldCheck, Home, Megaphone, ChevronDown, Plane, MessageCircle } from "lucide-react";
+import { NotificationsBell } from "@/components/notifications/NotificationsBell";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -229,6 +230,7 @@ export function Header({ user }: { user: SessionUser | null }) {
           </div>
           {user ? (
             <>
+              <NotificationsBell />
               <Link href="/messages" className="relative hidden sm:block" aria-label="Mes messages privés">
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
                   <MessageCircle className="h-4 w-4" />

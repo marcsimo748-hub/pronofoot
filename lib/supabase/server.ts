@@ -53,6 +53,8 @@ export async function getSessionUser() {
     return {
       id: user.id,
       email: user.email ?? null,
+      /** Email confirmé (badge ✓ vérifié) — lu depuis la session, aucune migration requise */
+      email_verified: !!user.email_confirmed_at,
       username: profile?.username ?? "joueur",
       avatar_url: profile?.avatar_url ?? null,
       is_admin: profile?.is_admin ?? false,

@@ -9,6 +9,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Trophy, Target, Crosshair, TrendingUp, Users, CalendarDays, Lock, History, ChevronRight, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,9 +29,44 @@ interface DashboardData {
   totalPlayers: number;
 }
 
-export function DashboardClient({ username, data, userId }: { username: string; data: DashboardData; userId: string }) {
+export function DashboardClient({
+  username,
+  data,
+  userId,
+  emailVerified = true,
+  email = null,
+}: {
+  username: string;
+  data: DashboardData;
+  userId: string;
+  emailVerified?: boolean;
+  email?: string | null;
+}) {
   const upcoming = useMemo(() => data.predictions.filter((p) => p.matches?.status === "scheduled"), [data.predictions]);
   const history = useMemo(() => data.predictions.filter((p) => p.calculated), [data.predictions]);
+
+  const [resending, setResending] = useState(false);
+
+  const resendEmail = async () => {
+    if (!email || resending) return;
+    setResending(true);
+    try {
+      const { getSupabaseBrowserClient } = await import("@/lib/supabase/client");
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.resend({ type: "signup", email });
+      if (error) {
+        toast.error("Envoi impossible", { description: "Réessaie dans quelques minutes." });
+      } else {
+        toast.success("Email envoyé ✉️", {
+          description: "Ouvre ta boîte mail et clique sur le lien de confirmation.",
+        });
+      }
+    } catch {
+      toast.error("Erreur réseau, réessaie.");
+    } finally {
+      setResending(false);
+    }
+  };
 
   const cards = [
     { icon: Trophy, label: "Points totaux", value: data.totalPoints, accent: "text-primary" },
@@ -62,6 +98,29 @@ export function DashboardClient({ username, data, userId }: { username: string; 
           </Link>
         </div>
       </div>
+
+      {/* Vérification email (badge ✓ sur tout le site) */}
+      {!emailVerified && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+          <span className="text-2xl">✉️</span>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-amber-300">Vérifie ton adresse email</p>
+            <p className="text-xs text-muted-foreground">
+              Un compte vérifié affiche le badge ✓ vert sur les annonces, les trajets et le
+              chat : les membres te font confiance davantage.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void resendEmail()}
+            disabled={resending}
+            className="shrink-0"
+          >
+            {resending ? "Envoi…" : "Renvoyer l'email"}
+          </Button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

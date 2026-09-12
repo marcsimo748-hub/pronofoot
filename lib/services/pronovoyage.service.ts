@@ -6,6 +6,21 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+/** Select auteur avec badge ✓ vérifié (colonne profiles.email_verified, migration 011) */
+const AUTHOR_VERIFIED = "*, author:profiles(username, avatar_url, email_verified)";
+const AUTHOR_BASIC = "*, author:profiles(username, avatar_url)";
+
+/** Migration 011 pas encore exécutée → retomber sur l'ancien select */
+function missingVerified(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST204" ||
+    msg.includes("email_verified") ||
+    msg.includes("could not find the column")
+  );
+}
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { PronoVoyageTrip } from "@/lib/types";
 
@@ -25,18 +40,22 @@ export async function listTrips(
 ): Promise<PronoVoyageTrip[]> {
   try {
     const supabase = createSupabaseServerClient();
-    let query = supabase
-      .from("prono_voyage_trips")
-      .select("*, author:profiles(username, avatar_url)")
-      .order("trip_date", { ascending: true })
-      .limit(60);
+    const build = (select: string) => {
+      let query = supabase
+        .from("prono_voyage_trips")
+        .select(select)
+        .order("trip_date", { ascending: true })
+        .limit(60);
 
-    if (filters.id) query = query.eq("id", filters.id);
-    if (opts.mine && opts.userId) query = query.eq("user_id", opts.userId);
-    if (filters.origin) query = query.ilike("origin_city", `%${filters.origin.replace(/[%(),]/g, " ")}%`);
-    if (filters.dest) query = query.ilike("dest_city", `%${filters.dest.replace(/[%(),]/g, " ")}%`);
+      if (filters.id) query = query.eq("id", filters.id);
+      if (opts.mine && opts.userId) query = query.eq("user_id", opts.userId);
+      if (filters.origin) query = query.ilike("origin_city", `%${filters.origin.replace(/[%(),]/g, " ")}%`);
+      if (filters.dest) query = query.ilike("dest_city", `%${filters.dest.replace(/[%(),]/g, " ")}%`);
+      return query;
+    };
 
-    const { data, error } = await query;
+    let { data, error } = await build(AUTHOR_VERIFIED);
+    if (missingVerified(error)) ({ data, error } = await build(AUTHOR_BASIC));
     if (error || !data) return [];
     // Les trajets passés (avant aujourd'hui) ne sont plus affichés côté public
     // (sauf pour l'auteur ou l'admin)
@@ -89,7 +108,7 @@ export async function createTrip(
     const { data, error } = await supabase
       .from("prono_voyage_trips")
       .insert(row)
-      .select("*, author:profiles(username, avatar_url)")
+      .select(AUTHOR_BASIC)
       .single();
     if (error) {
       if (error.message.includes("exist") || error.code === "PGRST205") {

@@ -18,6 +18,30 @@ import type {
 const CONTEXTS: ChatContextType[] = ["annonce", "trajet"];
 
 /** Crée la conversation (ou renvoie l'existante) pour une annonce / un trajet */
+/** Profil d'un membre avec le badge ✓ vérifié (fallback propre si 011 absente) */
+async function profileWithVerified(
+  supabase: ReturnType<typeof createSupabaseServerClient>,
+  id: string
+): Promise<{ username: string | null; avatar_url: string | null; email_verified: boolean | null }> {
+  let res = await supabase
+    .from("profiles")
+    .select("username, avatar_url, email_verified")
+    .eq("id", id)
+    .maybeSingle();
+  if (
+    res.error &&
+    (res.error.code === "PGRST204" || (res.error.message ?? "").toLowerCase().includes("email_verified"))
+  ) {
+    res = await supabase.from("profiles").select("username, avatar_url").eq("id", id).maybeSingle();
+  }
+  const d = res.data as { username?: string; avatar_url?: string | null; email_verified?: boolean } | null;
+  return {
+    username: d?.username ?? null,
+    avatar_url: d?.avatar_url ?? null,
+    email_verified: d?.email_verified ?? null,
+  };
+}
+
 export async function createOrGetConversation(
   userId: string,
   contextType: string,
@@ -134,19 +158,16 @@ export async function myConversations(userId: string): Promise<ChatThreadSummary
       }
 
       // Profil de l'autre partie
-      const { data: other } = await supabase
-        .from("profiles")
-        .select("username, avatar_url")
-        .eq("id", otherId)
-        .maybeSingle();
+      const other = await profileWithVerified(supabase, otherId);
 
       summaries.push({
         id: c.id,
         context_type: c.context_type,
         context_id: c.context_id,
         context_title: await contextTitle(supabase, c.context_type, c.context_id),
-        other_username: other?.username ?? null,
-        other_avatar: other?.avatar_url ?? null,
+        other_username: other.username,
+        other_avatar: other.avatar_url,
+        other_email_verified: other.email_verified,
         last_message: lastMsg?.body ?? null,
         last_message_at: lastMsg?.created_at ?? null,
         unread,
@@ -184,11 +205,7 @@ export async function getThread(
       .order("created_at", { ascending: true })
       .limit(300);
 
-    const { data: other } = await supabase
-      .from("profiles")
-      .select("username, avatar_url")
-      .eq("id", otherId)
-      .maybeSingle();
+    const other = await profileWithVerified(supabase, otherId);
 
     // Coordonnées : la RLS ne renvoie la ligne QUE si contact révélé
     // (ou propriétaire / admin). Aucune fuite possible côté serveur.
@@ -215,8 +232,9 @@ export async function getThread(
       conversation: conv,
       messages: (messages ?? []) as PronoMessage[],
       am_owner: amOwner,
-      other_username: other?.username ?? null,
-      other_avatar: other?.avatar_url ?? null,
+      other_username: other.username,
+      other_avatar: other.avatar_url,
+      other_email_verified: other.email_verified,
       context_title: await contextTitle(supabase, conv.context_type, conv.context_id),
       contact,
     };
