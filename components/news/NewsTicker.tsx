@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import Marquee from "react-fast-marquee";
 import { Globe2 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { timeAgo } from "@/lib/utils";
+import { ClientTimeAgo } from "@/components/ui/ClientTimeAgo";
 import type { NewsItem } from "@/lib/types";
 
 export function NewsTicker({ initialNews }: { initialNews: NewsItem[] }) {
@@ -55,7 +55,11 @@ export function NewsTicker({ initialNews }: { initialNews: NewsItem[] }) {
             >
               <span className="font-semibold text-foreground/80">{n.source ?? "Presse"}</span>
               <span className="max-w-[420px] truncate">{n.title}</span>
-              {n.published_at && <span className="opacity-50">· {timeAgo(n.published_at)}</span>}
+              {n.published_at && (
+                <span className="opacity-50">
+                  <ClientTimeAgo date={n.published_at} />
+                </span>
+              )}
             </a>
           ))}
         </Marquee>

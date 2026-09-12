@@ -5,7 +5,7 @@
  */
 
 import { ExternalLink, Newspaper } from "lucide-react";
-import { timeAgo } from "@/lib/utils";
+import { ClientTimeAgo } from "@/components/ui/ClientTimeAgo";
 import type { NewsItem } from "@/lib/types";
 
 export function NewsCard({ article }: { article: NewsItem }) {
@@ -40,7 +40,7 @@ export function NewsCard({ article }: { article: NewsItem }) {
         <div className="mt-auto flex items-center justify-between pt-2 text-[11px] text-muted-foreground">
           <span className="truncate font-medium text-primary/80">{article.source ?? "Presse"}</span>
           <span className="flex shrink-0 items-center gap-1">
-            {article.published_at ? timeAgo(article.published_at) : ""}
+            {article.published_at ? <ClientTimeAgo date={article.published_at} prefix="" /> : null}
             <ExternalLink className="h-3 w-3 opacity-50" />
           </span>
         </div>

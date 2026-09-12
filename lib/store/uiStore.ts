@@ -23,6 +23,12 @@ export const useUiStore = create<UiState>()(
       setAdminUnlocked: (v) => set({ adminUnlocked: v }),
       dismissAnnouncement: (message) => set({ announcementDismissed: message }),
     }),
-    { name: "pronofoot-ui" }
+    {
+      name: "pronofoot-ui",
+      // ⚠️ skipHydration : le localStorage n'est PAS relu au premier rendu client
+      // (le serveur ne peut pas le lire → valeurs différentes → erreur React #425).
+      // La réhydratation est faite APRÈS montage dans SyncManager.
+      skipHydration: true,
+    }
   )
 );

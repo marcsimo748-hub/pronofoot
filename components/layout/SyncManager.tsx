@@ -11,6 +11,7 @@
  */
 
 import { useEffect } from "react";
+import { useUiStore } from "@/lib/store/uiStore";
 
 const SCORES_INTERVAL = 90_000; // 90 secondes
 const NEWS_INTERVAL = 600_000; // 10 minutes
@@ -18,6 +19,11 @@ const CLEANUP_INTERVAL = 6 * 3600_000; // 6 heures
 
 export function SyncManager() {
   useEffect(() => {
+    // Réhydratation APRÈS montage du store UI persisté (localStorage).
+    // Indispensable avec skipHydration: true → aucune erreur d'hydratation
+    // React (#425/#418), les préférences s'appliquent juste après le 1er rendu.
+    void useUiStore.persist.rehydrate();
+
     const ping = (url: string) => {
       fetch(url, { method: "POST" }).catch(() => {}); // silencieux, jamais bloquant
     };
