@@ -300,3 +300,19 @@ Un seul compte, plusieurs profils selon ton besoin — et un générateur de CV 
 ### Activation (1 minute)
 Exécuter le SQL `supabase/migrations/005_prono_profiles.sql` dans Supabase → SQL Editor.
 Sans ce script, la page s'affiche mais l'enregistrement renvoie `no_table`.
+
+## 🆕 MODULE 3 PRONOVISA (`/prono-visa`)
+
+Calculateur de chances de visa Allemagne + guides complets. **Aucune promesse de visa** : disclaimer permanent « Ceci est une estimation, pas un conseil juridique ».
+
+### Ce que fait le module
+- 🧮 **« Calcule tes chances »** : wizard de 8 questions (âge, diplôme, allemand, anglais, projet, secteur, situation, financement) → score % + niveau + conseils personnalisés.
+- 📋 **Checklist des documents** par type de visa (Ausbildung §16a, Studium §16b, Chancenkarte, travail §18, tourisme Schengen) avec priorités ⭐ selon tes réponses.
+- 📚 **6 guides** : Ausbildung, Studium, Chancenkarte, tourisme/visite, étudier en Europe, étudiants africains → Europe (liens officiels : make-it-in-germany, DAAD, anabin, Campus France…).
+- ⚡ **Pré-remplissage** automatique depuis ton profil Visa (module 2) + **historique** des simulations (table `prono_visa_checks`).
+- 🔓 Page **publique** : le calcul marche sans compte ; la sauvegarde nécessite une connexion.
+- 🧭 Bandeau de navigation rapide entre modules (mobile-first) sur toutes les pages /prono-*.
+
+### Activation (30 secondes)
+Exécuter le SQL `supabase/migrations/006_prono_visa.sql` dans Supabase → SQL Editor
+(uniquement pour l'historique des simulations — le calculateur marche déjà sans).
