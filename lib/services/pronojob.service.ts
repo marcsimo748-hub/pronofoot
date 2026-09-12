@@ -41,17 +41,59 @@ async function fetchJson<T = any>(url: string, init?: RequestInit, timeoutMs = 1
   }
 }
 
-/** Retire le HTML d'une description et la tronque proprement */
+/**
+ * Nettoie une description d'offre : certaines sources (Arbeitnow, Adzuna…)
+ * envoient du HTML échappé une ou deux fois. On décode PUIS on retire les
+ * balises, en plusieurs passes jusqu'à stabilité, pour n'avoir que du texte.
+ */
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;|&ldquo;|&rdquo;/gi, '"')
+    .replace(/&#0?39;|&apos;|&rsquo;|&lsquo;/gi, "'")
+    .replace(/&mdash;/gi, ", ")
+    .replace(/&ndash;/gi, "-")
+    .replace(/&hellip;/gi, "…")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(parseInt(d, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
+
+/** Retire les balises : les fermetures de blocs deviennent des espaces, le reste disparaît */
+function stripTags(s: string): string {
+  return s
+    .replace(/<\/(p|div|h[1-6]|li|ul|ol|tr|td|table|section|article|blockquote)>|<br\s*\/?>/gi, " ")
+    .replace(/<\/?[a-zA-Z!][^>]*>/g, "");
+}
+
+/** Passe complète : décoder puis retirer les balises */
+function onePass(s: string): string {
+  return stripTags(decodeEntities(s));
+}
+
+/** Nettoie entièrement (multi-passes) puis tronque proprement */
 function htmlToExcerpt(html: string | null | undefined): string | null {
   if (!html) return null;
-  const text = html
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+  let text = html;
+  for (let i = 0; i < 3; i++) {
+    const pass = onePass(text);
+    if (pass === text) break;
+    text = pass;
+  }
+  text = text
     .replace(/\s+/g, " ")
+    .replace(/:\s*:/g, ":")
     .trim();
   if (!text) return null;
   return text.length <= MAX_DESC ? text : text.slice(0, MAX_DESC - 1).trimEnd() + "…";
+}
+
+/** Re-nettoie un extrait déjà stocké en cache (correction des anciennes lignes) */
+function recleanExcerpt(s: string | null | undefined): string | null {
+  if (!s) return null;
+  return htmlToExcerpt(s) ?? s;
 }
 
 /** Normalise n'importe quel libellé de contrat en catégorie stable */
@@ -410,7 +452,12 @@ export async function getJobs(
 
       const { data, count, error } = await q;
       if (!error && (count ?? 0) > 0) {
-        return { jobs: (data ?? []) as PronoJob[], total: count ?? 0, mode: "db" };
+        // Re-nettoyage : les anciennes lignes du cache peuvent contenir du HTML visible
+        const jobs = (data ?? []).map((row: PronoJob) => ({
+          ...row,
+          description_short: recleanExcerpt(row.description_short),
+        })) as PronoJob[];
+        return { jobs, total: count ?? 0, mode: "db" };
       }
       if (!error && page > 0) return { jobs: [], total: count ?? 0, mode: "db" }; // fin de pagination
     } catch {
@@ -576,7 +623,10 @@ export async function getUserApplications(userId: string, withJobs = true) {
       .from("prono_applications").select(select)
       .eq("user_id", userId).order("created_at", { ascending: false }).limit(50);
     if (error) return [];
-    return (data ?? []).map((a: any) => ({ ...a, job: a.job ?? null }));
+    return (data ?? []).map((a: any) => ({
+      ...a,
+      job: a.job ? { ...a.job, description_short: recleanExcerpt(a.job.description_short) } : null,
+    }));
   } catch {
     return [];
   }
