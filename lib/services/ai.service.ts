@@ -246,6 +246,14 @@ function localFallback(message: string, context: string): string {
   const q = message.toLowerCase();
   const nextMatchLine = context.split("\n").find((l) => l.startsWith("- "));
 
+  // Heure et date (fuseau Berlin, le cœur de la communauté)
+  if (/heure|horloge|quelle heure|time|date.*jour|on est quel/.test(q)) {
+    const now = new Date();
+    const heure = now.toLocaleTimeString("fr-FR", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" });
+    const jour = now.toLocaleDateString("fr-FR", { timeZone: "Europe/Berlin", weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    return `🕒 Il est ${heure} à Berlin, ${jour}.`;
+  }
+
   if (/point|barème|bareme|score exact|gagner/.test(q)) {
     return (
       "📊 Le barème des points :\n" +
@@ -257,43 +265,40 @@ function localFallback(message: string, context: string): string {
   }
   if (/prochain|match|matchs|pronostic|parier|prono/.test(q)) {
     return nextMatchLine
-      ? `⚽ Les prochains matchs à pronostiquer commencent par : ${nextMatchLine.slice(2)}.\nRendez-vous sur la page « Pronos » pour saisir tes scores ! Dès le coup d'envoi, tu verras aussi les pronos de tous les joueurs (onglet 🔴 En direct).`
-      : "⚽ Va sur la page « Pronos » pour voir tous les matchs à pronostiquer (Ligue des Champions, Premier League, LaLiga, Serie A, Ligue 1 et Bundesliga). Dès qu'un match commence, les pronos de tout le monde sont dévoilés dans l'onglet 🔴 En direct.";
+      ? `⚽ Le prochain match : ${nextMatchLine.slice(2)}. Page « Pronos » pour jouer !`
+      : "⚽ Tous les matchs à pronostiquer sont sur la page « Pronos ».";
   }
   if (/score|live|direct|résultat/.test(q)) {
-    return "🔴 Les scores en direct sont sur la page « Scores », mis à jour toutes les 90 secondes. Tu peux aussi voir le bandeau défilant en haut du site.";
+    return "🔴 Scores en direct sur la page « Scores » (maj toutes les 90 s) + bandeau défilant en haut du site.";
   }
   if (/news|actu|actualité|information/.test(q)) {
-    return "📰 Les actualités du monde défilent en haut du site et la page « News » contient tous les derniers articles, rafraîchis toutes les 10 minutes.";
+    return "📰 Actus rafraîchies toutes les 10 min : bandeau en haut + page « News ».";
   }
   if (/musique|son|mp3|playlist/.test(q)) {
-    return "🎵 La musique se lance depuis la page « Musique » : choisis un titre, et le lecteur continue de jouer pendant que tu navigues partout sur le site !";
+    return "🎵 Choisis un titre sur la page « Musique » : il continue pendant toute ta navigation !";
   }
   if (/classement|rank|top|ami|groupe/.test(q)) {
-    return "🏆 Les classements sont sur la page « Classement » : général, par championnat, mensuel et entre amis (groupes privés avec code d'invitation).";
+    return "🏆 Classement général, par championnat, mensuel et groupes privés : page « Classement ».";
   }
   if (/annonce|leboncoin|vendre|acheter/.test(q)) {
-    return "📢 La page « Annonces » regroupe les petites annonces de la communauté (avec photos). Tu discutes d'abord par le chat privé du site, et l'auteur ne révèle son numéro ou son email que s'il accepte l'échange 🔒";
+    return "📢 Petites annonces de la communauté sur la page « Annonces ». Discussion via le chat privé, coordonnées révélées uniquement si l'auteur accepte 🔒";
   }
   if (/covoiturage|trajet|voyage|billet|avion|train/.test(q)) {
-    return "✈️ La page « Voyage » propose des liens officiels pré-remplis pour les billets d'avion et de train (Kayak, Google Flights, Trainline, FlixBus) + le covoiturage communautaire entre membres.";
+    return "✈️ Billets avion/train (Kayak, Trainline, FlixBus...) + covoiturage communautaire : page « Voyage ».";
   }
   if (/emploi|job|travail|jobbing/.test(q)) {
-    return "💼 La page « Emploi » liste les offres en Allemagne pour la diaspora, avec candidature directement depuis le site.";
+    return "💼 Offres d'emploi en Allemagne : page « Emploi », candidature directe depuis le site.";
   }
   if (/app|installer|téléphone|mobile|écran d'accueil/.test(q)) {
-    return "📱 PRONO s'installe comme une vraie app ! Android : menu Chrome → Ajouter à l'écran d'accueil. iPhone : bouton Partager dans Safari → Sur l'écran d'accueil.";
+    return "📱 Installe PRONO : Android → menu Chrome → Ajouter à l'écran d'accueil. iPhone → Partager → Sur l'écran d'accueil.";
   }
   if (/compte|inscription|mot de passe|connexion/.test(q)) {
-    return "🔐 Crée ton compte gratuitement (email + mot de passe), puis pronostique ! Si tu perds ton mot de passe, utilise « Mot de passe oublié » sur la page de connexion.";
+    return "🔐 Inscription gratuite (email + mot de passe). Mot de passe perdu ? « Mot de passe oublié » sur la page de connexion.";
   }
   if (/bonjour|salut|hello|hey|coucou/.test(q)) {
-    return "Salut ! 👋 Je peux t'aider avec les pronos, les scores live, les annonces, l'emploi, le covoiturage... ou répondre à n'importe quelle autre question. Que veux-tu savoir ?";
+    return "Salut ! 👋 Pronos, scores, annonces, emploi, voyage... pose ta question !";
   }
-  return (
-    "Je peux répondre à toutes tes questions (foot, culture, maths, traductions...) et je connais parfaitement le site : pronos, scores live, annonces, chat privé, emploi, voyage...\n" +
-    "💡 L'administrateur peut activer l'IA complète (Groq ou Gemini) dans Admin → 🤖 Assistant IA pour des réponses illimitées en temps réel."
-  );
+  return "Je suis en mode simplifié 🤖 Pose-moi une question sur le site (pronos, scores, classement, annonces, emploi, voyage, musique...) !";
 }
 
 // ---------------------------------------------------------------
