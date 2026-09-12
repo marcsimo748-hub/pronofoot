@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { chatStream, saveChatHistory } from "@/lib/services/ai.service";
+import { chatStream, saveChatHistory, analyzeImage, extractMemories, saveMemories } from "@/lib/services/ai.service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 import type { ChatMsg } from "@/lib/types";
@@ -22,12 +22,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = (await req.json()) as { messages?: ChatMsg[] };
+    const body = (await req.json()) as { messages?: ChatMsg[]; image?: string };
     const messages = (body.messages ?? [])
       .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim())
       .slice(-10);
 
-    if (!messages.length) {
+    if (!messages.length && !body.image) {
       return NextResponse.json({ ok: false, error: "Messages requis" }, { status: 400 });
     }
 
@@ -46,6 +46,30 @@ export async function POST(req: Request) {
     const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
     const encoder = new TextEncoder();
 
+    // IMAGE JOINTE → analyse vision (réponse en une fois)
+    if (body.image && body.image.startsWith("data:")) {
+      let reply = "";
+      try {
+        reply = await analyzeImage(lastUser || "Décris cette image.", body.image);
+      } catch {
+        reply = "Impossible d'analyser cette image pour le moment 😕";
+      }
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode(reply));
+          controller.close();
+          if (userId) void saveChatHistory(userId, "[image jointe]", reply);
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-store",
+          "X-Provider": "gemini",
+        },
+      });
+    }
+
     // Le premier événement du générateur porte TOUJOURS le provider :
     // on le lit AVANT de construire la réponse pour un en-tête exact.
     const gen = chatStream(messages, userId);
@@ -60,27 +84,40 @@ export async function POST(req: Request) {
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         let full = "";
+        let sent = 0;
+        // Le tag [MEMOIRE] n'est JAMAIS envoyé au navigateur :
+        // on n'expédie que la partie visible de la réponse.
+        const pushVisible = () => {
+          const visible = full.split("[MEMOIRE")[0];
+          if (visible.length > sent) {
+            controller.enqueue(encoder.encode(visible.slice(sent)));
+            sent = visible.length;
+          }
+        };
         try {
           if (firstChunk) {
             full += firstChunk;
-            controller.enqueue(encoder.encode(firstChunk));
+            pushVisible();
           }
           for await (const ev of gen) {
             if (ev.chunk) {
               full += ev.chunk;
-              controller.enqueue(encoder.encode(ev.chunk));
+              pushVisible();
             }
           }
         } catch (e) {
           console.error("[api/chat]", e);
           if (!full) {
-            const msg = "Oups, petit souci technique 😅 Réessaie dans un instant.";
-            full = msg;
-            controller.enqueue(encoder.encode(msg));
+            full = "Oups, petit souci technique 😅 Réessaie dans un instant.";
+            pushVisible();
           }
         }
         controller.close();
-        if (userId && full) await saveChatHistory(userId, lastUser, full);
+        if (userId && full) {
+          const { cleaned, memories } = extractMemories(full);
+          if (memories.length) await saveMemories(userId, memories);
+          await saveChatHistory(userId, lastUser, cleaned || full);
+        }
       },
     });
 
@@ -88,7 +125,7 @@ export async function POST(req: Request) {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
-        "X-Provider": provider === "groq" ? "groq" : provider === "gemini" ? "gemini" : "local",
+        "X-Provider": provider, // groq | gemini | web | image | local
       },
     });
   } catch (e) {

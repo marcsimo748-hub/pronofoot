@@ -8,7 +8,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, X, SendHorizonal, Trash2, Sparkles } from "lucide-react";
+import { Bot, X, SendHorizonal, Trash2, Sparkles, Paperclip } from "lucide-react";
+import { toast } from "sonner";
 import { useAiStore } from "@/lib/store/aiStore";
 import { useUiStore } from "@/lib/store/uiStore";
 import { ChatMessage, TypingIndicator } from "./ChatMessage";
@@ -16,11 +17,49 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { ChatMsg } from "@/lib/types";
 
+type PdfLib = {
+  GlobalWorkerOptions: { workerSrc: string };
+  getDocument: (o: { data: ArrayBuffer }) => {
+    promise: Promise<{
+      numPages: number;
+      getPage: (n: number) => Promise<{ getTextContent: () => Promise<{ items: { str?: string }[] }> }>;
+    }>;
+  };
+};
+
+/** Extrait le texte d'un PDF côté navigateur (pdf.js chargé depuis CDN à la demande) */
+async function extractPdfText(file: File): Promise<string> {
+  const w = window as unknown as { pdfjsLib?: PdfLib };
+  if (!w.pdfjsLib) {
+    await new Promise<void>((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("cdn_indisponible"));
+      document.head.appendChild(script);
+    });
+  }
+  const lib = (window as unknown as { pdfjsLib: PdfLib }).pdfjsLib;
+  lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  const buf = await file.arrayBuffer();
+  const doc = await lib.getDocument({ data: buf }).promise;
+  let text = "";
+  const pages = Math.min(doc.numPages, 20);
+  for (let i = 1; i <= pages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map((it) => it.str ?? "").join(" ") + "\n\n";
+    if (text.length > 20_000) break;
+  }
+  return text.slice(0, 20_000);
+}
+
 const SUGGESTIONS = [
   "Quels sont les prochains matchs ?",
   "Comment gagner des points ?",
   "Où voir les scores en direct ?",
   "Comment marche la musique ?",
+  "Dessine-moi une image de Messi",
 ];
 
 export function AiAssistantWidget() {
@@ -36,6 +75,10 @@ export function AiAssistantWidget() {
 
   const [input, setInput] = useState("");
   const [streamText, setStreamText] = useState("");
+  const [pendingFile, setPendingFile] = useState<{ name: string; text: string } | null>(null);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [fileLoading, setFileLoading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -73,20 +116,66 @@ export function AiAssistantWidget() {
     if (isOpen) inputRef.current?.focus();
   }, [isOpen]);
 
+  async function onAttach(file: File) {
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Fichier trop lourd (max 5 Mo).");
+      return;
+    }
+    setFileLoading(true);
+    try {
+      if (file.type.startsWith("image/")) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(new Error("read"));
+          reader.readAsDataURL(file);
+        });
+        setPendingImage(dataUrl);
+        setPendingFile(null);
+      } else if (file.name.toLowerCase().endsWith(".pdf")) {
+        const text = await extractPdfText(file);
+        if (!text.trim()) {
+          toast.error("Ce PDF ne contient pas de texte lisible (scan image ?).");
+        } else {
+          setPendingFile({ name: file.name, text });
+          setPendingImage(null);
+        }
+      } else {
+        const text = await file.text();
+        setPendingFile({ name: file.name, text: text.slice(0, 20_000) });
+        setPendingImage(null);
+      }
+    } catch {
+      toast.error("Impossible de lire ce fichier 😕");
+    } finally {
+      setFileLoading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
   async function send(text?: string) {
     const content = (text ?? input).trim();
     if (!content || isTyping) return;
 
-    const userMsg: ChatMsg = { role: "user", content };
+    const hasFile = !!pendingFile;
+    const hasImage = !!pendingImage;
+    // Le message affiche reste court ; le contenu complet (fichier) va au serveur
+    const display = content + (hasFile ? `\n📎 ${pendingFile!.name}` : "") + (hasImage ? " 📷" : "");
+    const fullContent = hasFile
+      ? `Fichier joint : ${pendingFile!.name}\n\"\"\"\n${pendingFile!.text}\n\"\"\"\n\nQuestion : ${content}`
+      : content;
+    const userMsg: ChatMsg = { role: "user", content: display };
+    const serverMsgs: ChatMsg[] = [...messages.map((m) => ({ role: m.role, content: m.content })), { role: "user" as const, content: fullContent }];
     addMessage(userMsg);
     setInput("");
+    setPendingFile(null);
     setTyping(true);
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMsg].slice(-10) }),
+        body: JSON.stringify({ messages: serverMsgs.slice(-10), image: hasImage ? pendingImage : undefined }),
       });
 
       // Erreur JSON classique (quota, 429...)
@@ -129,6 +218,7 @@ export function AiAssistantWidget() {
       addMessage({ role: "assistant", content: "Impossible de contacter l'assistant pour le moment 😕" });
     } finally {
       setStreamText("");
+      setPendingImage(null);
       setTyping(false);
     }
   }
@@ -225,7 +315,7 @@ export function AiAssistantWidget() {
                 e.preventDefault();
                 void send();
               }}
-              className="flex items-center gap-2 border-t border-white/5 bg-secondary/30 p-3"
+              className="relative flex items-center gap-2 border-t border-white/5 bg-secondary/30 p-3"
             >
               <input
                 ref={inputRef}
@@ -235,9 +325,46 @@ export function AiAssistantWidget() {
                 className="flex-1 rounded-full border border-input bg-background px-4 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring"
                 maxLength={500}
               />
+              {(pendingFile || pendingImage || fileLoading) && (
+                <div className="absolute -top-10 left-2 flex max-w-[85%] items-center gap-1.5 rounded-full border border-primary/30 bg-secondary px-3 py-1 text-[11px]">
+                  {fileLoading ? (
+                    <span className="text-muted-foreground">Lecture du fichier…</span>
+                  ) : pendingFile ? (
+                    <>
+                      <span className="truncate">📎 {pendingFile.name}</span>
+                      <button type="button" onClick={() => setPendingFile(null)} className="ml-1 text-muted-foreground hover:text-foreground">✕</button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="truncate">📷 Image jointe</span>
+                      <button type="button" onClick={() => setPendingImage(null)} className="ml-1 text-muted-foreground hover:text-foreground">✕</button>
+                    </>
+                  )}
+                </div>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.txt,.md,.csv,.json,image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void onAttach(f);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={isTyping || fileLoading}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
+                aria-label="Joindre un fichier (PDF, texte ou image)"
+                title="Joindre un PDF, un fichier texte ou une image"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
               <button
                 type="submit"
-                disabled={!input.trim() || isTyping}
+                disabled={(!input.trim() && !pendingImage) || isTyping}
                 className={cn(
                   "grid h-9 w-9 shrink-0 place-items-center rounded-full transition-all",
                   input.trim() && !isTyping

@@ -43,7 +43,17 @@ TA CONNAISSANCE DU SITE PRONO :
 - SCORES EN DIRECT : la page « Scores » affiche les matchs en cours. Si le contexte ci-dessous contient des matchs en cours, utilise-les pour répondre ; sinon dis honnêtement que tu ne vois pas ce match en direct et invite à consulter la page Scores.
 - APPLICATION MOBILE : le site est une PWA installable gratuitement. Android : menu Chrome puis Ajouter à l'écran d'accueil. iPhone : bouton Partager dans Safari puis Sur l'écran d'accueil.
 - COMPTE : inscription gratuite avec email + mot de passe, mot de passe oublié récupérable. 100% gratuit.
-- IA : c'est toi ! L'admin peut brancher les clés Groq ou Gemini dans Admin > 🤖 Assistant IA.`;
+- IA : c'est toi ! L'admin peut brancher les clés Groq ou Gemini dans Admin > 🤖 Assistant IA.
+
+TA MÉMOIRE : quand tu apprends un fait durable et utile sur l'utilisateur (son équipe préférée, sa ville, son métier, ses goûts, le prénom de ses enfants...), termine ta réponse par une ligne :
+[MEMOIRE]fait court et précis[/MEMOIRE]
+Cette ligne est supprimée automatiquement avant l'affichage et sauvegardée pour les conversations futures. Utilise-la avec parcimonie (une par réponse maximum), seulement pour des informations qui t'aideront à mieux l'aider plus tard. Ne mémorise jamais de données sensibles (mot de passe, coordonnées).
+
+TES CAPACITÉS :
+- Génération d'images : si on te demande de dessiner ou générer une image, une image est créée automatiquement et joint à ta réponse.
+- Recherche web : pour les questions d'actualité brûlante, une recherche Google peut être faite automatiquement pour toi. Si le contexte contient des résultats de recherche, appuie-toi dessus et cite les sources simplement. Sinon, réponds avec tes connaissances en précisant honnêtement leur date limite.
+- Analyse de fichiers : l'utilisateur peut joindre des PDF ou fichiers texte, le contenu est ajouté dans son message. Résume, analyse, réponds précisément.
+- Analyse d'images : les photos jointes sont analysées quand le service vision est disponible.`;
 
 /** Construit le contexte temps réel (matchs, résultats, classement, joueur) */
 export async function buildContext(userId?: string): Promise<string> {
@@ -128,6 +138,10 @@ export async function buildContext(userId?: string): Promise<string> {
       }
 
       if (userId) {
+        const memories = await loadUserMemory(userId);
+        if (memories.length) {
+          parts.push("Ce que tu retiens déjà de cet utilisateur (mémoire) :\n" + memories.map((m) => "- " + m).join("\n"));
+        }
         const { data: profile } = await supabase
           .from("profiles")
           .select("username, total_points")
@@ -153,6 +167,76 @@ export async function buildContext(userId?: string): Promise<string> {
     },
     ""
   );
+}
+
+// ---------------------------------------------------------------
+// CAPACITÉS (Mission 12 — IA 2.0)
+// ---------------------------------------------------------------
+
+/** Demande de génération d'image ? */
+export function imageRequest(text: string): string | null {
+  const q = text.toLowerCase();
+  const asked =
+    /g[ée]n[èe]re|dessine|cr[ée]e|montre.?moi|fais.?moi|image|photo|logo|illustration|dessin|avatar/i.test(q);
+  if (!asked) return null;
+  // "une image de X" / "dessine X" / "un logo de X"
+  const m = text.match(/(?:image|photo|logo|illustration|dessin|avatar|dessine|g[ée]n[èe]re|cr[ée]e|montre.?moi|fais.?moi)\s+(?:une?|d'?un|d'?une|le|la|de|du|des)?\s*(.+)/i);
+  const prompt = (m?.[1] ?? text).replace(/[?!.]+$/, "").trim().slice(0, 180);
+  return prompt || null;
+}
+
+/** URL d'image générée (Pollinations, gratuit, sans clé) */
+export function imageUrl(prompt: string): string {
+  const seed = Math.floor(Math.random() * 1_000_000);
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&nologo=true&seed=${seed}`;
+}
+
+/** La question réclame des infos fraîches du web ? */
+export function needsFreshInfo(text: string): boolean {
+  return /aujourd.?hui|en ce moment|actuel|derni[eè]re?s? |news|actualit[ée]s?|m[ée]t[ée]o|temp[ée]rature|qui a gagn[ée]|hier soir|resultat|résultat|score (de|du|hier)|prix (actuel|du jour)|cours (actuel|du jour)|en direct|sur internet|sur le net|cherch/i.test(
+    text
+  );
+}
+
+/** Mémoire : charge ce que l'IA sait déjà sur ce membre */
+async function loadUserMemory(userId: string): Promise<string[]> {
+  return safeQuery(async () => {
+    const supabase = createSupabaseServerClient();
+    const { data } = await supabase
+      .from("prono_ai_memory")
+      .select("content")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(12);
+    return (data ?? []).map((r) => r.content as string);
+  }, []);
+}
+
+/** Mémoire : extrait les tags [MEMOIRE] de la réponse */
+export function extractMemories(full: string): { cleaned: string; memories: string[] } {
+  const memories: string[] = [];
+  const cleaned = full
+    .replace(/\[MEMOIRE\]([\s\S]*?)\[\/MEMOIRE\]/g, (_m, fact) => {
+      const f = String(fact).trim().slice(0, 300);
+      if (f) memories.push(f);
+      return "";
+    })
+    .replace(/\[MEMOIRE\][\s\S]*$/g, "") // tag non fermé en fin de flux
+    .trimEnd();
+  return { cleaned, memories };
+}
+
+/** Mémoire : sauvegarde (1 max par réponse) */
+export async function saveMemories(userId: string, memories: string[]) {
+  if (!memories.length) return;
+  try {
+    const supabase = createSupabaseServerClient();
+    await supabase
+      .from("prono_ai_memory")
+      .insert(memories.slice(0, 1).map((content) => ({ user_id: userId, content })));
+  } catch {
+    // table absente (013 non exécutée) : non bloquant
+  }
 }
 
 // ---------------------------------------------------------------
@@ -283,6 +367,75 @@ async function callGemini(messages: ChatMsg[], system: string): Promise<string> 
 }
 
 // ---------------------------------------------------------------
+// Gemini + RECHERCHE WEB (Google Search intégré, clé Gemini requise)
+// ---------------------------------------------------------------
+async function callGeminiSearch(messages: ChatMsg[], system: string): Promise<string> {
+  const { gemini: key } = await loadSecrets();
+  if (!key) throw new Error("no_key");
+  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: messages.slice(-6).map((m) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.content }],
+        })),
+        tools: [{ google_search: {} }],
+        generationConfig: { maxOutputTokens: 900, temperature: 0.4 },
+      }),
+    }
+  );
+  if (!res.ok) throw new Error(`Gemini ${res.status}`);
+  const json = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const reply = json.candidates?.[0]?.content?.parts?.map((p) => p.text).join("").trim();
+  if (!reply) throw new Error("empty");
+  return reply;
+}
+
+// ---------------------------------------------------------------
+// Gemini VISION : analyse d'une image jointe (clé Gemini requise)
+// ---------------------------------------------------------------
+export async function analyzeImage(prompt: string, dataUrl: string): Promise<string> {
+  const { gemini: key } = await loadSecrets();
+  if (!key) {
+    return "Pour analyser des images, l'admin doit ajouter une clé Gemini (gratuite sur aistudio.google.com) dans Admin → 🤖 Assistant IA 📷";
+  }
+  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!m) return "Format d'image non reconnu.";
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt || "Décris cette image en détail." }, { inline_data: { mime_type: m[1], data: m[2] } }],
+          },
+        ],
+        generationConfig: { maxOutputTokens: 700 },
+      }),
+    }
+  );
+  if (!res.ok) throw new Error(`Gemini vision ${res.status}`);
+  const json = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const reply = json.candidates?.[0]?.content?.parts?.map((p) => p.text).join("").trim();
+  return reply || "Je n'ai rien pu voir sur cette image 😅";
+}
+
+// ---------------------------------------------------------------
 // Provider 3 : réponses locales (aucune clé requise — jamais muet)
 // ---------------------------------------------------------------
 function localFallback(message: string, context: string): string {
@@ -354,6 +507,29 @@ export async function* chatStream(
   const context = await buildContext(userId);
   const system = SYSTEM_PROMPT + (context ? `\n\n${context}` : "");
   const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+
+  // 0) GÉNÉRATION D'IMAGE (Pollinations, gratuit, sans clé)
+  const imgPrompt = imageRequest(lastUser);
+  if (imgPrompt) {
+    yield { provider: "image" };
+    yield {
+      chunk: `Voici ton image 🎨 (${imgPrompt})\n\n![image](${imageUrl(imgPrompt)})\n\nElle s'affiche dans quelques secondes. Dis-moi si tu veux une variante !`,
+    };
+    return;
+  }
+
+  // 1) ACTUALITÉ / INFOS FRAÎCHES → Gemini + recherche Google (si clé)
+  if (needsFreshInfo(lastUser)) {
+    try {
+      const reply = await callGeminiSearch(messages, system);
+      yield { provider: "web" };
+      yield { chunk: reply };
+      return;
+    } catch (e) {
+      if ((e as Error).message !== "no_key") console.warn("[ai.service] Gemini search KO :", (e as Error).message);
+      // pas de clé ou erreur → on continue sur Groq avec le contexte du site
+    }
+  }
 
   // GROQ en streaming
   try {

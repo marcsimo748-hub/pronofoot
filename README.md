@@ -450,3 +450,17 @@ Discussions privées liées au compte : les coordonnées ne sortent JAMAIS du si
 - ⚠️ MIGRATION 012 à exécuter dans Supabase SQL Editor (après 011) :
   supabase/migrations/012_prono_visibility_ai.sql — OBLIGATOIRE pour le dévoilement
   des pronos et le stockage des clés IA.
+
+## Mission 12 — Assistant IA 2.0 🤖🎨🌐📎🧠 (2026-09-12)
+- GÉNÉRATION D'IMAGES : « dessine-moi une image de... » → image générée gratuitement
+  (Pollinations, sans clé) et affichée directement dans le chat.
+- RECHERCHE WEB : les questions d'actualité (météo, news, résultats, prix...) partent
+  sur Gemini + Google Search si la clé Gemini est configurée (Admin > 🤖 Assistant IA).
+- ANALYSE DE FICHIERS : bouton 📎 dans le chat — PDF (extraction texte via pdf.js),
+  txt, csv, md, json analysés par l'IA ; photos analysées via Gemini (vision).
+- MÉMOIRE : l'IA retient ce qu'elle apprend sur chaque membre (équipe préférée, ville,
+  goûts) dans prono_ai_memory et réutilise aux conversations suivantes. Le tag
+  [MEMOIRE] est automatiquement retiré de l'affichage et sauvegardé côté serveur.
+- Multi-clés : Groq (conversation, GPT-OSS 120B) + Gemini (web, vision, secours).
+- ⚠️ MIGRATION 013 à exécuter (après 012) : supabase/migrations/013_prono_ai_memory.sql
+  — sans elle : pas de mémoire, tout le reste fonctionne.

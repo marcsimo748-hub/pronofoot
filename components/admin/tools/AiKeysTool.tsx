@@ -149,7 +149,7 @@ export function AiKeysTool() {
 
       {/* Clé Gemini */}
       <div className="space-y-1.5">
-        <p className="text-sm font-semibold">Clé Gemini (secours, facultatif)</p>
+        <p className="text-sm font-semibold">Clé Gemini (recherche web + analyse d'images + PDF)</p>
         <div className="flex gap-2">
           <Input
             type="password"
@@ -164,7 +164,7 @@ export function AiKeysTool() {
           )}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          aistudio.google.com → Get API Key. Utilisée automatiquement si Groq tombe en panne.
+          aistudio.google.com → Get API Key. Débloque la recherche Google pour les questions d'actualité, l'analyse des photos jointes et sert de secours à Groq.
         </p>
       </div>
 

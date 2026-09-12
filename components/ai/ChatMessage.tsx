@@ -9,8 +9,24 @@ import { Bot, User2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatMsg } from "@/lib/types";
 
+/** Découpe le texte en segments texte / image markdown ![alt](url) */
+function splitImages(content: string): { text?: string; image?: { alt: string; url: string } }[] {
+  const out: { text?: string; image?: { alt: string; url: string } }[] = [];
+  const re = /!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content))) {
+    if (m.index > last) out.push({ text: content.slice(last, m.index) });
+    out.push({ image: { alt: m[1], url: m[2] } });
+    last = m.index + m[0].length;
+  }
+  if (last < content.length) out.push({ text: content.slice(last) });
+  return out;
+}
+
 export function ChatMessage({ message }: { message: ChatMsg }) {
   const isUser = message.role === "user";
+  const parts = splitImages(message.content);
 
   return (
     <motion.div
@@ -37,7 +53,20 @@ export function ChatMessage({ message }: { message: ChatMsg }) {
             : "rounded-tl-sm bg-secondary text-foreground"
         )}
       >
-        {message.content}
+        {parts.map((part, i) =>
+          part.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={part.image.url}
+              alt={part.image.alt}
+              className="my-1.5 max-h-64 w-full rounded-lg border border-white/10 object-contain"
+              loading="lazy"
+            />
+          ) : (
+            <span key={i}>{part.text}</span>
+          )
+        )}
       </div>
     </motion.div>
   );
