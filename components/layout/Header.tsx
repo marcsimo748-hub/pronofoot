@@ -12,7 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Radio, Newspaper, Music4, BarChart3, LayoutDashboard, Settings, LogOut,
-  Menu, X, User2, Zap, Briefcase, UserRound, ShieldCheck, Home, Megaphone, ChevronDown } from "lucide-react";
+  Menu, X, User2, Zap, Briefcase, UserRound, ShieldCheck, Home, Megaphone, ChevronDown, Plane } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -36,6 +36,7 @@ const MODULE_LINKS = [
   { href: "/prono-visa", tKey: "nav.visa", icon: ShieldCheck },
   { href: "/prono-housing", tKey: "nav.housing", icon: Home },
   { href: "/prono-annonces", tKey: "nav.annonces", icon: Megaphone },
+  { href: "/prono-voyage", tKey: "nav.voyage", icon: Plane },
 ] as const;
 
 export function Header({ user }: { user: SessionUser | null }) {

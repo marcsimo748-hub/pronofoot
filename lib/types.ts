@@ -307,3 +307,22 @@ export interface PronoAnnonce {
   updated_at: string;
   author?: { username: string | null; avatar_url: string | null } | null;
 }
+
+// ---------- MODULE 6 : PRONO-VOYAGE ----------
+export interface PronoVoyageTrip {
+  id: string;
+  user_id: string;
+  origin_city: string;
+  dest_city: string;
+  trip_date: string; // YYYY-MM-DD
+  seats: number;
+  price_eur: number;
+  note: string;
+  contact_preference: string; // whatsapp | email
+  contact_value: string;
+  status: string; // active | hidden | removed
+  reports_count: number;
+  created_at: string;
+  updated_at: string;
+  author?: { username: string | null; avatar_url: string | null } | null;
+}

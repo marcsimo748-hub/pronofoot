@@ -17,6 +17,7 @@ const THEME_BY_MODULE: Record<string, string> = {
   "/prono-visa": "theme-visa",
   "/prono-housing": "theme-housing",
   "/prono-annonces": "theme-annonces",
+  "/prono-voyage": "theme-voyage",
 };
 
 interface ModuleLink {
@@ -32,6 +33,7 @@ const MODULES: ModuleLink[] = [
   { href: "/prono-visa", label: "Visa", icon: "🛂" },
   { href: "/prono-housing", label: "Logement", icon: "🏠" },
   { href: "/prono-annonces", label: "Annonces", icon: "📢" },
+  { href: "/prono-voyage", label: "Voyage", icon: "🌍" },
 ];
 
 export function ModulesNav() {

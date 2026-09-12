@@ -89,11 +89,10 @@ const SERVICES: Service[] = [
     ctaColor: "text-[#e11d48]",
   },
   {
-    href: null,
+    href: "/prono-voyage",
     name: "PRONO Voyage",
-    desc: "Billets, trajets partagés et bons plans pour voyager malin entre ici et là-bas.",
+    desc: "Vols, train et bus avec tes filtres, covoiturage de la communauté et guides formalités.",
     icon: Plane,
-    soon: true,
     border: "border-[#0891b2]/40",
     iconBox: "bg-[#0891b2]/15 text-[#0891b2]",
     iconHover: "group-hover:bg-white/20 group-hover:text-white",

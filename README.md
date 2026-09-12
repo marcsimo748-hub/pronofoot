@@ -382,3 +382,28 @@ Exécuter le SQL `supabase/migrations/007_prono_housing.sql` dans Supabase → S
 - **Postuler (Emploi), Contacter / Publier / Signaler (Annonces), Sauvegarder (Logement)** : modale Connexion / Inscription (`AuthModal`) si non connecté
 - Après connexion, **redirection automatique vers l'offre exacte cliquée** (localStorage `redirectAfterLogin`) : l'offre d'emploi se rouvre et la candidature s'enregistre, l'annonce s'ouvre avec le contact révélé
 - Bouton Accueil (logo) toujours visible, session conservée
+
+---
+
+## 🌍 Module 6 — PRONO Voyage (`/prono-voyage`)
+
+**Ton lanceur de recherche voyage 100% légal** — ici ↔ là-bas, cyan.
+
+### Fonctionnalités
+- **🎫 Billets** : lanceur officiel avec tes filtres
+  - ✈️ **Avion** : Kayak (URL IATA + date, vérifiée) + Google Flights (dates flexibles), 12 villes de départ ↔ 16 destinations Afrique
+  - 🚆 **Train & Bus Europe** : Trainline (recherche datée, slugs vérifiés) + FlixBus (routes vérifiées) + BlaBlaCar, 14 destinations
+- **🚗 Covoiturage de la communauté** : publie ton trajet (villes, date, places, prix, note), recherche, contact WhatsApp/email, mes trajets (masquer/supprimer), signalement (3 = masquage auto)
+- **📋 Formalités** : 5 guides (passeport, douane & bagages, santé & vaccins, argent, checklist) + chiffres clés
+- **Outil admin n°13** : Modération Covoiturage
+- Connexion requise pour publier/contacter/signaler → modale + retour au trajet exact (`redirectAfterLogin`)
+- Couleur : `theme-voyage` cyan #0891b2 (page + bandeau modules + carte accueil)
+
+### Fichiers
+- `supabase/migrations/009_prono_voyage.sql` — tables `prono_voyage_trips` + `prono_voyage_trip_reports` (RLS identique annonces)
+- `components/pronovoyage/` — VoyageClient, TripsSection, VoyageGuides, voyage-data
+- `lib/services/pronovoyage.service.ts` + `app/api/prono-voyage/` (route + report)
+- `app/(modules)/prono-voyage/page.tsx` — publique, préremplissage ville de départ depuis le profil
+
+### À faire (une fois)
+1. Coller `supabase/migrations/009_prono_voyage.sql` dans Supabase → SQL Editor (covoiturage ; les billets fonctionnent sans)

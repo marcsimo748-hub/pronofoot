@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Panneau Admin — les 12 outils, activés par le PASS VIP (5 clics sur le logo).
+ * Panneau Admin — les 13 outils, activés par le PASS VIP (5 clics sur le logo).
  */
 
 import { useEffect, useState } from "react";
@@ -21,6 +21,7 @@ import { AnnouncementTool } from "./tools/AnnouncementTool";
 import { StatsTool } from "./tools/StatsTool";
 import { UsersTool } from "./tools/UsersTool";
 import { AnnoncesModerationTool } from "./tools/AnnoncesModerationTool";
+import { TripsModerationTool } from "./tools/TripsModerationTool";
 import type { SiteSettings } from "@/lib/types";
 
 export function AdminPanel({ settings }: { settings: SiteSettings }) {
@@ -52,6 +53,7 @@ export function AdminPanel({ settings }: { settings: SiteSettings }) {
     { id: "stats", emoji: "📊", title: "Statistiques Cloud", desc: "Vue d'ensemble de la plateforme", component: <StatsTool /> },
     { id: "users", emoji: "👥", title: "Gestion des Joueurs", desc: "Voir les comptes et gérer les admins", component: <UsersTool /> },
     { id: "annonces", emoji: "📢", title: "Modération Annonces", desc: "Masquer, afficher ou supprimer les annonces", component: <AnnoncesModerationTool /> },
+    { id: "covoiturage", emoji: "🚗", title: "Modération Covoiturage", desc: "Gérer les trajets voyage de la communauté", component: <TripsModerationTool /> },
   ];
   const [openTool, setOpenTool] = useState<string | null>(null);
 
@@ -65,7 +67,7 @@ export function AdminPanel({ settings }: { settings: SiteSettings }) {
           <div>
             <h1 className="text-xl font-black">⚙️ Panneau Administrateur</h1>
             <p className="flex items-center gap-1.5 text-xs text-amber-300/80">
-              <ShieldCheck className="h-3.5 w-3.5" /> 12 outils — tout est sauvegardé dans Supabase
+              <ShieldCheck className="h-3.5 w-3.5" /> 13 outils — tout est sauvegardé dans Supabase
             </p>
           </div>
         </div>
