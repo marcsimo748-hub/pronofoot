@@ -286,3 +286,24 @@ export interface PronoProfile {
   created_at: string;
   updated_at: string;
 }
+
+// ---------- MODULE 5 : PRONO-ANNONCES ----------
+export type AnnonceCategory = "rencontre" | "partenaire" | "ami" | "logement" | "service";
+
+export interface PronoAnnonce {
+  id: string;
+  user_id: string;
+  category: AnnonceCategory;
+  title: string;
+  description: string;
+  city: string;
+  country: string;
+  photos: string[];
+  contact_preference: string; // whatsapp | email
+  contact_value: string;
+  status: string; // active | hidden | removed
+  reports_count: number;
+  created_at: string;
+  updated_at: string;
+  author?: { username: string | null; avatar_url: string | null } | null;
+}

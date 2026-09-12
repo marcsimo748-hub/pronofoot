@@ -10,12 +10,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const MODULES = [
+interface ModuleLink {
+  href: string;
+  label: string;
+  icon: string;
+  soon?: boolean;
+}
+
+const MODULES: ModuleLink[] = [
   { href: "/prono-job", label: "Emploi", icon: "💼" },
   { href: "/prono-profil", label: "Profil & CV", icon: "🧩" },
   { href: "/prono-visa", label: "Visa", icon: "🛂" },
   { href: "/prono-housing", label: "Logement", icon: "🏠" },
-  { href: "/prono-annonces", label: "Annonces", icon: "📢", soon: true },
+  { href: "/prono-annonces", label: "Annonces", icon: "📢" },
 ];
 
 export function ModulesNav() {

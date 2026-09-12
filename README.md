@@ -334,3 +334,29 @@ WG-Gesucht, ImmoScout24 et Immowelt n'ont **pas d'API publique gratuite** (parte
 ### Activation (30 secondes)
 Exécuter le SQL `supabase/migrations/007_prono_housing.sql` dans Supabase → SQL Editor
 (uniquement pour la sauvegarde des lettres — la page fonctionne déjà sans).
+
+---
+
+## 📢 Module 5 — Prono-Annonces (`/prono-annonces`)
+
+**Petites annonces de la communauté** — style Leboncoin, 100% gratuit et modéré.
+
+### Fonctionnalités
+- **5 catégories** : ❤️ Rencontre · 💞 Recherche partenaire · 🤝 Ami · 🏠 Logement · 🛠️ Service
+- **Publication** avec photos (jusqu'à 3, compressées en canvas max 1200 px JPEG), ville, pays, description
+- **Contact** au choix : WhatsApp (lien wa.me) ou email (mailto)
+- **Filtres** : recherche texte, ville, onglets catégories avec compteurs
+- **Mes annonces** : masquer / réafficher / supprimer
+- **Signalement** 🚩 avec raison — **3 signalements = masquage automatique**
+- **Outil admin n°12** : Modération Annonces (tout voir, masquer, supprimer)
+- **Navbar** : menu déroulant « 🧩 Modules » (desktop) regroupant les 5 modules ; section dédiée dans le menu mobile
+
+### Fichiers
+- `supabase/migrations/008_prono_annonces.sql` — tables `prono_annonces` + `prono_annonce_reports`, RLS (public actif / owner / admin), bucket Storage `prono-annonces`
+- `components/pronoannonces/` — AnnoncesClient, AnnonceForm, AnnonceCard, AnnonceDetail, annonces-data
+- `lib/services/pronoannonces.service.ts` — liste, création, statut, suppression, signalement (auto-hide ≥3)
+- `app/api/prono-annonces/route.ts` + `app/api/prono-annonces/report/route.ts`
+- `app/(modules)/prono-annonces/page.tsx` — page publique, préremplissage ville depuis prono_profiles
+
+### À faire (une fois)
+1. Coller `supabase/migrations/008_prono_annonces.sql` dans Supabase → SQL Editor (crée aussi le bucket photos)

@@ -12,7 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Radio, Newspaper, Music4, BarChart3, LayoutDashboard, Settings, LogOut,
-  Menu, X, User2, Zap, Briefcase, UserRound, ShieldCheck, Home } from "lucide-react";
+  Menu, X, User2, Zap, Briefcase, UserRound, ShieldCheck, Home, Megaphone, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -28,16 +28,21 @@ const NAV_LINKS = [
   { href: "/news", tKey: "nav.news", icon: Newspaper },
   { href: "/music", tKey: "nav.music", icon: Music4 },
   { href: "/classement", tKey: "nav.classement", icon: BarChart3 },
+] as const;
+
+const MODULE_LINKS = [
   { href: "/prono-job", tKey: "nav.job", icon: Briefcase },
   { href: "/prono-profil", tKey: "nav.profile", icon: UserRound },
   { href: "/prono-visa", tKey: "nav.visa", icon: ShieldCheck },
   { href: "/prono-housing", tKey: "nav.housing", icon: Home },
+  { href: "/prono-annonces", tKey: "nav.annonces", icon: Megaphone },
 ] as const;
 
 export function Header({ user }: { user: SessionUser | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [modulesOpen, setModulesOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const adminUnlocked = useUiStore((s) => s.adminUnlocked);
   const setAdminUnlocked = useUiStore((s) => s.setAdminUnlocked);
@@ -114,6 +119,51 @@ export function Header({ user }: { user: SessionUser | null }) {
               {t(link.tKey)}
             </Link>
           ))}
+
+          {/* Menu déroulant Modules */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setModulesOpen((v) => !v)}
+              className={cn(
+                "flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-foreground",
+                MODULE_LINKS.some((m) => pathname.startsWith(m.href)) ? "text-foreground bg-secondary" : "text-muted-foreground"
+              )}
+              aria-expanded={modulesOpen}
+            >
+              🧩 {t("nav.modules")}{" "}
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", modulesOpen && "rotate-180")} />
+            </button>
+            <AnimatePresence>
+              {modulesOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setModulesOpen(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="absolute left-0 top-full z-50 mt-1 w-56 rounded-lg border border-white/10 bg-card/95 p-1 shadow-xl backdrop-blur-xl"
+                  >
+                    {MODULE_LINKS.map((m) => (
+                      <Link
+                        key={m.href}
+                        href={m.href}
+                        onClick={() => setModulesOpen(false)}
+                        className={cn(
+                          "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                          pathname.startsWith(m.href)
+                            ? "bg-secondary text-foreground"
+                            : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                        )}
+                      >
+                        <m.icon className="h-4 w-4" /> {t(m.tKey)}
+                      </Link>
+                    ))}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
           {showAdmin && (
             <Link
               href="/admin"
@@ -217,6 +267,22 @@ export function Header({ user }: { user: SessionUser | null }) {
                   )}
                 >
                   <link.icon className="h-4 w-4" /> {t(link.tKey)}
+                </Link>
+              ))}
+              <div className="my-1 border-t border-white/5" />
+              <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                🧩 {t("nav.modules")}
+              </p>
+              {MODULE_LINKS.map((m) => (
+                <Link
+                  key={m.href}
+                  href={m.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium",
+                    pathname.startsWith(m.href) ? "bg-secondary text-foreground" : "text-muted-foreground"
+                  )}
+                >
+                  <m.icon className="h-4 w-4" /> {t(m.tKey)}
                 </Link>
               ))}
               <Link
