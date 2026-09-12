@@ -316,3 +316,21 @@ Calculateur de chances de visa Allemagne + guides complets. **Aucune promesse de
 ### Activation (30 secondes)
 Exécuter le SQL `supabase/migrations/006_prono_visa.sql` dans Supabase → SQL Editor
 (uniquement pour l'historique des simulations — le calculateur marche déjà sans).
+
+## 🆕 MODULE 4 PRONO-HOUSING (`/prono-housing`)
+
+Recherche de logement Allemagne — **100% légale** : aucune annonce copiée ni scrapée.
+
+### Ce que fait le module
+- 🔎 **Filtres** : ville allemande (13 grandes villes), loyer max, type (WG / appartement / studio).
+- 🚀 **Lanceur de recherche multi-plateformes** : ouvre WG-Gesucht, ImmoScout24, Immowelt et Kleinanzeigen avec tes filtres pré-remplis (URLs canoniques officielles vérifiées — les IDs de villes WG-Gesucht ont été validés un par un).
+- 📊 **Loyers de référence réels** par ville (chambres en coloc + loyer froid €/m², constats 2025-2026).
+- ✍️ **« Postuler via Pronofoot »** : générateur d'**Anschreiben** (lettre de motivation logement) en allemand + français, pré-rempli depuis ton profil (module 2), éditable, avec copie / WhatsApp / e-mail / impression PDF + sauvegarde.
+- 📚 **5 guides** : méthode de recherche, dossier de candidature parfait (SCHUFA…), comprendre les loyers (Kaltmiete/Warmmiete/Kaution), arnaques à éviter, WBS & alternatives.
+
+### Pourquoi pas d'API d'annonces ?
+WG-Gesucht, ImmoScout24 et Immowelt n'ont **pas d'API publique gratuite** (partenaires payants uniquement), et le scraping est interdit. Pronofoot respecte la loi : il construit des liens de recherche officiels vers les plateformes, où tu consultes et postules chez l'original.
+
+### Activation (30 secondes)
+Exécuter le SQL `supabase/migrations/007_prono_housing.sql` dans Supabase → SQL Editor
+(uniquement pour la sauvegarde des lettres — la page fonctionne déjà sans).

@@ -14,7 +14,7 @@ const MODULES = [
   { href: "/prono-job", label: "Emploi", icon: "💼" },
   { href: "/prono-profil", label: "Profil & CV", icon: "🧩" },
   { href: "/prono-visa", label: "Visa", icon: "🛂" },
-  { href: "/prono-housing", label: "Logement", icon: "🏠", soon: true },
+  { href: "/prono-housing", label: "Logement", icon: "🏠" },
   { href: "/prono-annonces", label: "Annonces", icon: "📢", soon: true },
 ];
 

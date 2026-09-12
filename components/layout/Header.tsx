@@ -12,7 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Radio, Newspaper, Music4, BarChart3, LayoutDashboard, Settings, LogOut,
-  Menu, X, User2, Zap, Briefcase, UserRound, ShieldCheck } from "lucide-react";
+  Menu, X, User2, Zap, Briefcase, UserRound, ShieldCheck, Home } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -31,6 +31,7 @@ const NAV_LINKS = [
   { href: "/prono-job", tKey: "nav.job", icon: Briefcase },
   { href: "/prono-profil", tKey: "nav.profile", icon: UserRound },
   { href: "/prono-visa", tKey: "nav.visa", icon: ShieldCheck },
+  { href: "/prono-housing", tKey: "nav.housing", icon: Home },
 ] as const;
 
 export function Header({ user }: { user: SessionUser | null }) {
