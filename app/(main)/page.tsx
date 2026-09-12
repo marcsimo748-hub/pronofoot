@@ -41,7 +41,6 @@ export default async function LandingPage() {
   return (
     <>
       <Hero
-        wallpaper={settings.wallpapers.home}
         stats={{ ...stats, teams: FEATURED_TEAMS.length }}
         loggedIn={Boolean(user)}
       />

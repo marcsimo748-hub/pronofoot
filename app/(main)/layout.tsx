@@ -1,3 +1,4 @@
+import { SiteBackground } from "@/components/ui/SiteBackground";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { MobileNav } from "@/components/layout/MobileNav";
@@ -12,12 +13,16 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const [user, settings] = await Promise.all([getSessionUser(), getSettings()]);
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <>
+      {/* Fond rotatif automatique (Admin > Fonds d'Écran prime sur la rotation) */}
+      <SiteBackground overrides={{ home: settings.wallpapers.home }} />
+      <div className="relative z-10 flex min-h-dvh flex-col">
       <Header user={user} />
       <AnnouncementBanner settings={settings} />
       <main className="flex-1 pb-20 md:pb-0">{children}</main>
       <Footer />
       <MobileNav user={user} />
-    </div>
+      </div>
+    </>
   );
 }

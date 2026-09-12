@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteBackground } from "@/components/ui/SiteBackground";
 import { getSettings } from "@/lib/services/settings.service";
 import { SITE_NAME } from "@/lib/constants";
 
@@ -12,13 +13,8 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden p-4">
-      {bg && (
-        <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={bg} alt="" className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/85 to-background" />
-        </>
-      )}
+      {/* Fond rotatif (tunnel de stade) — le réglage admin prime s'il existe */}
+      <SiteBackground forcePage="login" overrides={{ login: bg }} />
 
       <Link href="/" className="relative mb-8 flex select-none items-center gap-2.5">
         <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/15 text-2xl shadow-glow-sm">⚽</span>

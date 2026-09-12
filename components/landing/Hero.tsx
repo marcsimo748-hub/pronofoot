@@ -20,25 +20,15 @@ const FEATURES = [
 ];
 
 export function Hero({
-  wallpaper,
   stats,
   loggedIn,
 }: {
-  wallpaper?: string;
   stats: { players: number; matches: number; teams: number };
   loggedIn: boolean;
 }) {
   const { t } = useT();
   return (
     <section className="relative overflow-hidden">
-      {/* Fond d'écran global (Admin > 🖼️ Fonds d'Écran Globaux) */}
-      {wallpaper && (
-        <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={wallpaper} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25" />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
-        </>
-      )}
 
       <div className="container relative flex flex-col items-center gap-6 py-16 text-center md:py-24">
         <motion.span

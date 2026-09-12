@@ -35,3 +35,4 @@ next-env.d.ts
 .cache
 .local
 .arena
+image-search/
