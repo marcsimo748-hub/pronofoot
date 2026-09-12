@@ -24,7 +24,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
       <div className="relative w-full max-w-md">{children}</div>
 
       <p className="relative mt-8 text-center text-xs text-muted-foreground">
-        Pronostics · Scores live · News · Musique · IA — 100% gratuit
+        La Super-App de la Diaspora : Pronostics, Emploi, Visa & Logement. 100% gratuit.
       </p>
     </div>
   );

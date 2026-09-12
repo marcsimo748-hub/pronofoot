@@ -63,8 +63,8 @@ export default async function PronoAnnoncesPage({
           Publie avec photos, filtre par ville et contacte directement par WhatsApp ou email.
         </p>
         <div className="flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">🆓 Gratuit — sans commission</span>
-          <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">🛡️ Modérée — 3 signalements = masquée</span>
+          <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">🆓 Gratuit, sans commission</span>
+          <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">🛡️ Modérée, 3 signalements = masquée</span>
           <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">🇩🇪 Toute l'Allemagne</span>
         </div>
       </header>

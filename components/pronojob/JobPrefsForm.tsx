@@ -78,7 +78,7 @@ export function JobPrefsForm({
         onSaved(form);
         setMessage("✅ Profil enregistré — PronoScore mis à jour !");
       } else if (json.code === "no_table") {
-        setMessage("⚠️ Les tables ne sont pas encore créées — exécute 004_prono_jobs.sql dans Supabase.");
+        setMessage("⚠️ Sauvegarde momentanément indisponible, réessaie dans un instant.");
       } else {
         setMessage("❌ Erreur d'enregistrement, réessaie.");
       }

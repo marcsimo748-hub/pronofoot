@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { chat, saveChatHistory } from "@/lib/services/ai.service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 import type { ChatMsg } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,15 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(req: Request) {
   try {
+    // Quota anti-abus : 20 messages / minute / IP (protège les clés GROQ/Gemini)
+    const rl = rateLimit(`chat:${clientIp(req)}`, 20, 60_000);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { ok: false, error: "Tu envoies des messages trop vite, patiente un instant." },
+        { status: 429 }
+      );
+    }
+
     const body = (await req.json()) as { messages?: ChatMsg[] };
     const messages = (body.messages ?? [])
       .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim())

@@ -36,7 +36,7 @@ interface Props {
 }
 
 const PLACEHOLDER = [
-  "Aucune annonce pour l'instant — sois le premier à publier ! 🚀",
+  "Aucune annonce pour l'instant, sois le premier à publier ! 🚀",
   "Rien dans cette catégorie… reviens bientôt !",
 ];
 
@@ -271,7 +271,7 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, dee
       {list.length === 0 ? (
         <div className="rounded-xl border border-dashed border-white/10 p-10 text-center text-sm text-muted-foreground">
           {tab === "mine"
-            ? "Tu n'as pas encore publié d'annonce. Clique sur « Publier » pour ta première !"
+            ? "Tu n'as pas encore publié d'annonce. Clique sur Publier pour ta première !"
             : PLACEHOLDER[category ? 1 : 0]}
         </div>
       ) : (

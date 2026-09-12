@@ -165,7 +165,7 @@ export function PronoJobClient({
     window.open(job.url, "_blank", "noopener,noreferrer");
 
     if (!dbReady) {
-      setFlash("💡 Offre ouverte ! Le suivi des candidatures sera actif après le script 004_prono_jobs.sql (Supabase).");
+      setFlash("💡 Offre ouverte ! Le suivi des candidatures sera bientôt disponible.");
       return;
     }
     try {
@@ -179,7 +179,7 @@ export function PronoJobClient({
         setApplied((s) => new Set(s).add(job.id));
         setFlash("✅ Candidature enregistrée — retrouve-la dans ton dashboard !");
       } else if (json.code === "no_table") {
-        setFlash("💡 Offre ouverte ! (suivi des candidatures actif après 004_prono_jobs.sql)");
+        setFlash("💡 Offre ouverte ! Le suivi des candidatures sera bientôt disponible.");
       } else {
         setFlash("⚠️ Impossible d'enregistrer la candidature — l'offre reste ouverte.");
       }

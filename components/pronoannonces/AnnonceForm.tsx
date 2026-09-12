@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { CATEGORIES } from "./annonces-data";
 import type { PronoAnnonce } from "@/lib/types";
 
@@ -72,33 +71,24 @@ export function AnnonceForm({ prefill, onCreated, onCancel }: Props) {
     try {
       const blob = await resizeToJpeg(file);
       if (blob.size > 2 * 1024 * 1024) {
-        setError("Photo encore trop lourde après compression — essaie une image plus petite.");
+        setError("Photo encore trop lourde après compression, essaie une image plus petite.");
         return;
       }
-      const supabase = getSupabaseBrowserClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setError("Connecte-toi pour ajouter des photos.");
+      // Upload via le serveur (validation + quota + bucket auto-réparé)
+      const form = new FormData();
+      form.append("file", new File([blob], "photo.jpg", { type: "image/jpeg" }));
+      const res = await fetch("/api/prono-annonces/upload", { method: "POST", body: form });
+      if (!res.ok) {
+        if (res.status === 401) setError("Connecte-toi pour ajouter des photos.");
+        else if (res.status === 429) setError("Tu envoies les photos trop vite, patiente quelques secondes.");
+        else if (res.status === 503) setError("Les photos sont momentanément indisponibles. Tu peux publier ton annonce sans photo.");
+        else setError("Cette photo n'a pas pu être envoyée, essaie une autre.");
         return;
       }
-      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-      const { error: upErr } = await supabase.storage
-        .from("prono-annonces")
-        .upload(path, blob, { contentType: "image/jpeg" });
-      if (upErr) {
-        if (upErr.message.toLowerCase().includes("bucket") || upErr.message.includes("not found")) {
-          setError("Le stockage photos n'est pas encore activé — colle le SQL 008 dans Supabase.");
-        } else {
-          setError("Upload impossible : " + upErr.message);
-        }
-        return;
-      }
-      const { data } = supabase.storage.from("prono-annonces").getPublicUrl(path);
-      setPhotos((p) => [...p, data.publicUrl].slice(0, 3));
+      const json = await res.json();
+      if (json.url) setPhotos((p) => [...p, json.url].slice(0, 3));
     } catch {
-      setError("Impossible de lire cette image — essaie une autre photo.");
+      setError("Impossible de lire cette image, essaie une autre photo.");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -135,18 +125,16 @@ export function AnnonceForm({ prefill, onCreated, onCancel }: Props) {
       });
       const json = await res.json();
       if (!res.ok) {
-        if (json.error === "no_table") {
-          setError("La table des annonces n'existe pas encore — colle le SQL 008 dans Supabase.");
-        } else if (res.status === 401) {
+        if (res.status === 401) {
           setError("Connecte-toi pour publier une annonce.");
         } else {
-          setError("Publication impossible — vérifie tes champs.");
+          setError("Publication momentanément indisponible, réessaie dans un instant.");
         }
         return;
       }
       onCreated(json.annonce as PronoAnnonce);
     } catch {
-      setError("Erreur réseau — réessaie.");
+      setError("Erreur réseau, réessaie.");
     } finally {
       setSaving(false);
     }

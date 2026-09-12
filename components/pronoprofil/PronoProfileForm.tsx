@@ -155,7 +155,7 @@ export function PronoProfileForm({
         onSaved(json.profile);
         setMessage("✅ Enregistré !");
       } else if (json.code === "no_table") {
-        setMessage("⚠️ Exécute 005_prono_profiles.sql dans Supabase pour activer les profils.");
+        setMessage("⚠️ Sauvegarde momentanément indisponible, réessaie dans un instant.");
       } else {
         setMessage("❌ Erreur — réessaie.");
       }
