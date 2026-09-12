@@ -232,3 +232,57 @@ export interface JobApplication {
   status: string;          // sent | viewed | interview | rejected
   job: PronoJob | null;
 }
+
+
+// ============================================================
+// MODULE 2 — PRONOPROFIL & PRONOCV (/prono-profil)
+// ============================================================
+
+/** Intentions disponibles (un profil par intention et par compte) */
+export type PronoIntention = "emploi" | "logement" | "visa" | "rencontre";
+
+/** Une expérience professionnelle (dans PronoProfile.experiences) */
+export interface ProfileExperience {
+  role: string;
+  company: string;
+  period: string;
+  description?: string;
+}
+
+/** Un diplôme / une formation (dans PronoProfile.educations) */
+export interface ProfileEducation {
+  degree: string;
+  school: string;
+  year: string;
+}
+
+/** Profil d'un joueur pour une intention donnée (table prono_profiles) */
+export interface PronoProfile {
+  id: string;
+  user_id: string;
+  intention: PronoIntention;
+  full_name: string;
+  phone: string;
+  city: string;
+  country: string;
+  birth_year: number | null;
+  bio: string;
+  job_title: string;
+  skills: string;
+  experiences: ProfileExperience[];
+  educations: ProfileEducation[];
+  german_level: string;
+  english_level: string;
+  other_languages: string;
+  linkedin_url: string;
+  target_country: string;
+  visa_type: string;
+  blocked_note: string;
+  housing_city: string;
+  housing_type: string;
+  budget_max: number | null;
+  age_range: string;
+  looking_for: string;
+  created_at: string;
+  updated_at: string;
+}

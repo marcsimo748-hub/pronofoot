@@ -285,3 +285,18 @@ Recherche d'emploi Allemagne / Europe / télétravail, 100% légale (API officie
 - 🚀 **Postuler depuis Pronofoot** : ouvre l'offre originale + enregistre la candidature dans ton dashboard.
 - ⚖️ Légal : titre + extrait court + lien source uniquement, jamais la description complète.
 - 🧹 Purge automatique des offres de plus de 30 jours.
+
+## 🆕 MODULE 2 PRONOPROFIL & PRONOCV (`/prono-profil`)
+
+Un seul compte, plusieurs profils selon ton besoin — et un générateur de CV gratuit.
+
+### Fonctionnement
+- **À l'inscription**, le joueur choisit son objectif : 💼 Emploi / 🏠 Logement / 🛂 Visa / ❤️ Rencontre.
+- **Le formulaire s'adapte** : Emploi → CV + expériences + diplômes + langues ; Visa → pays, type de visa, niveau d'allemand ; Logement → ville, budget, type ; Rencontre → recherche, tranche d'âge.
+- **1 profil par intention** (table `prono_profiles`, `unique(user_id, intention)`), modifiable à tout moment.
+- **Créateur de CV automatique** : 3 templates professionnels (🚀 Moderne, 🎩 Classique, 🇩🇪 Allemand Ausbildung) — export PDF via `react-to-pdf`.
+- **Pont automatique** : le profil Emploi alimente le PronoScore de PronoJob (`prono_job_prefs`).
+
+### Activation (1 minute)
+Exécuter le SQL `supabase/migrations/005_prono_profiles.sql` dans Supabase → SQL Editor.
+Sans ce script, la page s'affiche mais l'enregistrement renvoie `no_table`.

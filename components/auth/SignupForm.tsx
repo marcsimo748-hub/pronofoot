@@ -21,6 +21,14 @@ export function SignupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  // 🧩 Module 2 : intention choisie à l'inscription (Emploi/Logement/Visa/Rencontre)
+  const [intent, setIntent] = useState("");
+  const INTENTS = [
+    { v: "emploi", label: "💼 Emploi" },
+    { v: "logement", label: "🏠 Logement" },
+    { v: "visa", label: "🛂 Visa" },
+    { v: "rencontre", label: "❤️ Rencontre" },
+  ];
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -65,7 +73,7 @@ export function SignupForm() {
         // Confirmation email désactivée → directement connecté
         await fetch("/api/auth/ensure-admin", { method: "POST" }).catch(() => {});
         toast.success(`Bienvenue ${username} ! 🎉`);
-        router.push("/dashboard");
+        router.push(intent ? "/prono-profil" : "/dashboard");
         router.refresh();
       } else {
         toast.success("Compte créé ! 🎉", {
@@ -128,6 +136,32 @@ export function SignupForm() {
           minLength={6}
           autoComplete="new-password"
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Ton objectif principal ? <span className="text-muted-foreground">(optionnel)</span></Label>
+        <div className="grid grid-cols-2 gap-2">
+          {INTENTS.map((i) => (
+            <button
+              type="button"
+              key={i.v}
+              onClick={() => {
+                setIntent(i.v);
+                try { localStorage.setItem("pronofoot-intent", i.v); } catch {}
+              }}
+              className={`rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors ${
+                intent === i.v
+                  ? "border-primary/60 bg-primary/15 text-foreground"
+                  : "border-white/10 bg-background/50 text-muted-foreground hover:border-primary/30"
+              }`}
+            >
+              {i.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Ton profil s&apos;adapte à ton objectif — CV, logement, visa ou rencontre.
+        </p>
       </div>
 
       <Button type="submit" className="w-full" variant="glow" size="lg" disabled={loading}>
