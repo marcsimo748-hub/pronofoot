@@ -180,16 +180,25 @@ export async function buildContext(userId?: string): Promise<string> {
 // CAPACITÉS (Mission 12 — IA 2.0)
 // ---------------------------------------------------------------
 
-/** Demande de génération d'image ? */
+/** Demande de génération d'image ? (strict : jamais pour les pdf/vidéos/questions de capacité) */
 export function imageRequest(text: string): string | null {
   const q = text.toLowerCase();
-  const asked =
-    /g[ée]n[èe]re|dessine|cr[ée]e|montre.?moi|fais.?moi|image|photo|logo|illustration|dessin|avatar/i.test(q);
-  if (!asked) return null;
-  // "une image de X" / "dessine X" / "un logo de X"
-  const m = text.match(/(?:image|photo|logo|illustration|dessin|avatar|dessine|g[ée]n[èe]re|cr[ée]e|montre.?moi|fais.?moi)\s+(?:une?|d'?un|d'?une|le|la|de|du|des)?\s*(.+)/i);
-  const prompt = (m?.[1] ?? text).replace(/[?!.]+$/, "").trim().slice(0, 180);
-  return prompt || null;
+  // Exclusions : documents, vidéos, fichiers, rapports
+  if (/(pdf|document|vid[ée]o|fichier|rapport|cv \b)/.test(q)) return null;
+  // Exclusions : questions sur les capacités (l'assistant doit y répondre honnêtement)
+  if (/(peux[- ]tu|tu peux|est[- ]ce que tu|es[- ]tu capable|sais[- ]tu)/.test(q)) return null;
+  // Il faut un verbe de dessin OU un verbe de création
+  const drawVerb = /dessin/.test(q);
+  if (!drawVerb && !/(g[ée]n[èe]r|cr[ée]|fais[- ]moi)/.test(q)) return null;
+  // Et un objet visuel (sauf dessin direct : « dessine un chat »)
+  const noun = /(image|photo|logo|illustration|avatar|dessin|fond d'[ée]cran)/.test(q);
+  if (!drawVerb && !noun) return null;
+  // Extraction du sujet après le mot visuel
+  const re = new RegExp("(?:image|photo|logo|illustration|avatar|dessin|fond d'[ée]cran)(?: [^ ]+)? (?:de |d'|du |des |la |le |un |une |mon |ma |mes )?(.+)");
+  const m = q.match(re);
+  let prompt = (m?.[1] ?? text).trim().replace(/[?.!]+$/, "");
+  if (prompt.length < 2) prompt = text.slice(0, 180);
+  return prompt.slice(0, 180) || null;
 }
 
 /** URL d'image générée (Pollinations, gratuit, sans clé) */
