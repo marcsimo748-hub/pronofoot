@@ -3,11 +3,13 @@
 /**
  * Covoiturage de la communauté (MODULE 6).
  * Publie ton trajet (ville ↔ ville, date, places, prix), cherche un covoiturage,
- * contacte par WhatsApp ou email. Modération : 3 signalements = trajet masqué.
+ * discute d'abord via le chat privé : les coordonnées ne sont révélées qu'après
+ * l'accord du propriétaire. Modération : 3 signalements = trajet masqué.
  * Connecté requis pour publier, contacter et signaler (modale + retour au trajet exact).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,24 +42,17 @@ interface Props {
   userId?: string;
   initialTrips: PronoVoyageTrip[];
   deeplinkTrip?: string;
+  /** ?discuter=1 : démarrer directement le chat privé sur le trajet du deep link */
+  deeplinkChat?: boolean;
   /** Retour après connexion via le bouton Publier : rouvrir le formulaire */
   autoPublish?: boolean;
-}
-
-function contactHref(preference: string, value: string): string {
-  const v = value.trim();
-  if (!v) return "";
-  if (preference === "email") return `mailto:${v}`;
-  const digits = v.replace(/[^\d]/g, "");
-  const intl = v.startsWith("+") ? digits : digits.startsWith("0") ? `49${digits.slice(1)}` : digits;
-  return `https://wa.me/${intl}`;
 }
 
 function seatsLabel(n: number): string {
   return n <= 0 ? "complet" : `${n} place${n > 1 ? "s" : ""}`;
 }
 
-export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, autoPublish }: Props) {
+export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, deeplinkChat, autoPublish }: Props) {
   const [trips, setTrips] = useState<PronoVoyageTrip[]>(initialTrips);
   const [myTrips, setMyTrips] = useState<PronoVoyageTrip[]>([]);
   const [tab, setTab] = useState<"all" | "mine">("all");
@@ -68,7 +63,8 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, aut
   const [authOpen, setAuthOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [selected, setSelected] = useState<PronoVoyageTrip | null>(null);
-  const [revealFor, setRevealFor] = useState<string | null>(null);
+  const [chatStarting, setChatStarting] = useState<string | null>(null);
+  const router = useRouter();
   const [reloadKey, setReloadKey] = useState(0);
 
   // Formulaire
@@ -134,11 +130,50 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, aut
     if (autoPublish && loggedIn) setFormOpen(true);
   }, [autoPublish, loggedIn]);
 
-  // Deep link après connexion : rouvrir le trajet exact, contact révélé
+  /** Démarrer (ou retrouver) la discussion privée sur un trajet */
+  const startChat = useCallback(
+    async (tripId: string) => {
+      if (chatStarting) return;
+      setChatStarting(tripId);
+      try {
+        const res = await fetch("/api/prono-chat/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ context_type: "trajet", context_id: tripId }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.conversation_id) {
+            router.push(`/messages/${json.conversation_id}`);
+            return;
+          }
+        }
+        const json = await res.json().catch(() => ({}));
+        if (json.error === "annonce_a_soi") {
+          toast.info("C'est ton trajet 😊", { description: "Tu ne peux pas te contacter toi-même." });
+        } else if (json.error === "no_contact_table") {
+          toast.error("Chat indisponible", { description: "Configuration en cours, réessaie dans un instant." });
+        } else {
+          toast.error("Discussion impossible", { description: "Trajet introuvable ou problème technique." });
+        }
+      } catch {
+        toast.error("Erreur réseau, réessaie.");
+      } finally {
+        setChatStarting(null);
+      }
+    },
+    [chatStarting, router],
+  );
+
+  // Deep link après connexion : rouvrir le trajet exact cliqué.
+  // Avec ?discuter=1 : ouvrir directement le chat privé.
   useEffect(() => {
     if (!deeplinkTrip) return;
     const open = (t: PronoVoyageTrip) => {
-      setRevealFor(t.id);
+      if (deeplinkChat && loggedIn) {
+        if (t.user_id !== userId) void startChat(t.id);
+        return;
+      }
       setSelected(t);
     };
     const found = trips.find((t) => t.id === deeplinkTrip);
@@ -168,7 +203,7 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, aut
   );
 
   const requireAuthFor = (tripId: string) => {
-    setRedirectAfterLogin(`/prono-voyage?trajet=${tripId}`);
+    setRedirectAfterLogin(`/prono-voyage?trajet=${tripId}&discuter=1`);
     setAuthOpen(true);
   };
 
@@ -405,7 +440,7 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, aut
       )}
 
       {/* Modale détail trajet */}
-      <Dialog open={!!selected} onOpenChange={(open) => !open && (setSelected(null), setRevealFor(null))}>
+      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="sm:max-w-lg">
           {selected && (
             <>
@@ -426,30 +461,21 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, aut
                 </p>
               )}
 
-              {/* Contact */}
+              {/* Contact : tout passe par le chat privé, coordonnées protégées */}
               {isOwner ? (
                 <p className="rounded-lg bg-primary/10 p-3 text-sm text-primary">
-                  💡 C'est ton trajet, les membres te contactent via{" "}
-                  {selected.contact_preference === "email" ? "ton email" : "ton WhatsApp"}.
+                  🔒 Ton contact reste privé. Les membres te contactent par le chat PRONO
+                  et tu choisis quand révéler tes coordonnées.
                 </p>
-              ) : !loggedIn ? (
-                <Button className="w-full gap-2" variant="glow" onClick={() => requireAuthFor(selected.id)}>
-                  🔐 Se connecter pour voir le contact
-                </Button>
-              ) : revealFor === selected.id ? (
-                <a href={contactHref(selected.contact_preference, selected.contact_value)} target="_blank" rel="noopener noreferrer">
-                  <Button className="w-full gap-2" variant="glow">
-                    {selected.contact_preference === "email" ? "✉️" : "💬"}{" "}
-                    {selected.contact_value || "Contacter"}
-                  </Button>
-                </a>
               ) : (
                 <Button
                   className="w-full gap-2"
                   variant="glow"
-                  onClick={() => setRevealFor(selected.id)}
+                  disabled={chatStarting === selected.id}
+                  onClick={() => (loggedIn ? void startChat(selected.id) : requireAuthFor(selected.id))}
                 >
-                  👁️ Voir le contact de {selected.author?.username ?? "l'auteur"}
+                  {chatStarting === selected.id ? "Ouverture…" : "💬 Discuter"} avec{" "}
+                  {selected.author?.username ?? "l'auteur"}
                 </Button>
               )}
 
@@ -555,6 +581,11 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, aut
               <Textarea value={fNote} onChange={(e) => setFNote(e.target.value)} rows={3} maxLength={500} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5 sm:col-span-2 rounded-lg bg-secondary/40 p-2.5 text-xs text-muted-foreground">
+                🔒 Ton contact reste privé : il n&apos;apparaît jamais dans le trajet.
+                Les membres discutent avec toi par le chat PRONO, et tu choisis quand leur
+                révéler tes coordonnées.
+              </div>
               <div className="space-y-1.5">
                 <Label>Contact *</Label>
                 <Select value={fContactPref} onValueChange={setFContactPref}>

@@ -12,7 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Radio, Newspaper, Music4, BarChart3, LayoutDashboard, Settings, LogOut,
-  Menu, X, User2, Zap, Briefcase, UserRound, ShieldCheck, Home, Megaphone, ChevronDown, Plane } from "lucide-react";
+  Menu, X, User2, Zap, Briefcase, UserRound, ShieldCheck, Home, Megaphone, ChevronDown, Plane, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -43,6 +43,38 @@ export function Header({ user }: { user: SessionUser | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  // Badge messages non-lus (chat privé)
+  useEffect(() => {
+    if (!user) {
+      setUnread(0);
+      return;
+    }
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/prono-chat/conversations");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (alive) {
+          const total = (json.conversations ?? []).reduce(
+            (acc: number, c: { unread?: number }) => acc + (c.unread ?? 0),
+            0,
+          );
+          setUnread(total);
+        }
+      } catch {
+        /* réseau : on garde le badge actuel */
+      }
+    };
+    void load();
+    const t = setInterval(() => void load(), 30_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [user, pathname]);
   const [modulesOpen, setModulesOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const adminUnlocked = useUiStore((s) => s.adminUnlocked);
@@ -197,6 +229,16 @@ export function Header({ user }: { user: SessionUser | null }) {
           </div>
           {user ? (
             <>
+              <Link href="/messages" className="relative hidden sm:block" aria-label="Mes messages privés">
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                  <MessageCircle className="h-4 w-4" />
+                  {unread > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
+                      {unread > 9 ? "9+" : unread}
+                    </span>
+                  )}
+                </Button>
+              </Link>
               <Link href="/dashboard" className="hidden sm:block">
                 <Button variant="ghost" size="sm" className="gap-2">
                   <LayoutDashboard className="h-4 w-4" />
@@ -286,6 +328,19 @@ export function Header({ user }: { user: SessionUser | null }) {
                   <m.icon className="h-4 w-4" /> {t(m.tKey)}
                 </Link>
               ))}
+              {user && (
+                <Link
+                  href="/messages"
+                  className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground"
+                >
+                  <MessageCircle className="h-4 w-4" /> Messages privés
+                  {unread > 0 && (
+                    <span className="ml-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold text-white">
+                      {unread > 9 ? "9+" : unread}
+                    </span>
+                  )}
+                </Link>
+              )}
               <Link
                 href="/dashboard"
                 className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground"

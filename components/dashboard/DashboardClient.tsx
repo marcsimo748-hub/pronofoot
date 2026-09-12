@@ -8,8 +8,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Trophy, Target, Crosshair, TrendingUp, Users, CalendarDays, Lock, History, ChevronRight,
-} from "lucide-react";
+  Trophy, Target, Crosshair, TrendingUp, Users, CalendarDays, Lock, History, ChevronRight, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -50,11 +49,18 @@ export function DashboardClient({ username, data, userId }: { username: string; 
           </h1>
           <p className="mt-1 text-muted-foreground">Voici ton espace joueur — tout est sauvegardé dans le cloud.</p>
         </div>
-        <Link href="/pronos">
-          <Button variant="glow" className="gap-2">
-            <Trophy className="h-4 w-4" /> Pronostiquer maintenant
-          </Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/messages">
+            <Button variant="outline" className="gap-2">
+              <MessageCircle className="h-4 w-4" /> Messages privés
+            </Button>
+          </Link>
+          <Link href="/pronos">
+            <Button variant="glow" className="gap-2">
+              <Trophy className="h-4 w-4" /> Pronostiquer maintenant
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}

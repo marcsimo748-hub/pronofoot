@@ -76,6 +76,8 @@ export async function createAnnonce(
   const contactPreference = ["whatsapp", "email"].includes(String(body.contact_preference))
     ? String(body.contact_preference)
     : "whatsapp";
+  const contactValue = clean(body.contact_value, 150);
+  if (!contactValue) return { ok: false, code: "contact_manquant" };
 
   const row = {
     user_id: userId,
@@ -85,8 +87,6 @@ export async function createAnnonce(
     city: clean(body.city, 70),
     country: clean(body.country, 70),
     photos,
-    contact_preference: contactPreference,
-    contact_value: clean(body.contact_value, 150),
     status: "active",
   };
 
@@ -101,6 +101,17 @@ export async function createAnnonce(
       if (error.message.includes("exist") || error.code === "PGRST205") {
         return { ok: false, code: "no_table" };
       }
+      return { ok: false, code: "db_error" };
+    }
+
+    // Coordonnées PRIVÉES : table séparée, révélées dans le chat après accord
+    const { error: contactErr } = await supabase
+      .from("prono_annonces_contacts")
+      .insert({ annonce_id: data.id, contact_preference: contactPreference, contact_value: contactValue });
+    if (contactErr) {
+      // Rollback : pas d'annonce sans coordonnées à révéler
+      await supabase.from("prono_annonces").delete().eq("id", data.id);
+      if (contactErr.message.includes("exist")) return { ok: false, code: "no_contact_table" };
       return { ok: false, code: "db_error" };
     }
     return { ok: true, annonce: data as unknown as PronoAnnonce };

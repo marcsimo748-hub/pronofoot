@@ -35,6 +35,8 @@ interface Props {
   initialTrips: PronoVoyageTrip[];
   prefillCity?: string;
   deeplinkTrip?: string;
+  /** ?discuter=1 : démarrer directement le chat privé sur le trajet */
+  deeplinkChat?: boolean;
   autoPublish?: boolean;
 }
 
@@ -44,7 +46,7 @@ function defaultDate(): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deeplinkTrip, autoPublish }: Props) {
+export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deeplinkTrip, deeplinkChat, autoPublish }: Props) {
   const [tab, setTab] = useState<"billets" | "trajets" | "guides">("billets");
 
   // ---- Filtres billets ----
@@ -210,6 +212,7 @@ export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deep
           userId={userId}
           initialTrips={initialTrips}
           deeplinkTrip={deeplinkTrip}
+          deeplinkChat={deeplinkChat}
           autoPublish={autoPublish}
         />
       )}

@@ -407,3 +407,15 @@ Exécuter le SQL `supabase/migrations/007_prono_housing.sql` dans Supabase → S
 
 ### À faire (une fois)
 1. Coller `supabase/migrations/009_prono_voyage.sql` dans Supabase → SQL Editor (covoiturage ; les billets fonctionnent sans)
+
+## MODULE 7 — Messagerie interne 🔒💬 (2026-09-12)
+Discussions privées liées au compte : les coordonnées ne sortent JAMAIS du site.
+- Chat privé par annonce et par trajet : bouton 💬 Discuter (au lieu de révéler le contact)
+- Le numéro/email du propriétaire est stocké en table PRIVÉE (RLS) : visible dans le chat uniquement après son accord (bouton 🔓 Accepter d'échanger mes coordonnées)
+- Le demandeur partage ses propres coordonnées en tapant dans le chat s'il le souhaite
+- Badge 💬 non-lus dans le header (connecté), page /messages protégée par middleware
+- Publication : les formulaires précisent que le contact reste privé
+- Modération : même moteur de signalement (3 signalements = masquage)
+- ⚠️ MIGRATION 010 OBLIGATOIRE dans Supabase SQL Editor : supabase/migrations/010_prono_chat.sql
+  (copie les contacts existants vers les tables privées puis supprime les colonnes publiques ;
+  tant qu'elle n'est pas exécutée, la publication d'annonces/trajets échoue proprement avec le code no_contact_table)

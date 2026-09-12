@@ -12,7 +12,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * - L'erreur est journalisée (visible dans Vercel → Logs) pour diagnostic.
  */
 
-const PROTECTED = ["/dashboard", "/pronos", "/admin", "/prono-profil"];
+const PROTECTED = ["/dashboard", "/pronos", "/admin", "/prono-profil", "/messages"];
 const AUTH_PAGES = ["/login", "/signup"];
 
 export async function middleware(request: NextRequest) {

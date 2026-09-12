@@ -299,8 +299,6 @@ export interface PronoAnnonce {
   city: string;
   country: string;
   photos: string[];
-  contact_preference: string; // whatsapp | email
-  contact_value: string;
   status: string; // active | hidden | removed
   reports_count: number;
   created_at: string;
@@ -318,11 +316,61 @@ export interface PronoVoyageTrip {
   seats: number;
   price_eur: number;
   note: string;
-  contact_preference: string; // whatsapp | email
-  contact_value: string;
   status: string; // active | hidden | removed
   reports_count: number;
   created_at: string;
   updated_at: string;
   author?: { username: string | null; avatar_url: string | null } | null;
+}
+
+// ---------- MODULE 7 : MESSAGERIE INTERNE ----------
+export type ChatContextType = "annonce" | "trajet";
+
+export interface PronoConversation {
+  id: string;
+  context_type: ChatContextType;
+  context_id: string;
+  listing_owner: string;
+  requester: string;
+  status: string;
+  contact_revealed: boolean;
+  last_read_owner: string;
+  last_read_requester: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PronoMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+}
+
+/** Conversation enrichie pour la liste /messages */
+export interface ChatThreadSummary {
+  id: string;
+  context_type: ChatContextType;
+  context_id: string;
+  context_title: string;
+  other_username: string | null;
+  other_avatar: string | null;
+  last_message: string | null;
+  last_message_at: string | null;
+  unread: number;
+  contact_revealed: boolean;
+  am_owner: boolean;
+}
+
+/** Fil de discussion complet */
+export interface ChatThread {
+  conversation: PronoConversation;
+  messages: PronoMessage[];
+  am_owner: boolean;
+  other_username: string | null;
+  other_avatar: string | null;
+  context_title: string;
+  /** Coordonnées du propriétaire, visibles uniquement si contact_revealed */
+  contact: { preference: string; value: string } | null;
 }

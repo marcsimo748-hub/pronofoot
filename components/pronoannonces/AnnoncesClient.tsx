@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,8 +32,10 @@ interface Props {
   loggedIn: boolean;
   userId?: string;
   prefill?: { city?: string; country?: string; email?: string };
-  /** Deep link après connexion (?annonce=id) : rouvrir cette annonce, contact révélé */
+  /** Deep link après connexion (?annonce=id) : rouvrir cette annonce */
   deeplinkAnnonce?: string;
+  /** ?discuter=1 : démarrer directement le chat privé sur l'annonce du deep link */
+  deeplinkChat?: boolean;
 }
 
 const PLACEHOLDER = [
@@ -40,7 +43,7 @@ const PLACEHOLDER = [
   "Rien dans cette catégorie… reviens bientôt !",
 ];
 
-export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, deeplinkAnnonce }: Props) {
+export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, deeplinkAnnonce, deeplinkChat }: Props) {
   const [annonces, setAnnonces] = useState<PronoAnnonce[]>(initialAnnonces);
   const [myAnnonces, setMyAnnonces] = useState<PronoAnnonce[]>([]);
   const [tab, setTab] = useState<"all" | "mine">("all");
@@ -52,7 +55,8 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, dee
   const [formOpen, setFormOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [authOpen, setAuthOpen] = useState(false);
-  const [revealFor, setRevealFor] = useState<string | null>(null);
+  const [chatStarting, setChatStarting] = useState<string | null>(null);
+  const router = useRouter();
 
   // Recharge la liste quand filtres changent (debounce simple)
   useEffect(() => {
@@ -96,11 +100,50 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, dee
     void loadMine();
   }, [loadMine, reloadKey]);
 
-  // Deep link après connexion : rouvrir l'annonce exacte cliquée, contact révélé
+  /** Démarrer (ou retrouver) la discussion privée sur une annonce */
+  const startChat = useCallback(
+    async (annonceId: string) => {
+      if (chatStarting) return;
+      setChatStarting(annonceId);
+      try {
+        const res = await fetch("/api/prono-chat/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ context_type: "annonce", context_id: annonceId }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.conversation_id) {
+            router.push(`/messages/${json.conversation_id}`);
+            return;
+          }
+        }
+        const json = await res.json().catch(() => ({}));
+        if (json.error === "annonce_a_soi") {
+          toast.info("C'est ton annonce 😊", { description: "Tu ne peux pas te contacter toi-même." });
+        } else if (json.error === "no_contact_table") {
+          toast.error("Chat indisponible", { description: "Configuration en cours, réessaie dans un instant." });
+        } else {
+          toast.error("Discussion impossible", { description: "Annonce introuvable ou problème technique." });
+        }
+      } catch {
+        toast.error("Erreur réseau, réessaie.");
+      } finally {
+        setChatStarting(null);
+      }
+    },
+    [chatStarting, router],
+  );
+
+  // Deep link après connexion : rouvrir l'annonce exacte cliquée.
+  // Avec ?discuter=1 : ouvrir directement le chat privé.
   useEffect(() => {
     if (!deeplinkAnnonce) return;
     const open = (a: PronoAnnonce) => {
-      setRevealFor(a.id);
+      if (deeplinkChat && loggedIn) {
+        if (a.user_id !== userId) void startChat(a.id);
+        return;
+      }
       setSelected(a);
     };
     const found = annonces.find((a) => a.id === deeplinkAnnonce);
@@ -126,7 +169,7 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, dee
 
   /** Non connecté : modale connexion/inscription, retour à l'annonce exacte */
   const requireAuthFor = (annonceId: string) => {
-    setRedirectAfterLogin(`/prono-annonces?annonce=${annonceId}`);
+    setRedirectAfterLogin(`/prono-annonces?annonce=${annonceId}&discuter=1`);
     setAuthOpen(true);
   };
 
@@ -298,12 +341,12 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, dee
         annonce={selected}
         isOwner={!!userId && selected?.user_id === userId}
         loggedIn={loggedIn}
-        revealContact={!!selected && selected.id === revealFor}
-        onAuthRequired={requireAuthFor}
-        onClose={() => {
-          setSelected(null);
-          setRevealFor(null);
+        onChat={(id) => {
+          if (loggedIn) void startChat(id);
+          else requireAuthFor(id);
         }}
+        onAuthRequired={requireAuthFor}
+        onClose={() => setSelected(null)}
         onReported={onReported}
       />
 

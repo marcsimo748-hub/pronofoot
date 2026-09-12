@@ -81,8 +81,6 @@ export async function createTrip(
     seats,
     price_eur: price,
     note: clean(body.note, 500),
-    contact_preference: contactPreference,
-    contact_value: contactValue,
     status: "active",
   };
 
@@ -97,6 +95,16 @@ export async function createTrip(
       if (error.message.includes("exist") || error.code === "PGRST205") {
         return { ok: false, code: "no_table" };
       }
+      return { ok: false, code: "db_error" };
+    }
+
+    // Coordonnées PRIVÉES : table séparée, révélées dans le chat après accord
+    const { error: contactErr } = await supabase
+      .from("prono_voyage_trips_contacts")
+      .insert({ trip_id: data.id, contact_preference: contactPreference, contact_value: contactValue });
+    if (contactErr) {
+      await supabase.from("prono_voyage_trips").delete().eq("id", data.id);
+      if (contactErr.message.includes("exist")) return { ok: false, code: "no_contact_table" };
       return { ok: false, code: "db_error" };
     }
     return { ok: true, trip: data as unknown as PronoVoyageTrip };

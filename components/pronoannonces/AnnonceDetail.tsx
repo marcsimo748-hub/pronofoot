@@ -18,16 +18,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { categoryInfo, contactHref, contactLabel, timeAgoFr, REPORT_REASONS } from "./annonces-data";
+import { categoryInfo, timeAgoFr, REPORT_REASONS } from "./annonces-data";
 import type { PronoAnnonce } from "@/lib/types";
 
 interface Props {
   annonce: PronoAnnonce | null;
   isOwner: boolean;
   loggedIn: boolean;
-  /** Deep link après connexion : révéler le contact tout de suite */
-  revealContact?: boolean;
-  /** Non connecté : demander la connexion (modale) pour le contact ou le signalement */
+  /** Connecté : démarrer la discussion privée (chat interne) */
+  onChat?: (annonceId: string) => void;
+  /** Non connecté : demander la connexion (modale) pour le chat ou le signalement */
   onAuthRequired?: (annonceId: string) => void;
   onClose: () => void;
   onReported: (id: string) => void;
@@ -37,13 +37,12 @@ export function AnnonceDetail({
   annonce,
   isOwner,
   loggedIn,
-  revealContact,
+  onChat,
   onAuthRequired,
   onClose,
   onReported,
 }: Props) {
   const [photoIdx, setPhotoIdx] = useState(0);
-  const [showContact, setShowContact] = useState(!!revealContact);
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState(REPORT_REASONS[0]);
   const [reportMsg, setReportMsg] = useState("");
@@ -52,7 +51,6 @@ export function AnnonceDetail({
   if (!annonce) return null;
   const cat = categoryInfo(annonce.category);
   const photos = annonce.photos?.length ? annonce.photos : [];
-  const href = contactHref(annonce.contact_preference, annonce.contact_value);
 
   const sendReport = async () => {
     setSending(true);
@@ -158,29 +156,19 @@ export function AnnonceDetail({
           </p>
         )}
 
-        {/* Contact */}
+        {/* Contact : tout passe par le chat privé, coordonnées protégées */}
         {isOwner ? (
           <p className="rounded-lg bg-primary/10 p-3 text-sm text-primary">
-            💡 C'est ton annonce — les membres te contactent via {annonce.contact_preference === "email" ? "ton email" : "ton WhatsApp"}.
+            🔒 Ton contact reste privé. Les membres te contactent par le chat PRONO
+            et tu choisis quand révéler tes coordonnées.
           </p>
-        ) : !loggedIn ? (
+        ) : (
           <Button
             className="w-full gap-2"
             variant="glow"
-            onClick={() => onAuthRequired?.(annonce.id)}
+            onClick={() => onChat?.(annonce.id)}
           >
-            🔐 Se connecter pour voir le contact
-          </Button>
-        ) : showContact && href ? (
-          <a href={href} target="_blank" rel="noopener noreferrer" className="block">
-            <Button className="w-full gap-2" variant="glow">
-              {annonce.contact_preference === "email" ? "✉️" : "💬"}{" "}
-              {contactLabel(annonce.contact_preference, annonce.contact_value)}
-            </Button>
-          </a>
-        ) : (
-          <Button className="w-full gap-2" variant="glow" onClick={() => setShowContact(true)}>
-            👁️ Voir le contact de {annonce.author?.username ?? "l'auteur"}
+            💬 Discuter avec {annonce.author?.username ?? "l'auteur"}
           </Button>
         )}
 

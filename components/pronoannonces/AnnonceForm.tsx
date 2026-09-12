@@ -235,6 +235,11 @@ export function AnnonceForm({ prefill, onCreated, onCancel }: Props) {
 
       {/* Contact */}
       <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5 sm:col-span-2 rounded-lg bg-secondary/40 p-2.5 text-xs text-muted-foreground">
+          🔒 Ton contact reste privé : il n&apos;apparaît jamais dans l&apos;annonce.
+          Les membres discutent avec toi par le chat PRONO, et tu choisis quand leur
+          révéler tes coordonnées.
+        </div>
         <div className="space-y-1.5">
           <Label>Contact préféré *</Label>
           <Select value={contactPreference} onValueChange={setContactPreference}>

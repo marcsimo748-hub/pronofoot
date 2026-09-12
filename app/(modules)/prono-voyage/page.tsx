@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default async function PronoVoyagePage({
   searchParams,
 }: {
-  searchParams?: { trajet?: string; publier?: string };
+  searchParams?: { trajet?: string; publier?: string; discuter?: string };
 }) {
   const user = await getSessionUser();
 
@@ -72,6 +72,7 @@ export default async function PronoVoyagePage({
         initialTrips={trips}
         prefillCity={prefillCity}
         deeplinkTrip={searchParams?.trajet}
+        deeplinkChat={searchParams?.discuter === "1"}
         autoPublish={searchParams?.publier === "1"}
       />
     </div>
