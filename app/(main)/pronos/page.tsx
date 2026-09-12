@@ -24,7 +24,7 @@ export default async function PronosPage() {
   return (
     <div className="container space-y-6 py-8">
       <header className="space-y-1">
-        <h1 className="text-3xl font-black">⚽ Pronostics</h1>
+        <h1 className="text-3xl font-black">⚽ <span className="text-gradient">PRONO</span> - Pronostics</h1>
         <p className="text-muted-foreground">
           {matches.length} match{matches.length > 1 ? "s" : ""} ouvert
           {matches.length > 1 ? "s" : ""} — les pronostics se verrouillent automatiquement au coup d'envoi.

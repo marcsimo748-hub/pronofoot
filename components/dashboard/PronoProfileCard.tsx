@@ -39,7 +39,7 @@ export function PronoProfileCard() {
   return (
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card/70 p-4">
       <div>
-        <h3 className="flex items-center gap-2 font-semibold">🧩 Mes profils Pronofoot</h3>
+        <h3 className="flex items-center gap-2 font-semibold">🧩 Mes profils PRONO</h3>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {profiles.length === 0 ? (
             <p className="text-sm text-muted-foreground">

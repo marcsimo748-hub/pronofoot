@@ -7,9 +7,9 @@ import { PronoProfileClient } from "@/components/pronoprofil/PronoProfileClient"
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "PronoProfil — Mes profils & mon CV",
+  title: "PRONO Profil, Mes profils et mon CV",
   description:
-    "Un compte, plusieurs profils : Emploi, Logement, Visa, Rencontre. Générateur de CV avec 3 modèles professionnels exportables en PDF. Gratuit, par Pronofoot.",
+    "Un compte, plusieurs profils : Emploi, Logement, Visa, Rencontre. Générateur de CV avec 3 modèles professionnels exportables en PDF. Gratuit, par PRONO.",
 };
 
 /**
@@ -22,11 +22,11 @@ export default async function PronoProfilPage() {
 
   if (!user) {
     return (
-      <div className="container flex min-h-[60vh] max-w-lg flex-col items-center justify-center py-12 text-center">
+      <div className="theme-job container flex min-h-[60vh] max-w-lg flex-col items-center justify-center py-12 text-center">
         <span className="text-5xl">🧩</span>
-        <h1 className="mt-4 text-2xl font-black">Mes profils Pronofoot</h1>
+        <h1 className="mt-4 text-2xl font-black">Mes profils PRONO</h1>
         <p className="mt-2 text-muted-foreground">
-          Emploi, Logement, Visa, Rencontre — un seul compte, un profil adapté à chaque besoin,
+          Emploi, Logement, Visa, Rencontre : un seul compte, un profil adapté à chaque besoin,
           et un générateur de CV gratuit.
         </p>
         <Link

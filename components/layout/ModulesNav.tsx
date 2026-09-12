@@ -10,6 +10,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
+/** Thème couleur du module actif : le bandeau prend l'identité du service ouvert */
+const THEME_BY_MODULE: Record<string, string> = {
+  "/prono-job": "theme-job",
+  "/prono-profil": "theme-job",
+  "/prono-visa": "theme-visa",
+  "/prono-housing": "theme-housing",
+  "/prono-annonces": "theme-annonces",
+};
+
 interface ModuleLink {
   href: string;
   label: string;
@@ -30,8 +39,11 @@ export function ModulesNav() {
 
   return (
     <nav
-      aria-label="Modules Pronofoot"
-      className="sticky top-14 z-30 border-b border-white/5 bg-background/85 backdrop-blur-xl md:top-16"
+      aria-label="Modules PRONO"
+      className={cn(
+        THEME_BY_MODULE[pathname] ?? "",
+        "sticky top-14 z-30 border-b border-white/5 bg-background/85 backdrop-blur-xl md:top-16"
+      )}
     >
       <div className="container flex gap-2 overflow-x-auto py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {MODULES.map((m) => {

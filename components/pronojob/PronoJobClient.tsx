@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobCard } from "./JobCard";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { setRedirectAfterLogin } from "@/lib/auth-redirect";
 import { JobPrefsForm } from "./JobPrefsForm";
 import type { PronoScoredJob, JobPrefs } from "@/lib/types";
 
@@ -55,12 +57,15 @@ export function PronoJobClient({
   appliedJobIds,
   loggedIn,
   dbReady,
+  autoApply,
 }: {
   initial: { jobs: PronoScoredJob[]; total: number; mode: "db" | "live" };
   initialPrefs: JobPrefs | null;
   appliedJobIds: string[];
   loggedIn: boolean;
   dbReady: boolean;
+  /** Arrive de redirectAfterLogin : rouvrir l'offre exacte cliquée avant connexion */
+  autoApply?: boolean;
 }) {
   const [jobs, setJobs] = useState<PronoScoredJob[]>(initial.jobs);
   const [total, setTotal] = useState(initial.total);
@@ -69,6 +74,7 @@ export function PronoJobClient({
   const [loading, setLoading] = useState(false);
   const [applied, setApplied] = useState<Set<string>>(new Set(appliedJobIds));
   const [flash, setFlash] = useState<string | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     q: "", city: "", country: "", contract: "", remote: false, source: "",
   });
@@ -106,6 +112,34 @@ export function PronoJobClient({
     []
   );
 
+  // Deep link après connexion : rouvrir l'offre exacte cliquée (?postuler=1)
+  useEffect(() => {
+    if (!autoApply) return;
+    try {
+      const raw = sessionStorage.getItem("prono-pending-job");
+      if (!raw) return;
+      sessionStorage.removeItem("prono-pending-job");
+      const job = JSON.parse(raw) as PronoScoredJob;
+      window.open(job.url, "_blank", "noopener,noreferrer");
+      setFlash("✅ Offre rouverte ! Bonne chance pour ta candidature 🍀");
+      if (dbReady) {
+        void fetch("/api/prono-jobs/apply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ job }),
+        })
+          .then((r) => r.json())
+          .then((json) => {
+            if (json.ok) setApplied((s) => new Set(s).add(job.id));
+          })
+          .catch(() => {});
+      }
+    } catch {
+      /* offre mémorisée illisible, on ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoApply]);
+
   // Recherche automatique (debounce 500 ms) à chaque changement de filtre
   const firstRender = useRef(true);
   useEffect(() => {
@@ -117,15 +151,19 @@ export function PronoJobClient({
     return () => clearTimeout(t);
   }, [filters, fetchJobs]);
 
-  /** "Postuler depuis Pronofoot" : enregistre la candidature puis ouvre l'offre */
+  /** "Postuler depuis PRONO" : modale si non connecté, puis enregistre et ouvre l'offre */
   async function onApply(job: PronoScoredJob) {
+    if (!loggedIn) {
+      // Mémorise l'offre exacte : elle sera rouverte automatiquement après connexion
+      try { sessionStorage.setItem("prono-pending-job", JSON.stringify(job)); } catch {}
+      setRedirectAfterLogin("/prono-job?postuler=1");
+      setAuthOpen(true);
+      return;
+    }
+
     // Toujours ouvrir l'offre originale (le candidat postule chez la source)
     window.open(job.url, "_blank", "noopener,noreferrer");
 
-    if (!loggedIn) {
-      setFlash("🔐 Connecte-toi pour enregistrer tes candidatures dans ton dashboard.");
-      return;
-    }
     if (!dbReady) {
       setFlash("💡 Offre ouverte ! Le suivi des candidatures sera actif après le script 004_prono_jobs.sql (Supabase).");
       return;
@@ -160,12 +198,12 @@ export function PronoJobClient({
     "h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground";
 
   return (
-    <div className="container space-y-6 py-8">
+    <div className="theme-job container space-y-6 py-8">
       {/* ===== En-tête ===== */}
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="flex items-center gap-2 text-3xl font-black tracking-tight">
-            <Briefcase className="h-7 w-7 text-primary" /> PronoJob
+            <Briefcase className="h-7 w-7 text-primary" /> PRONO Emploi
           </h1>
           <Badge variant="default" className="bg-primary/15 text-primary">NOUVEAU</Badge>
         </div>
@@ -306,10 +344,17 @@ export function PronoJobClient({
       {/* ===== Mention légale ===== */}
       <footer className="rounded-xl border border-white/5 bg-background/50 p-4 text-xs text-muted-foreground">
         ⚖️ <strong>Offres agrégées via les API officielles</strong> (Arbeitnow, Remotive, Adzuna,
-        JSearch/RapidAPI). Pronofoot affiche uniquement le titre, un extrait court et le lien vers
-        l&apos;offre originale — toute candidature se fait sur le site source. Ce service est
+        JSearch/RapidAPI). PRONO affiche uniquement le titre, un extrait court et le lien vers
+        l&apos;offre originale, toute candidature se fait sur le site source. Ce service est
         fourni à titre informatif.
       </footer>
+
+      {/* Modale connexion / inscription (postuler sans compte) */}
+      <AuthModal
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+        message="Connecte-toi ou crée ton compte gratuit pour postuler, l'offre s'ouvrira automatiquement après."
+      />
     </div>
   );
 }

@@ -73,7 +73,7 @@ export function PronoProfileClient({
   const doneCount = profiles.length;
 
   return (
-    <div className="container space-y-6 py-8">
+    <div className="theme-job container space-y-6 py-8">
       {/* ===== En-tête ===== */}
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">

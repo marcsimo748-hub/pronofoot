@@ -1,16 +1,17 @@
 "use client";
 
 /**
- * AnschreibenGenerator — « Postuler via Pronofoot » (MODULE 4).
+ * AnschreibenGenerator : Postuler via PRONO (MODULE 4).
  * Génère automatiquement une lettre de motivation logement (allemand + français)
  * à partir du profil du joueur (module 2), éditable, avec copie / WhatsApp /
  * e-mail / impression. Sauvegardable dans prono_housing_letters.
  */
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { Copy, Printer, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { setRedirectAfterLogin } from "@/lib/auth-redirect";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,7 @@ export function AnschreibenGenerator({
   const [editable, setEditable] = useState<string | null>(saved?.letter_de ?? null);
   const [flash, setFlash] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
   // La lettre affichée : version éditée si le joueur l'a modifiée, sinon générée
   const generatedDe = useMemo(() => generateLetterDe(data), [data]);
@@ -261,15 +263,26 @@ export function AnschreibenGenerator({
             <Save className="h-4 w-4" /> {saving ? "Sauvegarde…" : "Sauvegarder"}
           </Button>
         ) : (
-          <Link
-            href="/login?next=/prono-housing"
-            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+          <Button
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => {
+              setRedirectAfterLogin("/prono-housing");
+              setAuthOpen(true);
+            }}
           >
-            🔐 Se connecter pour sauvegarder
-          </Link>
+            <Save className="h-4 w-4" /> Se connecter pour sauvegarder
+          </Button>
         )}
         {flash && <span className="text-sm text-muted-foreground">{flash}</span>}
       </div>
+
+      {/* Modale connexion / inscription (sauvegarder sans compte) */}
+      <AuthModal
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+        message="Connecte-toi ou crée ton compte gratuit pour sauvegarder ta lettre, tu reviendras directement dessus."
+      />
     </div>
   );
 }

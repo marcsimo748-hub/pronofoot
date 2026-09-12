@@ -37,7 +37,7 @@ export function CvBuilder({
 
   const data = useMemo(() => profileToCvData(profile, username, email), [profile, username, email]);
 
-  const fileSlug = (data.fullName || "Pronofoot")
+  const fileSlug = (data.fullName || "PRONO")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")

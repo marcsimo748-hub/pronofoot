@@ -13,9 +13,9 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "PronoJob — Emplois Monde, Europe & Allemagne",
+  title: "PRONO Emploi, Jobs en Allemagne, Europe et télétravail",
   description:
-    "Agrégateur d'offres d'emploi 100% légal : jobs en Allemagne, Europe et télétravail, avec PronoScore de compatibilité et suivi des candidatures. Gratuit, par Pronofoot.",
+    "Agrégateur d'offres d'emploi 100% légal : jobs en Allemagne, Europe et télétravail, avec PronoScore de compatibilité et suivi des candidatures. Gratuit, par PRONO.",
 };
 
 /**
@@ -23,7 +23,11 @@ export const metadata: Metadata = {
  * Serveur : premier remplissage auto du cache si vide, préférences + candidatures
  * de l'utilisateur, puis rendu du client de recherche.
  */
-export default async function PronoJobPage() {
+export default async function PronoJobPage({
+  searchParams,
+}: {
+  searchParams?: { postuler?: string };
+}) {
   const user = await getSessionUser();
 
   // 1) Best effort : si la table est vide (1ʳᵉ visite), on remplit le cache tout de suite.
@@ -49,6 +53,7 @@ export default async function PronoJobPage() {
       appliedJobIds={applications.map((a) => a.job_id)}
       loggedIn={Boolean(user)}
       dbReady={isDbReady()}
+      autoApply={searchParams?.postuler === "1"}
     />
   );
 }

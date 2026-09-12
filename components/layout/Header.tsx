@@ -97,11 +97,11 @@ export function Header({ user }: { user: SessionUser | null }) {
         <button
           onClick={handleLogoClick}
           className="flex items-center gap-2 select-none"
-          aria-label="PRONOFOOT — accueil"
+          aria-label="PRONO, accueil"
         >
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/15 shadow-glow-sm text-xl">⚽</span>
           <span className="text-lg font-black tracking-tight">
-            <span className="text-gradient">PRONOFOOT</span>
+            <span className="text-gradient">PRONO</span>
           </span>
         </button>
 

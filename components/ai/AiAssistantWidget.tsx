@@ -146,7 +146,7 @@ export function AiAssistantWidget() {
                   <Sparkles className="h-4 w-4" />
                 </span>
                 <div>
-                  <p className="text-sm font-bold">Assistant PRONOFOOT</p>
+                  <p className="text-sm font-bold">Assistant PRONO</p>
                   <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                     {provider ? `Propulsé par ${provider === "groq" ? "Groq Llama 3.1 70B" : provider === "gemini" ? "Gemini" : "mode local"}` : "En ligne · Groq / Gemini"}

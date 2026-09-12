@@ -7,9 +7,9 @@ import { AnnoncesClient } from "@/components/pronoannonces/AnnoncesClient";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Prono-Annonces — Petites annonces de la communauté (Rencontre, Logement, Services)",
+  title: "PRONO Annonces, Petites annonces de la communauté (Rencontre, Logement, Services)",
   description:
-    "Les petites annonces de la communauté Pronofoot : rencontre, recherche partenaire, ami, logement et services. Publie avec photos, filtre par ville, contacte par WhatsApp ou email. Modérée, 100% gratuite.",
+    "Les petites annonces de la communauté PRONO : rencontre, recherche partenaire, ami, logement et services. Publie avec photos, filtre par ville, contacte par WhatsApp ou email. Modérée, 100% gratuite.",
 };
 
 /**
@@ -17,7 +17,11 @@ export const metadata: Metadata = {
  * Page PUBLIQUE : annonces actives visibles par tous (lecture anonyme côté service
  * via fetch interne ; la publication et le signalement exigent une connexion).
  */
-export default async function PronoAnnoncesPage() {
+export default async function PronoAnnoncesPage({
+  searchParams,
+}: {
+  searchParams?: { annonce?: string };
+}) {
   const user = await getSessionUser();
 
   // Liste publique initiale + préremplissage depuis prono_profiles si connecté
@@ -44,17 +48,17 @@ export default async function PronoAnnoncesPage() {
   ]);
 
   return (
-    <div className="container space-y-8 py-8">
+    <div className="theme-annonces container space-y-8 py-8">
       {/* ===== En-tête ===== */}
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-3xl font-black tracking-tight">📢 Prono-Annonces</h1>
+          <h1 className="text-3xl font-black tracking-tight">📢 PRONO Annonces</h1>
           <span className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
             Communauté
           </span>
         </div>
         <p className="max-w-2xl text-muted-foreground">
-          Les petites annonces <strong>100% gratuites</strong> de la communauté Pronofoot :
+          Les petites annonces <strong>100% gratuites</strong> de la communauté PRONO :
           ❤️ rencontre, 💞 recherche partenaire, 🤝 ami, 🏠 logement et 🛠️ services.
           Publie avec photos, filtre par ville et contacte directement par WhatsApp ou email.
         </p>
@@ -71,6 +75,7 @@ export default async function PronoAnnoncesPage() {
         loggedIn={Boolean(user)}
         userId={user?.id}
         prefill={prefill}
+        deeplinkAnnonce={searchParams?.annonce}
       />
 
       {/* ===== Sécurité ===== */}

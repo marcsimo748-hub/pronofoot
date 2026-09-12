@@ -360,3 +360,25 @@ Exécuter le SQL `supabase/migrations/007_prono_housing.sql` dans Supabase → S
 
 ### À faire (une fois)
 1. Coller `supabase/migrations/008_prono_annonces.sql` dans Supabase → SQL Editor (crée aussi le bucket photos)
+
+---
+
+## 🎨 Évolution Branding & Design — PRONO, la Super-App de la Diaspora
+
+### 1. Rebranding (textes uniquement, rien de technique renommé)
+- Nom affiché partout : **PRONO** (logo, footer, metadata, IA, CV, formulaires)
+- Slogan accueil : **La Super-App de la Diaspora : Pronostics, Emploi, Visa & Logement**
+- Module foot : **PRONO - Pronostics** · Modules : PRONO Emploi, PRONO Visa, PRONO Logement, PRONO Annonces, PRONO Profil
+- Fichiers, routes et tables inchangés (pronofoot reste le nom technique)
+
+### 2. Design system : une couleur par service (`app/globals.css`)
+- `--prono-foot` vert #16a34a · `--prono-job` bleu #2563eb · `--prono-visa` violet #7c3aed · `--prono-housing` orange #ea580c · `--prono-annonce` rose #e11d48 · `--prono-voyage` cyan #0891b2
+- Classes `.theme-job`, `.theme-visa`, `.theme-housing`, `.theme-annonces` : la page du module est entièrement teintée (titres, boutons, badges) via surcharge locale de `--primary`. Le Header / Footer restent neutres pour l'unité.
+- Accueil : **6 grandes cartes colorées** (`ServicesGrid`), arrondi 2xl, icônes Lucide, survol couleur pleine. Voyage : bientôt disponible.
+- Le bandeau ModulesNav prend la couleur du module ouvert.
+
+### 3. UX : consultation libre + modale de connexion
+- Toutes les offres et annonces se consultent sans compte
+- **Postuler (Emploi), Contacter / Publier / Signaler (Annonces), Sauvegarder (Logement)** : modale Connexion / Inscription (`AuthModal`) si non connecté
+- Après connexion, **redirection automatique vers l'offre exacte cliquée** (localStorage `redirectAfterLogin`) : l'offre d'emploi se rouvre et la candidature s'enregistre, l'annonce s'ouvre avec le contact révélé
+- Bouton Accueil (logo) toujours visible, session conservée

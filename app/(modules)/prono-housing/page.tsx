@@ -9,9 +9,9 @@ import { HOUSING_LEGAL_NOTE } from "@/components/pronohousing/housing-data";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Prono-Housing — Logement Allemagne (WG, appartements)",
+  title: "PRONO Logement, Logement en Allemagne (WG, appartements)",
   description:
-    "Recherche de logement en Allemagne : WG-Gesucht, ImmoScout24, Immowelt avec tes filtres, loyers de référence par ville, lettre de motivation (Anschreiben) générée automatiquement et guides complets. 100% légal, par Pronofoot.",
+    "Recherche de logement en Allemagne : WG-Gesucht, ImmoScout24, Immowelt avec tes filtres, loyers de référence par ville, lettre de motivation (Anschreiben) générée automatiquement et guides complets. 100% légal, par PRONO.",
 };
 
 /**
@@ -30,11 +30,11 @@ export default async function PronoHousingPage() {
     : [null, {} as Record<string, string>];
 
   return (
-    <div className="container space-y-10 py-8">
+    <div className="theme-housing container space-y-10 py-8">
       {/* ===== En-tête ===== */}
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-3xl font-black tracking-tight">🏠 Prono-Housing</h1>
+          <h1 className="text-3xl font-black tracking-tight">🏠 PRONO Logement</h1>
           <span className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
             Allemagne
           </span>
@@ -46,7 +46,7 @@ export default async function PronoHousingPage() {
           automatiquement depuis ton profil.
         </p>
         <div className="flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">⚖️ Zéro scraping — liens officiels</span>
+          <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">⚖️ Zéro scraping, liens officiels</span>
           <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">📊 Loyers réels constatés</span>
           <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">✍️ Anschreiben auto</span>
         </div>

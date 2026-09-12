@@ -260,7 +260,7 @@ export const HOUSING_GUIDES: HousingGuide[] = [
       {
         h: "La Bewerbung (candidature) parfaite",
         list: [
-          "Une lettre courte et chaleureuse (le générateur Anschreiben de Pronofoot la écrit pour toi)",
+          "Une lettre courte et chaleureuse (le générateur Anschreiben de PRONO l'a écrite pour toi)",
           "Un profil WG-Gesucht complété : photo souriante, âge, profession, hobbies",
           "Tes disponibilités pour la visite (Besichtigung) dès le premier message",
           "Les documents prêts en PDF (voir le guide « dossier parfait »)",
@@ -393,4 +393,4 @@ export const HOUSING_GUIDES: HousingGuide[] = [
 ];
 
 export const HOUSING_LEGAL_NOTE =
-  "⚖️ Pronofoot ne copie et ne scrape aucune annonce : les recherches s'ouvrent directement sur les plateformes officielles (WG-Gesucht, ImmoScout24, Immowelt, Kleinanzeigen) où tu consultes et postules. Les fourchettes de loyers sont indicatives (constats 2025-2026 sur les annonces publiques) et varient selon le quartier.";
+  "⚖️ PRONO ne copie et ne scrape aucune annonce : les recherches s'ouvrent directement sur les plateformes officielles (WG-Gesucht, ImmoScout24, Immowelt, Kleinanzeigen) où tu consultes et postules. Les fourchettes de loyers sont indicatives (constats 2025-2026 sur les annonces publiques) et varient selon le quartier.";

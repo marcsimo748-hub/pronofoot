@@ -15,7 +15,7 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 12% 5%;
     --popover-foreground: 0 0% 98%;
-    --primary: 160 84% 39%;
+    --primary: 142 71% 36%;   /* vert PRONO (#16a34a), identité du service Pronostics */
     --primary-foreground: 0 0% 100%;
     --secondary: 240 8% 12%;
     --secondary-foreground: 0 0% 98%;
@@ -27,8 +27,21 @@
     --destructive-foreground: 0 0% 98%;
     --border: 240 8% 14%;
     --input: 240 8% 14%;
-    --ring: 160 84% 39%;
+    --ring: 142 71% 36%;
     --radius: 0.75rem;
+  }
+
+  /* ============================================
+     DESIGN SYSTEM PRONO : une couleur par service
+     (page d'accueil, cartes, et thèmes de pages)
+     ============================================ */
+  :root {
+    --prono-foot: #16a34a;     /* vert, victoire */
+    --prono-job: #2563eb;      /* bleu roi, confiance, pro */
+    --prono-visa: #7c3aed;     /* violet, administratif, premium */
+    --prono-housing: #ea580c;  /* orange, maison, chaleur */
+    --prono-annonce: #e11d48;  /* rose, communauté, rencontre */
+    --prono-voyage: #0891b2;   /* cyan, voyage, liberté */
   }
 
   * {
@@ -48,6 +61,38 @@
     min-height: 100dvh;
   }
 }
+
+
+  /* ============================================
+     THEMES PAR MODULE : la page entière est teintée
+     à la couleur de son service (6 mini-apps dans
+     une grande). Le Header / Footer principaux restent
+     neutres, ils sont hors du wrapper de page.
+     ============================================ */
+  .theme-foot {
+    --primary: 142 71% 36%;
+    --ring: 142 71% 36%;
+  }
+  .theme-job {
+    --primary: 221 83% 53%;
+    --ring: 221 83% 53%;
+  }
+  .theme-visa {
+    --primary: 263 84% 58%;
+    --ring: 263 84% 58%;
+  }
+  .theme-housing {
+    --primary: 21 90% 48%;
+    --ring: 21 90% 48%;
+  }
+  .theme-annonces {
+    --primary: 347 77% 50%;
+    --ring: 347 77% 50%;
+  }
+  .theme-voyage {
+    --primary: 189 94% 37%;
+    --ring: 189 94% 37%;
+  }
 
 @layer components {
   /* Effet verre dépoli pour cartes / header */

@@ -113,7 +113,7 @@ export const BONUS_CATEGORIES: {
 
 /** Valeurs par défaut des réglages site (fusionnées avec la table site_settings) */
 export const DEFAULT_SETTINGS: SiteSettings = {
-  theme: { primary: "#10b981" },
+  theme: { primary: "#16a34a" },
   announcement: { active: false, message: "", level: "info" },
   wallpapers: { login: "", home: "" },
   leagues: {
@@ -138,5 +138,5 @@ export const DEFAULT_SETTINGS: SiteSettings = {
 };
 
 /** Nom du site */
-export const SITE_NAME = "PRONOFOOT";
-export const SITE_TAGLINE = "Pronostics • Scores live • News • Musique • IA";
+export const SITE_NAME = "PRONO";
+export const SITE_TAGLINE = "La Super-App de la Diaspora";

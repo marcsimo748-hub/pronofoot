@@ -25,13 +25,25 @@ interface Props {
   annonce: PronoAnnonce | null;
   isOwner: boolean;
   loggedIn: boolean;
+  /** Deep link après connexion : révéler le contact tout de suite */
+  revealContact?: boolean;
+  /** Non connecté : demander la connexion (modale) pour le contact ou le signalement */
+  onAuthRequired?: (annonceId: string) => void;
   onClose: () => void;
   onReported: (id: string) => void;
 }
 
-export function AnnonceDetail({ annonce, isOwner, loggedIn, onClose, onReported }: Props) {
+export function AnnonceDetail({
+  annonce,
+  isOwner,
+  loggedIn,
+  revealContact,
+  onAuthRequired,
+  onClose,
+  onReported,
+}: Props) {
   const [photoIdx, setPhotoIdx] = useState(0);
-  const [showContact, setShowContact] = useState(false);
+  const [showContact, setShowContact] = useState(!!revealContact);
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState(REPORT_REASONS[0]);
   const [reportMsg, setReportMsg] = useState("");
@@ -132,7 +144,7 @@ export function AnnonceDetail({ annonce, isOwner, loggedIn, onClose, onReported 
           </Avatar>
           <div className="text-sm">
             <span className="font-medium">{annonce.author?.username ?? "Anonyme"}</span>
-            <span className="ml-2 text-muted-foreground">· Membre Pronofoot</span>
+            <span className="ml-2 text-muted-foreground">· Membre PRONO</span>
           </div>
           <Badge variant="secondary" className="ml-auto">
             {cat.emoji} {cat.label}
@@ -151,6 +163,14 @@ export function AnnonceDetail({ annonce, isOwner, loggedIn, onClose, onReported 
           <p className="rounded-lg bg-primary/10 p-3 text-sm text-primary">
             💡 C'est ton annonce — les membres te contactent via {annonce.contact_preference === "email" ? "ton email" : "ton WhatsApp"}.
           </p>
+        ) : !loggedIn ? (
+          <Button
+            className="w-full gap-2"
+            variant="glow"
+            onClick={() => onAuthRequired?.(annonce.id)}
+          >
+            🔐 Se connecter pour voir le contact
+          </Button>
         ) : showContact && href ? (
           <a href={href} target="_blank" rel="noopener noreferrer" className="block">
             <Button className="w-full gap-2" variant="glow">
@@ -170,7 +190,7 @@ export function AnnonceDetail({ annonce, isOwner, loggedIn, onClose, onReported 
             {!reporting ? (
               <button
                 type="button"
-                onClick={() => loggedIn ? setReporting(true) : setReportMsg("Connecte-toi pour signaler une annonce.")}
+                onClick={() => (loggedIn ? setReporting(true) : onAuthRequired?.(annonce.id))}
                 className="text-xs text-muted-foreground hover:text-red-400"
               >
                 🚩 Signaler cette annonce

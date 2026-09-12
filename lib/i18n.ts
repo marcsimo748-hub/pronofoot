@@ -42,12 +42,12 @@ const fr = {
   "nav.admin": "⚙️ Admin",
 
   // --- Hero (accueil) ---
-  "hero.badge": "⚡ PRONOFOOT — 100% gratuit · propulsé par Leprince Matt",
-  "hero.t1": "PRÉDICT.",
-  "hero.t2": "COMPÈTE.",
-  "hero.t3": "DOMINE.",
+  "hero.badge": "⚡ PRONO, 100% gratuit, propulsé par Leprince Matt",
+  "hero.t1": "PRONO",
+  "hero.t2": "La Super-App de la Diaspora",
+  "hero.t3": "Pronostics, Emploi, Visa & Logement",
   "hero.subtitle":
-    "Pronostique les matchs des 19 plus grands clubs européens, suis les scores en direct, écoute ta playlist et chatte avec l'assistant IA — tout-en-un, gratuit pour toujours.",
+    "Pronostics, Emploi, Visa, Logement, Annonces et Voyage : tout ce dont la diaspora a besoin, réuni dans une seule app. Gratuit, pour toujours.",
   "hero.ctaPronos": "Faire mes pronostics",
   "hero.ctaStart": "Commencer gratuitement",
   "hero.ctaScores": "Voir les scores",
@@ -87,7 +87,7 @@ const fr = {
   // --- À propos (texte professionnel) ---
   "about.title": "À propos de",
   "about.p1":
-    "PRONOFOOT est une plateforme de pronostics football entièrement gratuite, pensée pour les passionnés du jeu et du ballon rond. Chaque semaine, vous pronostiquez les grands matchs de la Ligue des Champions et des cinq grands championnats européens, puis vous cumulez des points selon la justesse de vos résultats.",
+    "PRONO est la Super-App de la diaspora, entièrement gratuite. Pronostique les grands matchs européens, trouve un emploi, prépare ton visa, cherche un logement et rencontre ta communauté, tout au même endroit.",
   "about.p2":
     "Le site vous offre des scores en direct, des actualités du football mondial, un lecteur de musique intégré et un assistant intelligent disponible en permanence. Tout est réuni pour vivre la compétition entre amis, du coup d'envoi au coup de sifflet final.",
   "about.p3":
@@ -97,7 +97,7 @@ const fr = {
 
   // --- Pied de page ---
   "footer.tagline":
-    "Pronostics football, scores live, actualités, musique et assistant IA. 100% gratuit, propulsé par Leprince Matt.",
+    "Pronostics, scores live, emploi, visa, logement et annonces. La Super-App de la Diaspora, 100% gratuite, par Leprince Matt.",
   "footer.navTitle": "Navigation",
   "footer.linkPronos": "Pronostics",
   "footer.linkScores": "Scores live",
@@ -134,12 +134,12 @@ const en: Dict = {
   "nav.playFree": "Play for free",
   "nav.admin": "⚙️ Admin",
 
-  "hero.badge": "⚡ PRONOFOOT — 100% free · powered by Leprince Matt",
-  "hero.t1": "PREDICT.",
-  "hero.t2": "COMPETE.",
-  "hero.t3": "DOMINATE.",
+  "hero.badge": "⚡ PRONO, 100% free, powered by Leprince Matt",
+  "hero.t1": "PRONO",
+  "hero.t2": "The Super-App of the Diaspora",
+  "hero.t3": "Predictions, Jobs, Visa & Housing",
   "hero.subtitle":
-    "Predict matches of the 19 biggest European clubs, follow live scores, listen to your playlist and chat with the AI assistant. All in one, free forever.",
+    "Predictions, jobs, visa, housing, ads and travel: everything the diaspora needs, in one single app. Free, forever.",
   "hero.ctaPronos": "Make my predictions",
   "hero.ctaStart": "Start for free",
   "hero.ctaScores": "View scores",
@@ -177,7 +177,7 @@ const en: Dict = {
 
   "about.title": "About",
   "about.p1":
-    "PRONOFOOT is a completely free football prediction platform designed for fans of the beautiful game. Every week, you predict the biggest matches of the Champions League and the five major European leagues, then collect points based on the accuracy of your results.",
+    "PRONO is the free Super-App of the diaspora. Predict the biggest European matches, find a job, prepare your visa, search for housing and meet your community, all in one place.",
   "about.p2":
     "The site gives you live scores, world football news, a built-in music player and a smart assistant available around the clock. Everything you need to enjoy the competition with friends, from kickoff to the final whistle.",
   "about.p3":
@@ -186,7 +186,7 @@ const en: Dict = {
     "Create your account in two minutes, place your first predictions and challenge your friends. The next big match is waiting for you.",
 
   "footer.tagline":
-    "Football predictions, live scores, news, music and an AI assistant. 100% free, powered by Leprince Matt.",
+    "Predictions, live scores, jobs, visa, housing and ads. The Diaspora Super-App, 100% free, by Leprince Matt.",
   "footer.navTitle": "Navigation",
   "footer.linkPronos": "Predictions",
   "footer.linkScores": "Live scores",
@@ -220,12 +220,12 @@ const de: Dict = {
   "nav.playFree": "Kostenlos spielen",
   "nav.admin": "⚙️ Admin",
 
-  "hero.badge": "⚡ PRONOFOOT — 100% kostenlos · präsentiert von Leprince Matt",
-  "hero.t1": "TIPP.",
-  "hero.t2": "KÄMPFE.",
-  "hero.t3": "DOMINIERE.",
+  "hero.badge": "⚡ PRONO, 100% kostenlos, präsentiert von Leprince Matt",
+  "hero.t1": "PRONO",
+  "hero.t2": "Die Super-App der Diaspora",
+  "hero.t3": "Tipps, Jobs, Visa & Wohnen",
   "hero.subtitle":
-    "Tippe die Spiele der 19 größten europäischen Clubs, verfolge Live-Scores, höre deine Playlist und chatte mit dem KI-Assistenten. Alles in einem, für immer kostenlos.",
+    "Tipps, Jobs, Visa, Wohnen, Anzeigen und Reisen: alles, was die Diaspora braucht, in einer App. Kostenlos, für immer.",
   "hero.ctaPronos": "Jetzt tippen",
   "hero.ctaStart": "Kostenlos starten",
   "hero.ctaScores": "Scores ansehen",
@@ -263,7 +263,7 @@ const de: Dict = {
 
   "about.title": "Über",
   "about.p1":
-    "PRONOFOOT ist eine komplett kostenlose Fußball-Tipp-Plattform, gemacht für Fans des schönen Spiels. Jede Woche tippst du die großen Spiele der Champions League und der fünf wichtigsten europäischen Ligen und sammelst Punkte für die Genauigkeit deiner Ergebnisse.",
+    "PRONO ist die kostenlose Super-App der Diaspora. Tippe die großen europäischen Spiele, finde einen Job, bereite dein Visa vor, suche eine Wohnung und triff deine Community, alles an einem Ort.",
   "about.p2":
     "Die Seite bietet dir Live-Scores, Fußball-News aus aller Welt, einen integrierten Musikplayer und einen intelligenten Assistenten, der rund um die Uhr verfügbar ist. Alles, was du für den Wettkampf mit Freunden brauchst, vom Anpfiff bis zum Abpfiff.",
   "about.p3":
@@ -272,7 +272,7 @@ const de: Dict = {
     "Erstelle dein Konto in zwei Minuten, gib deine ersten Tipps und fordere deine Freunde heraus. Das nächste große Spiel wartet auf dich.",
 
   "footer.tagline":
-    "Fußball-Tipps, Live-Scores, News, Musik und ein KI-Assistent. 100% kostenlos, präsentiert von Leprince Matt.",
+    "Tipps, Live-Scores, Jobs, Visa, Wohnen und Anzeigen. Die Diaspora Super-App, 100% kostenlos, von Leprince Matt.",
   "footer.navTitle": "Navigation",
   "footer.linkPronos": "Tipps",
   "footer.linkScores": "Live-Scores",

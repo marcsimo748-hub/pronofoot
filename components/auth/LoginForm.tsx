@@ -15,8 +15,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "./PasswordInput";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { consumeRedirectAfterLogin } from "@/lib/auth-redirect";
 
-export function LoginForm() {
+export function LoginForm({
+  onAuthed,
+  onSwitchMode,
+}: {
+  /** Mode modale : appelé après connexion au lieu de naviguer */
+  onAuthed?: () => void;
+  /** Mode modale : basculer vers l'inscription */
+  onSwitchMode?: () => void;
+} = {}) {
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState("");
@@ -37,7 +46,12 @@ export function LoginForm() {
       // Les comptes listés dans ADMIN_EMAILS reçoivent les droits admin automatiquement
       await fetch("/api/auth/ensure-admin", { method: "POST" }).catch(() => {});
       toast.success("Bon retour ! ⚽");
-      const next = params.get("next");
+      if (onAuthed) {
+        onAuthed();
+        return;
+      }
+      // Priorité : paramètre ?next=, puis l'offre exacte mémorisée (redirectAfterLogin)
+      const next = params.get("next") || consumeRedirectAfterLogin();
       router.push(next && next.startsWith("/") ? next : "/dashboard");
       router.refresh();
     } catch {
@@ -118,9 +132,19 @@ export function LoginForm() {
 
       <p className="text-center text-sm text-muted-foreground">
         Pas encore de compte ?{" "}
-        <Link href="/signup" className="font-semibold text-primary hover:underline">
-          Jouer gratuitement
-        </Link>
+        {onSwitchMode ? (
+          <button
+            type="button"
+            onClick={onSwitchMode}
+            className="font-semibold text-primary hover:underline"
+          >
+            Créer un compte gratuit
+          </button>
+        ) : (
+          <Link href="/signup" className="font-semibold text-primary hover:underline">
+            Jouer gratuitement
+          </Link>
+        )}
       </p>
     </form>
   );

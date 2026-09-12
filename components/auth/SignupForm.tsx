@@ -14,8 +14,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "./PasswordInput";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { consumeRedirectAfterLogin } from "@/lib/auth-redirect";
 
-export function SignupForm() {
+export function SignupForm({
+  onAuthed,
+  onSwitchMode,
+}: {
+  /** Mode modale : appelé après inscription au lieu de naviguer */
+  onAuthed?: () => void;
+  /** Mode modale : basculer vers la connexion */
+  onSwitchMode?: () => void;
+} = {}) {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -73,7 +82,13 @@ export function SignupForm() {
         // Confirmation email désactivée → directement connecté
         await fetch("/api/auth/ensure-admin", { method: "POST" }).catch(() => {});
         toast.success(`Bienvenue ${username} ! 🎉`);
-        router.push(intent ? "/prono-profil" : "/dashboard");
+        if (onAuthed) {
+          onAuthed();
+          return;
+        }
+        // Priorité : l'offre exacte mémorisée (redirectAfterLogin), puis l'intention
+        const next = consumeRedirectAfterLogin();
+        router.push(next && next.startsWith("/") ? next : intent ? "/prono-profil" : "/dashboard");
         router.refresh();
       } else {
         toast.success("Compte créé ! 🎉", {
@@ -171,9 +186,19 @@ export function SignupForm() {
 
       <p className="text-center text-sm text-muted-foreground">
         Déjà inscrit ?{" "}
-        <Link href="/login" className="font-semibold text-primary hover:underline">
-          Se connecter
-        </Link>
+        {onSwitchMode ? (
+          <button
+            type="button"
+            onClick={onSwitchMode}
+            className="font-semibold text-primary hover:underline"
+          >
+            Se connecter
+          </button>
+        ) : (
+          <Link href="/login" className="font-semibold text-primary hover:underline">
+            Se connecter
+          </Link>
+        )}
       </p>
     </form>
   );

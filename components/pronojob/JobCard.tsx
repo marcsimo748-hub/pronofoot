@@ -128,7 +128,7 @@ export function JobCard({
               <Check className="h-3.5 w-3.5" /> Postulée
             </>
           ) : (
-            <>🚀 Postuler depuis Pronofoot</>
+            <>🚀 Postuler depuis PRONO</>
           )}
         </Button>
         <a href={job.url} target="_blank" rel="noopener noreferrer">

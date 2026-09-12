@@ -22,6 +22,8 @@ import { AnnonceCard } from "./AnnonceCard";
 import { AnnonceDetail } from "./AnnonceDetail";
 import { AnnonceForm } from "./AnnonceForm";
 import { CATEGORIES } from "./annonces-data";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { setRedirectAfterLogin } from "@/lib/auth-redirect";
 import type { PronoAnnonce } from "@/lib/types";
 
 interface Props {
@@ -29,6 +31,8 @@ interface Props {
   loggedIn: boolean;
   userId?: string;
   prefill?: { city?: string; country?: string; email?: string };
+  /** Deep link après connexion (?annonce=id) : rouvrir cette annonce, contact révélé */
+  deeplinkAnnonce?: string;
 }
 
 const PLACEHOLDER = [
@@ -36,7 +40,7 @@ const PLACEHOLDER = [
   "Rien dans cette catégorie… reviens bientôt !",
 ];
 
-export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill }: Props) {
+export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, deeplinkAnnonce }: Props) {
   const [annonces, setAnnonces] = useState<PronoAnnonce[]>(initialAnnonces);
   const [myAnnonces, setMyAnnonces] = useState<PronoAnnonce[]>([]);
   const [tab, setTab] = useState<"all" | "mine">("all");
@@ -47,6 +51,8 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill }: P
   const [selected, setSelected] = useState<PronoAnnonce | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [revealFor, setRevealFor] = useState<string | null>(null);
 
   // Recharge la liste quand filtres changent (debounce simple)
   useEffect(() => {
@@ -89,6 +95,40 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill }: P
   useEffect(() => {
     void loadMine();
   }, [loadMine, reloadKey]);
+
+  // Deep link après connexion : rouvrir l'annonce exacte cliquée, contact révélé
+  useEffect(() => {
+    if (!deeplinkAnnonce) return;
+    const open = (a: PronoAnnonce) => {
+      setRevealFor(a.id);
+      setSelected(a);
+    };
+    const found = annonces.find((a) => a.id === deeplinkAnnonce);
+    if (found) {
+      open(found);
+      return;
+    }
+    // Annonce plus ancienne : on la récupère par son id
+    void (async () => {
+      try {
+        const res = await fetch(`/api/prono-annonces?id=${deeplinkAnnonce}`);
+        if (res.ok) {
+          const json = await res.json();
+          const a = json.annonces?.[0];
+          if (a) open(a as PronoAnnonce);
+        }
+      } catch {
+        /* introuvable, on reste sur la liste */
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deeplinkAnnonce]);
+
+  /** Non connecté : modale connexion/inscription, retour à l'annonce exacte */
+  const requireAuthFor = (annonceId: string) => {
+    setRedirectAfterLogin(`/prono-annonces?annonce=${annonceId}`);
+    setAuthOpen(true);
+  };
 
   const list = tab === "mine" ? myAnnonces : annonces;
 
@@ -172,11 +212,16 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill }: P
             ➕ Publier une annonce
           </Button>
         ) : (
-          <a href="/login?next=/prono-annonces">
-            <Button variant="glow" className="gap-2">
-              🔐 Connecte-toi pour publier
-            </Button>
-          </a>
+          <Button
+            variant="glow"
+            className="gap-2"
+            onClick={() => {
+              setRedirectAfterLogin("/prono-annonces");
+              setAuthOpen(true);
+            }}
+          >
+            ➕ Publier une annonce
+          </Button>
         )}
       </div>
 
@@ -253,8 +298,20 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill }: P
         annonce={selected}
         isOwner={!!userId && selected?.user_id === userId}
         loggedIn={loggedIn}
-        onClose={() => setSelected(null)}
+        revealContact={!!selected && selected.id === revealFor}
+        onAuthRequired={requireAuthFor}
+        onClose={() => {
+          setSelected(null);
+          setRevealFor(null);
+        }}
         onReported={onReported}
+      />
+
+      {/* Modale connexion / inscription (contacter, publier, signaler) */}
+      <AuthModal
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+        message="Connecte-toi ou crée ton compte gratuit, tu reviendras directement sur cette annonce."
       />
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
@@ -262,7 +319,7 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill }: P
           <DialogHeader>
             <DialogTitle>📢 Publier une annonce</DialogTitle>
             <DialogDescription>
-              Visible par toute la communauté Pronofoot. Reste respectueux : les annonces
+              Visible par toute la communauté PRONO. Reste respectueux : les annonces
               inappropriées sont masquées après 3 signalements.
             </DialogDescription>
           </DialogHeader>

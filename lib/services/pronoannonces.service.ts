@@ -28,7 +28,7 @@ export const REPORT_REASONS = [
 
 /** Liste des annonces (RLS : actives pour tous, les siennes pour l'auteur, tout pour l'admin) */
 export async function listAnnonces(
-  filters: { category?: string; city?: string; q?: string },
+  filters: { category?: string; city?: string; q?: string; id?: string },
   opts: { mine?: boolean; userId?: string } = {}
 ): Promise<PronoAnnonce[]> {
   try {
@@ -39,6 +39,7 @@ export async function listAnnonces(
       .order("created_at", { ascending: false })
       .limit(60);
 
+    if (filters.id) query = query.eq("id", filters.id);
     if (opts.mine && opts.userId) query = query.eq("user_id", opts.userId);
     if (filters.category) query = query.eq("category", filters.category);
     if (filters.city) query = query.ilike("city", `%${filters.city.replace(/[%(),]/g, " ")}%`);

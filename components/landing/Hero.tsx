@@ -43,12 +43,28 @@ export function Hero({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="max-w-4xl text-4xl font-black leading-tight tracking-tight sm:text-5xl md:text-7xl"
+          className="text-5xl font-black leading-tight tracking-tight sm:text-6xl md:text-8xl"
         >
-          {t("hero.t1")} <span className="text-gradient">{t("hero.t2")}</span>
-          <br />
-          {t("hero.t3")} <span className="align-middle text-3xl md:text-5xl">⚽</span>
+          <span className="text-gradient">PRONO</span>
         </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18 }}
+          className="text-xl font-black md:text-3xl"
+        >
+          {t("hero.t2")}
+        </motion.p>
+
+        <motion.p
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.24 }}
+          className="text-base font-semibold text-primary/90 md:text-lg"
+        >
+          {t("hero.t3")} <span className="align-middle">⚽</span>
+        </motion.p>
 
         <motion.p
           initial={{ opacity: 0, y: 20 }}

@@ -17,11 +17,11 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: {
-    default: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    default: `${SITE_NAME}, ${SITE_TAGLINE}`,
     template: `%s · ${SITE_NAME}`,
   },
   description:
-    "Pronostique les matchs des 19 plus grands clubs européens, suis les scores live, les actus, écoute de la musique et chatte avec l'assistant IA. 100% gratuit.",
+    "Pronostics, Emploi, Visa, Logement et Annonces : la Super-App de la Diaspora. Scores live, news et assistant IA inclus. 100% gratuit.",
   applicationName: SITE_NAME,
 };
 

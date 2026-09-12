@@ -26,7 +26,7 @@ export interface CvData {
   linkedin: string;
 }
 
-const ACCENT = "#10a374";      // vert Pronofoot
+const ACCENT = "#2563eb";      // bleu roi PRONO, pro
 const DARK = "#0f172a";        // bleu nuit
 const MUTED = "#64748b";
 
@@ -180,7 +180,7 @@ export function ModernCv({ data }: { data: CvData }) {
         )}
 
         <div style={{ marginTop: 26, fontSize: 9.5, color: "#94a3b8", textAlign: "center" }}>
-          CV généré gratuitement avec Pronofoot · pronofoot-phi.vercel.app
+          CV généré gratuitement avec PRONO · pronofoot-phi.vercel.app
         </div>
       </main>
     </div>
@@ -273,7 +273,7 @@ export function ClassicCv({ data }: { data: CvData }) {
       )}
 
       <div style={{ marginTop: 40, textAlign: "center", fontSize: 9, color: "#999" }}>
-        CV généré gratuitement avec Pronofoot
+        CV généré gratuitement avec PRONO
       </div>
     </div>
   );
@@ -384,7 +384,7 @@ export function GermanCv({ data }: { data: CvData }) {
       )}
 
       <div style={{ marginTop: 30, fontSize: 9.5, color: "#94a3b8", textAlign: "center" }}>
-        Kostenlos erstellt mit Pronofoot · pronofoot-phi.vercel.app
+        Kostenlos erstellt mit PRONO · pronofoot-phi.vercel.app
       </div>
     </div>
   );

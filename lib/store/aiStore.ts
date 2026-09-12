@@ -32,7 +32,7 @@ export const useAiStore = create<AiState>((set) => ({
     {
       role: "assistant",
       content:
-        "Salut 👋 Je suis l'assistant de Pronofoot. Je peux t'aider à naviguer, trouver les prochains matchs, les scores, les news ou la musique. Que cherches-tu ?",
+        "Salut 👋 Je suis l'assistant de PRONO. Je peux t'aider à naviguer, trouver les prochains matchs, les scores, les news, la musique, un emploi, un logement ou un visa. Que cherches-tu ?",
     },
   ],
   provider: null,

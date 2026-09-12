@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Hero } from "@/components/landing/Hero";
 import { FeaturesGrid } from "@/components/landing/FeaturesGrid";
+import { ServicesGrid } from "@/components/landing/ServicesGrid";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { AboutSection } from "@/components/landing/AboutSection";
 import { NextMatches } from "@/components/landing/NextMatches";
@@ -44,6 +45,7 @@ export default async function LandingPage() {
         stats={{ ...stats, teams: FEATURED_TEAMS.length }}
         loggedIn={Boolean(user)}
       />
+      <ServicesGrid />
       <LiveTicker initialLive={live} upcoming={upcoming} />
       <FeaturesGrid />
       <NextMatches matches={upcoming} />

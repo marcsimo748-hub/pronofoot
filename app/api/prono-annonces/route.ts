@@ -31,7 +31,12 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const mine = sp.get("mine") === "1";
   const annonces = await listAnnonces(
-    { category: sp.get("category") ?? undefined, city: sp.get("city") ?? undefined, q: sp.get("q") ?? undefined },
+    {
+      id: sp.get("id") ?? undefined,
+      category: sp.get("category") ?? undefined,
+      city: sp.get("city") ?? undefined,
+      q: sp.get("q") ?? undefined,
+    },
     mine ? { mine: true, userId: user.id } : {}
   );
   return NextResponse.json({ annonces });

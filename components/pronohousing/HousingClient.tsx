@@ -44,7 +44,7 @@ export function HousingClient({ prefillCity }: { prefillCity?: string }) {
       <div className="rounded-xl border border-white/5 bg-card/70 p-4 backdrop-blur-sm md:p-6">
         <h2 className="text-lg font-bold">🔎 Ta recherche</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Règle tes filtres — Pronofoot ouvre les recherches correspondantes sur les plateformes
+          Règle tes filtres, PRONO ouvre les recherches correspondantes sur les plateformes
           officielles, avec ton loyer max et ta ville.
         </p>
 

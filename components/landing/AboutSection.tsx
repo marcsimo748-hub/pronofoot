@@ -20,7 +20,7 @@ export function AboutSection() {
         className="mx-auto max-w-3xl text-center"
       >
         <h2 className="text-3xl font-black md:text-4xl">
-          {t("about.title")} <span className="text-gradient">PRONOFOOT</span>
+          {t("about.title")} <span className="text-gradient">PRONO</span>
         </h2>
 
         <div className="mt-8 space-y-5 text-left text-sm leading-relaxed text-muted-foreground md:text-base">

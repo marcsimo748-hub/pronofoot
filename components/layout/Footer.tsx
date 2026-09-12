@@ -48,7 +48,7 @@ export function Footer() {
       <div className="border-t border-white/5 py-4">
         <div className="container space-y-2 text-center">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Pronofoot — {t("footer.madeBy")} <span className="font-semibold text-foreground">Leprince Matt</span> {t("footer.for")} <span className="font-semibold text-foreground">MalihaprodBerlin</span>
+            © {new Date().getFullYear()} PRONO, {t("footer.madeBy")} <span className="font-semibold text-foreground">Leprince Matt</span> {t("footer.for")} <span className="font-semibold text-foreground">MalihaprodBerlin</span>
           </p>
           <p className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <a href="https://wa.me/4915210515347" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary">
