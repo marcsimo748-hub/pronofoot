@@ -464,3 +464,15 @@ Discussions privées liées au compte : les coordonnées ne sortent JAMAIS du si
 - Multi-clés : Groq (conversation, GPT-OSS 120B) + Gemini (web, vision, secours).
 - ⚠️ MIGRATION 013 à exécuter (après 012) : supabase/migrations/013_prono_ai_memory.sql
   — sans elle : pas de mémoire, tout le reste fonctionne.
+
+## Mission 13 — IA 2.1 : Charte d'agent + OCR + export PDF 📄🔍 (2026-09-12)
+- CHARTE D'AGENT dans le prompt système : anti-hallucination (dire quand on n'est pas sûr),
+  transparence sur les limites des outils gratuits, protection de la vie privée,
+  refus des capacités inexistantes, alternatives proposées (ex. image au lieu de vidéo).
+- OCR GRATUIT : les PDF scannés (sans texte) sont lus par OCR côté navigateur
+  (Tesseract.js via CDN, 3 premières pages, fra+eng).
+- EXPORT PDF : bouton 📄 sous les réponses longues de l'assistant — télécharge la réponse
+  en PDF (jsPDF côté navigateur, zéro coût serveur, alternative gratuite à Puppeteer).
+- Architecture retenue (tout gratuit) : Groq GPT-OSS 120B (conversation + raisonnement),
+  Pollinations (images), Gemini (web + vision, clé gratuite optionnelle), pdf.js + Tesseract
+  (lecture fichiers), jsPDF (export), Supabase (mémoire + historique).

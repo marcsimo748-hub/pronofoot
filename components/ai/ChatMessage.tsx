@@ -5,9 +5,39 @@
  */
 
 import { motion } from "framer-motion";
-import { Bot, User2 } from "lucide-react";
+import { Bot, User2, FileDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatMsg } from "@/lib/types";
+
+/** Exporte le texte d'une réponse en PDF (jsPDF via CDN, gratuit, local au navigateur) */
+async function exportToPdf(content: string) {
+  const w = window as unknown as { jspdf?: { jsPDF: new (o: object) => { splitTextToSize: (t: string, w: number) => string[]; text: (t: string, x: number, y: number) => void; addPage: () => void; save: (f: string) => void; setFontSize: (s: number) => void } } };
+  if (!w.jspdf) {
+    await new Promise<void>((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("cdn"));
+      document.head.appendChild(script);
+    });
+  }
+  const lib = (window as unknown as { jspdf: { jsPDF: new (o: object) => { splitTextToSize: (t: string, w: number) => string[]; text: (t: string, x: number, y: number) => void; addPage: () => void; save: (f: string) => void; setFontSize: (s: number) => void } } }).jspdf;
+  const doc = new lib.jsPDF({ unit: "mm", format: "a4" });
+  doc.setFontSize(11);
+  // Nettoyage : on retire les balises d'images markdown et le gras
+  const clean = content.replace(/!\[[^\]]*\]\([^)]*\)/g, "[image]").replace(/\*\*/g, "");
+  const lines = doc.splitTextToSize(clean, 180);
+  let y = 20;
+  for (const line of lines) {
+    if (y > 280) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text(line, 15, y);
+    y += 5.5;
+  }
+  doc.save("reponse-assistant-prono.pdf");
+}
 
 /** Découpe le texte en segments texte / image markdown ![alt](url) */
 function splitImages(content: string): { text?: string; image?: { alt: string; url: string } }[] {
@@ -68,6 +98,18 @@ export function ChatMessage({ message }: { message: ChatMsg }) {
           )
         )}
       </div>
+
+      {/* Export PDF (réponses de l'assistant, gratuit et local) */}
+      {!isUser && message.content.length > 200 && (
+        <button
+          type="button"
+          onClick={() => void exportToPdf(message.content)}
+          className="mt-1 flex shrink-0 items-center gap-1 rounded-md border border-white/10 bg-secondary/40 px-1.5 py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          title="Télécharger cette réponse en PDF"
+        >
+          <FileDown className="h-3 w-3" /> PDF
+        </button>
+      )}
     </motion.div>
   );
 }

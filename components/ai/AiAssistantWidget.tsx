@@ -17,13 +17,16 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { ChatMsg } from "@/lib/types";
 
+type PdfPage = {
+  getTextContent: () => Promise<{ items: { str?: string }[] }>;
+  getViewport: (o: { scale: number }) => { width: number; height: number };
+  render: (o: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void> };
+};
+
 type PdfLib = {
   GlobalWorkerOptions: { workerSrc: string };
   getDocument: (o: { data: ArrayBuffer }) => {
-    promise: Promise<{
-      numPages: number;
-      getPage: (n: number) => Promise<{ getTextContent: () => Promise<{ items: { str?: string }[] }> }>;
-    }>;
+    promise: Promise<{ numPages: number; getPage: (n: number) => Promise<PdfPage> }>;
   };
 };
 
@@ -52,6 +55,58 @@ async function extractPdfText(file: File): Promise<string> {
     if (text.length > 20_000) break;
   }
   return text.slice(0, 20_000);
+}
+
+/** Charge Tesseract.js depuis CDN à la demande (OCR gratuit, côté navigateur) */
+async function loadTesseract(): Promise<{
+  recognize: (img: HTMLCanvasElement | string, lang: string) => Promise<{ data: { text: string } }>;
+}> {
+  const w = window as unknown as { Tesseract?: unknown };
+  if (!w.Tesseract) {
+    await new Promise<void>((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("cdn"));
+      document.head.appendChild(script);
+    });
+  }
+  return (window as unknown as { Tesseract: { recognize: (i: HTMLCanvasElement | string, l: string) => Promise<{ data: { text: string } }> } }).Tesseract;
+}
+
+/** OCR d'un PDF scanné : rendu des 3 premières pages en image puis lecture du texte */
+async function ocrPdf(file: File): Promise<string> {
+  const w = window as unknown as { pdfjsLib?: PdfLib & { GlobalWorkerOptions: { workerSrc: string } } };
+  if (!w.pdfjsLib) {
+    await new Promise<void>((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("cdn"));
+      document.head.appendChild(script);
+    });
+  }
+  const lib = (window as unknown as { pdfjsLib: PdfLib }).pdfjsLib;
+  (w.pdfjsLib as { GlobalWorkerOptions: { workerSrc: string } }).GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  const tesseract = await loadTesseract();
+  const buf = await file.arrayBuffer();
+  const doc = await lib.getDocument({ data: buf }).promise;
+  let text = "";
+  const pages = Math.min(doc.numPages, 3);
+  for (let i = 1; i <= pages; i++) {
+    const page = await doc.getPage(i);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) continue;
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const { data } = await tesseract.recognize(canvas, "fra+eng");
+    text += data.text + "\n\n";
+  }
+  return text.slice(0, 15_000);
 }
 
 const SUGGESTIONS = [
@@ -133,9 +188,19 @@ export function AiAssistantWidget() {
         setPendingImage(dataUrl);
         setPendingFile(null);
       } else if (file.name.toLowerCase().endsWith(".pdf")) {
-        const text = await extractPdfText(file);
+        // (PDF : extraction texte, OCR de secours si scan)
+        let text = await extractPdfText(file);
         if (!text.trim()) {
-          toast.error("Ce PDF ne contient pas de texte lisible (scan image ?).");
+          // PDF scanné : OCR des 3 premières pages (gratuit, côté navigateur)
+          toast.info("PDF scanné détecté, lecture OCR en cours… (une dizaine de secondes)");
+          try {
+            text = await ocrPdf(file);
+          } catch {
+            text = "";
+          }
+        }
+        if (!text.trim()) {
+          toast.error("Impossible de lire ce PDF (scan de mauvaise qualité).");
         } else {
           setPendingFile({ name: file.name, text });
           setPendingImage(null);
