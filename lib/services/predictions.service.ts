@@ -39,6 +39,118 @@ export async function getMatchesForPrediction(userId?: string): Promise<{ matche
   );
 }
 
+/** Prono public d'un joueur sur un match commencé */
+export interface PublicPrediction {
+  user_id: string;
+  username: string | null;
+  avatar_url: string | null;
+  home_score: number;
+  away_score: number;
+  points_earned: number;
+  calculated: boolean;
+}
+
+/** Match commencé (48 dernières heures) + pronos de TOUS les joueurs, dévoilés */
+export interface StartedMatch {
+  match: Match;
+  predictions: PublicPrediction[];
+}
+
+/**
+ * Matchs récemment commencés avec les pronostics dévoilés de tous les joueurs.
+ * La RLS (migration 012) ne renvoie les pronos des autres que si le match a
+ * commencé : aucune triche possible avant le coup d'envoi.
+ */
+export async function getStartedMatches(limit = 12): Promise<StartedMatch[]> {
+  return safeQuery(
+    async () => {
+      const supabase = createSupabaseServerClient();
+      const now = new Date();
+      const from = new Date(now.getTime() - 48 * 3600_000).toISOString();
+
+      const { data: matches } = await supabase
+        .from("matches")
+        .select("*")
+        .in("status", ["scheduled", "missed", "live", "finished"])
+        .lte("match_date", now.toISOString())
+        .gte("match_date", from)
+        .order("match_date", { ascending: false })
+        .limit(limit);
+      if (!matches?.length) return [];
+
+      const { data: preds } = await supabase
+        .from("predictions")
+        .select("user_id, home_score, away_score, points_earned, calculated, user:profiles(username, avatar_url)")
+        .in(
+          "match_id",
+          matches.map((m) => m.id)
+        );
+      const byMatch = new Map<string, PublicPrediction[]>();
+      for (const p of (preds ?? []) as unknown as {
+        match_id: string;
+        user_id: string;
+        home_score: number;
+        away_score: number;
+        points_earned: number;
+        calculated: boolean;
+        user: { username: string | null; avatar_url: string | null } | null;
+      }[]) {
+        const list = byMatch.get(p.match_id) ?? [];
+        list.push({
+          user_id: p.user_id,
+          username: p.user?.username ?? null,
+          avatar_url: p.user?.avatar_url ?? null,
+          home_score: p.home_score,
+          away_score: p.away_score,
+          points_earned: p.points_earned,
+          calculated: p.calculated,
+        });
+        byMatch.set(p.match_id, list);
+      }
+
+      return (matches as Match[]).map((m) => ({
+        match: m,
+        predictions: (byMatch.get(m.id) ?? []).sort((a, b) => b.points_earned - a.points_earned),
+      }));
+    },
+    []
+  );
+}
+
+/** Aperçu admin : pronos des joueurs sur des matchs À VENIR (avant coup d'envoi) */
+export async function getAdminPredictionPeek(matchIds: string[]): Promise<Record<string, PublicPrediction[]>> {
+  if (!matchIds.length) return {};
+  return safeQuery(
+    async () => {
+      const supabase = createSupabaseServerClient();
+      const { data } = await supabase
+        .from("predictions")
+        .select("match_id, user_id, home_score, away_score, user:profiles(username, avatar_url)")
+        .in("match_id", matchIds);
+      const result: Record<string, PublicPrediction[]> = {};
+      for (const p of (data ?? []) as unknown as {
+        match_id: string;
+        user_id: string;
+        home_score: number;
+        away_score: number;
+        user: { username: string | null; avatar_url: string | null } | null;
+      }[]) {
+        (result[p.match_id] ??= []).push({
+          user_id: p.user_id,
+          username: p.user?.username ?? null,
+          avatar_url: p.user?.avatar_url ?? null,
+          home_score: p.home_score,
+          away_score: p.away_score,
+          points_earned: 0,
+          calculated: false,
+        });
+      }
+      return result;
+    },
+    {}
+  );
+}
+
 /** Classement général (profils triés par total_points) */
 export async function getGeneralStandings(limit = 50): Promise<StandingRow[]> {
   return safeQuery(async () => {

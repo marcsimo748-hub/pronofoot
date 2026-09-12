@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Check, Lock, TimerReset, Save, Pencil } from "lucide-react";
+import { Check, Lock, TimerReset, Save, Pencil, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn, formatMatchDate, computePoints } from "@/lib/utils";
 import { LEAGUES, FEATURED_TEAMS } from "@/lib/constants";
 import type { Match, Prediction } from "@/lib/types";
+import type { PublicPrediction } from "@/lib/services/predictions.service";
 import { TeamLogo } from "@/components/ui/TeamLogo";
 
 
@@ -31,13 +32,16 @@ function TeamName({ name }: { name: string }) {
 interface Props {
   match: Match;
   prediction?: Prediction;
+  /** Admin : pronos des autres joueurs avant le coup d'envoi */
+  adminPeek?: PublicPrediction[];
 }
 
-export function MatchPredictionCard({ match, prediction }: Props) {
+export function MatchPredictionCard({ match, prediction, adminPeek }: Props) {
   const [home, setHome] = useState<number | null>(prediction?.home_score ?? null);
   const [away, setAway] = useState<number | null>(prediction?.away_score ?? null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(Boolean(prediction));
+  const [peekOpen, setPeekOpen] = useState(false);
   const [, forceTick] = useState(0);
 
   const league = LEAGUES[match.league];
@@ -203,6 +207,32 @@ export function MatchPredictionCard({ match, prediction }: Props) {
           </>
         )}
       </div>
+
+      {/* Aperçu admin : pronos de tous les joueurs (même avant le coup d'envoi) */}
+      {adminPeek && adminPeek.length > 0 && (
+        <div className="mt-2 border-t border-white/5 pt-2">
+          <button
+            type="button"
+            onClick={() => setPeekOpen((v) => !v)}
+            className="flex w-full items-center gap-1.5 text-[11px] font-semibold text-amber-400/90 hover:text-amber-300"
+          >
+            <Eye className="h-3 w-3" /> Admin : {adminPeek.length} prono{adminPeek.length > 1 ? "s" : ""} enregistré{adminPeek.length > 1 ? "s" : ""}
+            <span className="ml-auto">{peekOpen ? "▲" : "▼"}</span>
+          </button>
+          {peekOpen && (
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {adminPeek.map((p) => (
+                <span
+                  key={p.user_id}
+                  className="rounded-full bg-secondary/60 px-2 py-0.5 text-[11px] tabular-nums"
+                >
+                  {p.username ?? "Joueur"} : {p.home_score}-{p.away_score}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }

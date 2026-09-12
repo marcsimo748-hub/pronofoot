@@ -22,6 +22,7 @@ import { StatsTool } from "./tools/StatsTool";
 import { UsersTool } from "./tools/UsersTool";
 import { AnnoncesModerationTool } from "./tools/AnnoncesModerationTool";
 import { TripsModerationTool } from "./tools/TripsModerationTool";
+import { AiKeysTool } from "./tools/AiKeysTool";
 import type { SiteSettings } from "@/lib/types";
 
 export function AdminPanel({ settings }: { settings: SiteSettings }) {
@@ -54,6 +55,7 @@ export function AdminPanel({ settings }: { settings: SiteSettings }) {
     { id: "users", emoji: "👥", title: "Gestion des Joueurs", desc: "Voir les comptes et gérer les admins", component: <UsersTool /> },
     { id: "annonces", emoji: "📢", title: "Modération Annonces", desc: "Masquer, afficher ou supprimer les annonces", component: <AnnoncesModerationTool /> },
     { id: "covoiturage", emoji: "🚗", title: "Modération Covoiturage", desc: "Gérer les trajets voyage de la communauté", component: <TripsModerationTool /> },
+    { id: "ai", emoji: "🤖", title: "Assistant IA", desc: "Activer l'IA complète (clé Groq ou Gemini)", component: <AiKeysTool /> },
   ];
   const [openTool, setOpenTool] = useState<string | null>(null);
 

@@ -35,6 +35,7 @@ export function AiAssistantWidget() {
   const provider = useAiStore((s) => s.provider);
 
   const [input, setInput] = useState("");
+  const [streamText, setStreamText] = useState("");
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +67,7 @@ export function AiAssistantWidget() {
   // Scroll automatique vers le bas
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, isTyping]);
+  }, [messages, isTyping, streamText]);
 
   useEffect(() => {
     if (isOpen) inputRef.current?.focus();
@@ -87,16 +88,47 @@ export function AiAssistantWidget() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ messages: [...messages, userMsg].slice(-10) }),
       });
-      const json = (await res.json()) as { ok: boolean; data?: { reply: string; provider: string }; error?: string };
-      if (json.ok && json.data) {
-        addMessage({ role: "assistant", content: json.data.reply });
-        setProvider(json.data.provider);
+
+      // Erreur JSON classique (quota, 429...)
+      const ctype = res.headers.get("content-type") ?? "";
+      if (!res.ok || ctype.includes("application/json")) {
+        const json = (await res.json().catch(() => null)) as { error?: string } | null;
+        addMessage({
+          role: "assistant",
+          content: json?.error ?? "Oups, petit souci technique 😅 Réessaie dans un instant.",
+        });
+        return;
+      }
+
+      // Flux streaming : affichage progressif, mot à mot
+      const provider = res.headers.get("X-Provider");
+      if (provider) setProvider(provider);
+      setStreamText("");
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let full = "";
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          full += decoder.decode(value, { stream: true });
+          setStreamText(full);
+        }
       } else {
-        addMessage({ role: "assistant", content: "Oups, petit souci technique 😅 Réessaie dans un instant." });
+        full = await res.text();
+        setStreamText(full);
+      }
+
+      if (full.trim()) {
+        addMessage({ role: "assistant", content: full });
+      } else {
+        addMessage({ role: "assistant", content: "Oups, réponse vide 😅 Réessaie dans un instant." });
       }
     } catch {
       addMessage({ role: "assistant", content: "Impossible de contacter l'assistant pour le moment 😕" });
     } finally {
+      setStreamText("");
       setTyping(false);
     }
   }
@@ -168,7 +200,8 @@ export function AiAssistantWidget() {
               {messages.map((m, i) => (
                 <ChatMessage key={i} message={m} />
               ))}
-              {isTyping && <TypingIndicator />}
+              {isTyping && !streamText && <TypingIndicator />}
+              {streamText && <ChatMessage message={{ role: "assistant", content: streamText }} />}
             </div>
 
             {/* Suggestions (uniquement au début) */}

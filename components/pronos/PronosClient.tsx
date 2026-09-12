@@ -9,6 +9,8 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Trophy } from "lucide-react";
 import { MatchPredictionCard } from "./MatchPredictionCard";
+import { StartedMatchCard } from "./StartedMatchCard";
+import type { PublicPrediction, StartedMatch } from "@/lib/services/predictions.service";
 import { BonusPanel } from "./BonusPanel";
 import { cn, formatDayLabel } from "@/lib/utils";
 import { LEAGUES, LEAGUE_CODES } from "@/lib/constants";
@@ -18,11 +20,15 @@ interface Props {
   matches: Match[];
   predictions: Prediction[];
   settings: SiteSettings;
+  /** Matchs commencés (48 h) : pronos de tous les joueurs dévoilés */
+  startedMatches: StartedMatch[];
+  /** Admin uniquement : pronos des joueurs sur les matchs à venir */
+  adminPeek?: Record<string, PublicPrediction[]>;
 }
 
-type Tab = LeagueCode | "all" | "bonus";
+type Tab = LeagueCode | "all" | "live" | "bonus";
 
-export function PronosClient({ matches, predictions, settings }: Props) {
+export function PronosClient({ matches, predictions, settings, startedMatches, adminPeek }: Props) {
   const [tab, setTab] = useState<Tab>("all");
 
   const predictionsByMatch = useMemo(() => {
@@ -47,10 +53,11 @@ export function PronosClient({ matches, predictions, settings }: Props) {
     return [...groups.entries()];
   }, [filtered]);
 
-  const leagueVisual = tab !== "all" && tab !== "bonus" ? settings.leagues[tab] : null;
+  const leagueVisual = tab !== "all" && tab !== "bonus" && tab !== "live" ? settings.leagues[tab] : null;
 
   const tabs: { key: Tab; label: string; color: string; count: number }[] = [
     { key: "all", label: "Tous", color: "#10b981", count: matches.length },
+    { key: "live", label: "🔴 En direct", color: "#ef4444", count: startedMatches.length },
     ...LEAGUE_CODES.map((code) => ({
       key: code as Tab,
       label: LEAGUES[code].short,
@@ -96,7 +103,29 @@ export function PronosClient({ matches, predictions, settings }: Props) {
       </div>
 
       {/* Contenu */}
-      {tab === "bonus" ? (
+      {tab === "live" ? (
+        startedMatches.length === 0 ? (
+          <div className="rounded-xl border border-dashed p-10 text-center">
+            <span className="text-4xl">🏟️</span>
+            <p className="mt-4 font-semibold">Aucun match commencé ces dernières 48 h</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Dès le coup d&apos;envoi, les pronostics de tous les joueurs sont dévoilés ici 🔓
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Dès que le match démarre, plus aucun secret : voici les pronos de toute la communauté,
+              y compris les tiens 😉
+            </p>
+            <div className="grid gap-3 md:grid-cols-2">
+              {startedMatches.map((d) => (
+                <StartedMatchCard key={d.match.id} data={d} />
+              ))}
+            </div>
+          </div>
+        )
+      ) : tab === "bonus" ? (
         <BonusPanel />
       ) : byDay.length === 0 ? (
         <div className="rounded-xl border border-dashed p-10 text-center">
@@ -129,7 +158,12 @@ export function PronosClient({ matches, predictions, settings }: Props) {
               </h3>
               <motion.div layout className="grid gap-3 md:grid-cols-2">
                 {dayMatches.map((m) => (
-                  <MatchPredictionCard key={m.id} match={m} prediction={predictionsByMatch.get(m.id)} />
+                  <MatchPredictionCard
+                    key={m.id}
+                    match={m}
+                    prediction={predictionsByMatch.get(m.id)}
+                    adminPeek={adminPeek?.[m.id]}
+                  />
                 ))}
               </motion.div>
             </section>

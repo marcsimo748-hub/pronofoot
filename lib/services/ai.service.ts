@@ -1,20 +1,47 @@
 /**
- * Service IA — Assistant du site.
- * Chaîne d'appels : GROQ (llama-3.1-70b) → Gemini (fallback) → réponses locales.
- * L'historique est stocké dans `chat_history` (lié au user_id).
+ * Service IA — Assistant du site (Mission 11 : Intelligence).
+ * Chaîne : GROQ (Llama 3.3 70B, streaming) → Gemini → réponses locales.
+ *
+ * Clés API : variable d'environnement OU table privée prono_secrets
+ * (renseignée par l'admin via Admin > 🤖 Assistant IA, migration 012).
+ * Réponses en STREAMING pour un effet instantané.
  */
 
 import type { ChatMsg } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 import { safeQuery } from "@/lib/utils";
 
-const SYSTEM_PROMPT =
-  "Tu es l'assistant de PRONO (développé par Leprince Matt pour MalihaprodBerlin), tu aides les utilisateurs à naviguer, trouver les scores, les news, la musique, un emploi, un logement ou un visa. " +
-  "Réponds en français, de façon courte, amicale et utile. PRONO est la Super-App de la diaspora (pronostics football, emploi, visa, logement, annonces) " +
-  "(Ligue des Champions, Premier League, LaLiga, Serie A, Ligue 1, Bundesliga) avec scores live, actualités, " +
-  "musique et classements entre joueurs. Barème : score exact = 5 points, bon résultat = 3 points, bonus de saison jusqu'à 75 points.";
+const SYSTEM_PROMPT = `Tu es l'assistant intelligent de PRONO (développé par Leprince Matt pour MalihaprodBerlin), la Super-App de la diaspora africaine.
 
-/** Construit le contexte temps réel (matchs, résultats, points du joueur) injecté au prompt système */
+TON RÔLE : tu es un VRAI assistant conversationnel, comme ChatGPT ou Claude. Tu réponds à TOUT type de question : football, sport, actualité générale, culture, histoire, maths, traduction, conseils, vie quotidienne, technologie... ET en expert tu connais parfaitement le site PRONO.
+
+RÈGLES :
+- Réponds dans la langue de l'utilisateur (français par défaut, mais aussi anglais ou allemand si on t'écrit dans ces langues).
+- Réponses précises et VRAIES. Si tu n'es pas sûr d'un fait, dis-le honnêtement plutôt que d'inventer.
+- Style : amical, direct, concis (2 à 6 phrases en général). Emojis avec modération.
+- Pour les questions sur le site, appuie-toi sur TA CONNAISSANCE DU SITE ci-dessous et le contexte temps réel fourni.
+
+TA CONNAISSANCE DU SITE PRONO :
+- PRONOSTICS FOOT (/pronos) : 6 championnats (Ligue des Champions, Premier League, LaLiga, Serie A, Ligue 1, Bundesliga) avec les 19 équipes vedettes dont le Bayern, Real Madrid, Barcelone, PSG, Manchester City, Liverpool, Dortmund. Barème : score exact = 5 points, bon vainqueur ou bon nul = 3 points. Les pronos se verrouillent au coup d'envoi. Bonus de saison : champion = 50 pts, coupe nationale = 30 pts, vainqueur LDC = 75 pts, finaliste LDC = 30 pts, meilleur buteur = 25 pts (jusqu'à 75 points de bonus).
+- PRONOS DÉVOILÉS : dès qu'un match a commencé, tout le monde voit les pronostics de tous les joueurs (onglet 🔴 En direct de la page Pronos). L'admin peut les voir avant.
+- SCORES LIVE (/scores) : scores en direct mis à jour toutes les 90 secondes + bandeau défilant en haut du site.
+- CLASSEMENTS (/classement) : général, par championnat, mensuel, et groupes privés entre amis (code d'invitation).
+- NEWS (/news) : actualités rafraîchies toutes les 10 minutes.
+- MUSIQUE (/music) : playlists, le lecteur continue pendant la navigation.
+- EMPLOI (/prono-job) : offres d'emploi en Allemagne pour la diaspora, candidatures internes.
+- PROFIL (/prono-profil) : profil public personnalisable.
+- VISA (/prono-visa) : guides et infos pour les démarches de visa.
+- LOGEMENT (/prono-housing) : annonces de logement.
+- ANNONCES (/prono-annonces) : petites annonces de la communauté style Leboncoin, avec photos.
+- Covoiturage (/prono-voyage) : billets d'avion et de train (liens officiels Kayak, Google Flights, Trainline, FlixBus) + covoiturage communautaire.
+- MESSAGERIE PRIVÉE (/messages) : chat interne lié aux comptes. On discute d'abord sur le site, les coordonnées (numéro/email) ne sont révélées QUE si le propriétaire de l'annonce accepte. Badge ✓ vert = email vérifié.
+- NOTIFICATIONS : cloche 🔔 dans le header (nouveaux messages, discussions, coordonnées partagées).
+- APPLICATION MOBILE : le site est une PWA installable gratuitement. Android : menu Chrome puis Ajouter à l'écran d'accueil. iPhone : bouton Partager dans Safari puis Sur l'écran d'accueil.
+- COMPTE : inscription gratuite avec email + mot de passe, mot de passe oublié récupérable. 100% gratuit.
+- IA : c'est toi ! L'admin peut brancher les clés Groq ou Gemini dans Admin > 🤖 Assistant IA.`;
+
+/** Construit le contexte temps réel (matchs, résultats, classement, joueur) */
 export async function buildContext(userId?: string): Promise<string> {
   return safeQuery(
     async () => {
@@ -27,7 +54,7 @@ export async function buildContext(userId?: string): Promise<string> {
         .eq("status", "scheduled")
         .gte("match_date", new Date().toISOString())
         .order("match_date")
-        .limit(8);
+        .limit(10);
       if (upcoming?.length) {
         parts.push(
           "Prochains matchs à pronostiquer :\n" +
@@ -39,15 +66,25 @@ export async function buildContext(userId?: string): Promise<string> {
 
       const { data: results } = await supabase
         .from("matches")
-        .select("home_team, away_team, home_score, away_score, league")
+        .select("home_team, away_team, home_score, away_score, league, match_date")
         .eq("status", "finished")
         .order("match_date", { ascending: false })
-        .limit(5);
+        .limit(6);
       if (results?.length) {
         parts.push(
           "Derniers résultats :\n" +
             results.map((m) => `- ${m.home_team} ${m.home_score}-${m.away_score} ${m.away_team} (${m.league})`).join("\n")
         );
+      }
+
+      const { data: top } = await supabase
+        .from("profiles")
+        .select("username, total_points")
+        .order("total_points", { ascending: false })
+        .order("username")
+        .limit(5);
+      if (top?.length) {
+        parts.push("Top 5 du classement général : " + top.map((p, i) => `${i + 1}. ${p.username} (${p.total_points} pts)`).join(", "));
       }
 
       if (userId) {
@@ -57,23 +94,75 @@ export async function buildContext(userId?: string): Promise<string> {
           .eq("id", userId)
           .single();
         if (profile) {
-          parts.push(`L'utilisateur connecté est ${profile.username} avec ${profile.total_points} points.`);
+          const { count: rank } = await supabase
+            .from("profiles")
+            .select("id", { count: "exact", head: true })
+            .gt("total_points", profile.total_points);
+          parts.push(
+            `L'utilisateur connecté est ${profile.username} avec ${profile.total_points} points (rang approx. ${rank !== null ? rank + 1 : "?"}).`
+          );
         }
       }
 
-      return parts.length ? "Contexte temps réel du site :\n" + parts.join("\n\n") : "";
+      const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      parts.push(`Date du jour : ${today}.`);
+
+      return parts.length ? "Contexte temps réel du site (données actuelles) :\n" + parts.join("\n\n") : "";
     },
     ""
   );
 }
 
 // ---------------------------------------------------------------
-// Provider 1 : GROQ
+// CLÉS API : env vars OU table privée prono_secrets (admin)
 // ---------------------------------------------------------------
-async function callGroq(messages: ChatMsg[], system: string): Promise<string> {
-  const key = process.env.GROQ_API_KEY;
+const SECRETS_CACHE_TTL = 60_000;
+let secretsCache: { groq: string | null; gemini: string | null; at: number } | null = null;
+
+async function loadSecrets(): Promise<{ groq: string | null; gemini: string | null }> {
+  if (secretsCache && Date.now() - secretsCache.at < SECRETS_CACHE_TTL) {
+    return { groq: secretsCache.groq, gemini: secretsCache.gemini };
+  }
+  let groq: string | null = process.env.GROQ_API_KEY || null;
+  let gemini: string | null = process.env.GEMINI_API_KEY || null;
+  try {
+    const admin = tryGetSupabaseAdminClient();
+    if (admin) {
+      const { data } = await admin.from("prono_secrets").select("key, value").in("key", ["groq_api_key", "gemini_api_key"]);
+      for (const row of data ?? []) {
+        const v = String(row.value ?? "").trim();
+        if (!v) continue;
+        if (row.key === "groq_api_key") groq = v;
+        if (row.key === "gemini_api_key") gemini = v;
+      }
+    }
+  } catch {
+    /* table absente (migration 012 non exécutée) : on garde les vars d'env */
+  }
+  secretsCache = { groq, gemini, at: Date.now() };
+  return { groq, gemini };
+}
+
+/** Invalide le cache des secrets (après une écriture admin) */
+export function invalidateSecretsCache() {
+  secretsCache = null;
+}
+
+/** Teste la présence des clés (pour l'admin) */
+export async function getAiKeyStatus(): Promise<{ groq: boolean; gemini: boolean; env_groq: boolean; env_gemini: boolean }> {
+  const envGroq = !!process.env.GROQ_API_KEY;
+  const envGemini = !!process.env.GEMINI_API_KEY;
+  const { groq, gemini } = await loadSecrets();
+  return { groq: !!groq, gemini: !!gemini, env_groq: envGroq, env_gemini: envGemini };
+}
+
+// ---------------------------------------------------------------
+// Provider 1 : GROQ (streaming)
+// ---------------------------------------------------------------
+async function* groqStream(messages: ChatMsg[], system: string): AsyncGenerator<string> {
+  const { groq: key } = await loadSecrets();
   if (!key) throw new Error("no_key");
-  const model = process.env.GROQ_MODEL || "llama-3.1-70b-versatile";
+  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -82,23 +171,49 @@ async function callGroq(messages: ChatMsg[], system: string): Promise<string> {
       model,
       messages: [{ role: "system", content: system }, ...messages.slice(-10)],
       temperature: 0.6,
-      max_tokens: 500,
+      max_tokens: 700,
+      stream: true,
     }),
   });
-  if (!res.ok) throw new Error(`Groq ${res.status}`);
-  const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  const reply = json.choices?.[0]?.message?.content?.trim();
-  if (!reply) throw new Error("empty");
-  return reply;
+  if (!res.ok || !res.body) throw new Error(`Groq ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let emitted = false;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+      const payload = trimmed.slice(5).trim();
+      if (payload === "[DONE]") return;
+      try {
+        const json = JSON.parse(payload) as { choices?: { delta?: { content?: string } }[] };
+        const chunk = json.choices?.[0]?.delta?.content;
+        if (chunk) {
+          emitted = true;
+          yield chunk;
+        }
+      } catch {
+        /* ligne partielle ignorée */
+      }
+    }
+  }
+  if (!emitted) throw new Error("empty");
 }
 
 // ---------------------------------------------------------------
-// Provider 2 : Gemini
+// Provider 2 : Gemini (réponse complète)
 // ---------------------------------------------------------------
 async function callGemini(messages: ChatMsg[], system: string): Promise<string> {
-  const key = process.env.GEMINI_API_KEY;
+  const { gemini: key } = await loadSecrets();
   if (!key) throw new Error("no_key");
-  const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
@@ -111,7 +226,7 @@ async function callGemini(messages: ChatMsg[], system: string): Promise<string> 
           role: m.role === "assistant" ? "model" : "user",
           parts: [{ text: m.content }],
         })),
-        generationConfig: { maxOutputTokens: 500, temperature: 0.6 },
+        generationConfig: { maxOutputTokens: 700, temperature: 0.6 },
       }),
     }
   );
@@ -140,10 +255,10 @@ function localFallback(message: string, context: string): string {
       "Tout est calculé automatiquement dès que le résultat du match est connu !"
     );
   }
-  if (/prochain|match|matchs|pronostic|parier/.test(q)) {
+  if (/prochain|match|matchs|pronostic|parier|prono/.test(q)) {
     return nextMatchLine
-      ? `⚽ Les prochains matchs à pronostiquer commencent par : ${nextMatchLine.slice(2)}.\nRendez-vous sur la page « Pronos » pour saisir tes scores !`
-      : "⚽ Va sur la page « Pronos » pour voir tous les matchs à pronostiquer (Ligue des Champions, Premier League, LaLiga, Serie A, Ligue 1 et Bundesliga).";
+      ? `⚽ Les prochains matchs à pronostiquer commencent par : ${nextMatchLine.slice(2)}.\nRendez-vous sur la page « Pronos » pour saisir tes scores ! Dès le coup d'envoi, tu verras aussi les pronos de tous les joueurs (onglet 🔴 En direct).`
+      : "⚽ Va sur la page « Pronos » pour voir tous les matchs à pronostiquer (Ligue des Champions, Premier League, LaLiga, Serie A, Ligue 1 et Bundesliga). Dès qu'un match commence, les pronos de tout le monde sont dévoilés dans l'onglet 🔴 En direct.";
   }
   if (/score|live|direct|résultat/.test(q)) {
     return "🔴 Les scores en direct sont sur la page « Scores », mis à jour toutes les 90 secondes. Tu peux aussi voir le bandeau défilant en haut du site.";
@@ -155,48 +270,82 @@ function localFallback(message: string, context: string): string {
     return "🎵 La musique se lance depuis la page « Musique » : choisis un titre, et le lecteur continue de jouer pendant que tu navigues partout sur le site !";
   }
   if (/classement|rank|top|ami|groupe/.test(q)) {
-    return "🏆 Les classements sont sur la page « Classement » : général, par championnat, mensuel et entre amis (groupes privés).";
+    return "🏆 Les classements sont sur la page « Classement » : général, par championnat, mensuel et entre amis (groupes privés avec code d'invitation).";
+  }
+  if (/annonce|leboncoin|vendre|acheter/.test(q)) {
+    return "📢 La page « Annonces » regroupe les petites annonces de la communauté (avec photos). Tu discutes d'abord par le chat privé du site, et l'auteur ne révèle son numéro ou son email que s'il accepte l'échange 🔒";
+  }
+  if (/covoiturage|trajet|voyage|billet|avion|train/.test(q)) {
+    return "✈️ La page « Voyage » propose des liens officiels pré-remplis pour les billets d'avion et de train (Kayak, Google Flights, Trainline, FlixBus) + le covoiturage communautaire entre membres.";
+  }
+  if (/emploi|job|travail|jobbing/.test(q)) {
+    return "💼 La page « Emploi » liste les offres en Allemagne pour la diaspora, avec candidature directement depuis le site.";
+  }
+  if (/app|installer|téléphone|mobile|écran d'accueil/.test(q)) {
+    return "📱 PRONO s'installe comme une vraie app ! Android : menu Chrome → Ajouter à l'écran d'accueil. iPhone : bouton Partager dans Safari → Sur l'écran d'accueil.";
   }
   if (/compte|inscription|mot de passe|connexion/.test(q)) {
     return "🔐 Crée ton compte gratuitement (email + mot de passe), puis pronostique ! Si tu perds ton mot de passe, utilise « Mot de passe oublié » sur la page de connexion.";
   }
   if (/bonjour|salut|hello|hey|coucou/.test(q)) {
-    return "Salut ! 👋 Je peux t'aider avec les pronostics, les scores live, les news, la musique ou les classements. Que veux-tu savoir ?";
+    return "Salut ! 👋 Je peux t'aider avec les pronos, les scores live, les annonces, l'emploi, le covoiturage... ou répondre à n'importe quelle autre question. Que veux-tu savoir ?";
   }
   return (
-    "Je suis là pour t'aider ! 🤖 Essaie de me demander :\n" +
-    "• « Quels sont les prochains matchs ? »\n" +
-    "• « Comment gagner des points ? »\n" +
-    "• « Où voir les scores en direct ? »\n" +
-    "• « Comment marche la musique ? »"
+    "Je peux répondre à toutes tes questions (foot, culture, maths, traductions...) et je connais parfaitement le site : pronos, scores live, annonces, chat privé, emploi, voyage...\n" +
+    "💡 L'administrateur peut activer l'IA complète (Groq ou Gemini) dans Admin → 🤖 Assistant IA pour des réponses illimitées en temps réel."
   );
 }
 
 // ---------------------------------------------------------------
-// Point d'entrée principal
+// Point d'entrée principal : STREAMING
 // ---------------------------------------------------------------
-export async function chat(
+export async function* chatStream(
   messages: ChatMsg[],
   userId?: string
-): Promise<{ reply: string; provider: string }> {
+): AsyncGenerator<{ chunk?: string; provider?: string }> {
   const context = await buildContext(userId);
   const system = SYSTEM_PROMPT + (context ? `\n\n${context}` : "");
   const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
 
-  // GROQ → Gemini → local
+  // GROQ en streaming
   try {
-    const reply = await callGroq(messages, system);
-    return { reply, provider: "groq" };
+    let started = false;
+    for await (const chunk of groqStream(messages, system)) {
+      if (!started) {
+        started = true;
+        yield { provider: "groq" };
+      }
+      yield { chunk };
+    }
+    if (started) return;
   } catch (e) {
     if ((e as Error).message !== "no_key") console.warn("[ai.service] Groq KO :", (e as Error).message);
   }
+
+  // Gemini (réponse complète en une fois)
   try {
     const reply = await callGemini(messages, system);
-    return { reply, provider: "gemini" };
+    yield { provider: "gemini" };
+    yield { chunk: reply };
+    return;
   } catch (e) {
     if ((e as Error).message !== "no_key") console.warn("[ai.service] Gemini KO :", (e as Error).message);
   }
-  return { reply: localFallback(lastUser, context), provider: "local" };
+
+  // Local
+  yield { provider: "local" };
+  yield { chunk: localFallback(lastUser, context) };
+}
+
+/** Compat : réponse complète sans streaming (tests admin) */
+export async function chat(messages: ChatMsg[], userId?: string): Promise<{ reply: string; provider: string }> {
+  let reply = "";
+  let provider = "local";
+  for await (const ev of chatStream(messages, userId)) {
+    if (ev.provider) provider = ev.provider;
+    if (ev.chunk) reply += ev.chunk;
+  }
+  return { reply, provider };
 }
 
 /** Sauvegarde l'historique (user + réponse) pour les connectés */

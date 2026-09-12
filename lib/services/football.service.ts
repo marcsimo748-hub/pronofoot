@@ -72,6 +72,9 @@ function ourLeague(apiLeagueId: number): LeagueCode | null {
 // ---------------------------------------------------------------
 // SYNCHRO SCORES LIVE (appelée par /api/scores/sync toutes les ~90s)
 // ---------------------------------------------------------------
+/** Statuts API-Sports considérés comme match terminé (FT, prolong., tirs au but) */
+const FINISHED_API_STATUSES = ["FT", "AET", "PEN"];
+
 export async function syncLiveScores(): Promise<{ synced: number; settled: number; skipped?: string }> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return { synced: 0, settled: 0, skipped: "no_supabase" };
@@ -100,7 +103,7 @@ export async function syncLiveScores(): Promise<{ synced: number; settled: numbe
 
   // 2) Les matchs TERMINÉS alimentent la table `matches` → calcul des points
   let settled = 0;
-  const finished = ours.filter((f) => f.fixture.status.short === "FT");
+  const finished = ours.filter((f) => FINISHED_API_STATUSES.includes(f.fixture.status.short));
   for (const f of finished) {
     settled += await applyApiResult(f);
   }
@@ -162,6 +165,7 @@ export async function importFixtures(): Promise<{ imported: number; skipped?: st
       const league = ourLeague(f.league.id);
       if (!league) continue; // amicaux, coupes non suivies...
 
+      const isFinished = FINISHED_API_STATUSES.includes(f.fixture.status.short);
       const row = {
         external_id: String(f.fixture.id),
         league,
@@ -169,15 +173,33 @@ export async function importFixtures(): Promise<{ imported: number; skipped?: st
         match_date: f.fixture.date,
         home_team: apiTeamToOurs(f.teams.home.name),
         away_team: apiTeamToOurs(f.teams.away.name),
-        status: f.fixture.status.short === "FT" ? "finished" : "scheduled",
-        home_score: f.fixture.status.short === "FT" ? f.goals.home : null,
-        away_score: f.fixture.status.short === "FT" ? f.goals.away : null,
+        status: isFinished ? "finished" : "scheduled",
+        home_score: isFinished ? f.goals.home : null,
+        away_score: isFinished ? f.goals.away : null,
         source: "api",
       };
+
+      // 1) Insertion si le match est inconnu (nouveau fixture)
       const { error } = await admin
         .from("matches")
         .upsert(row, { onConflict: "external_id", ignoreDuplicates: true });
       if (!error) imported++;
+
+      if (isFinished) {
+        // 2a) Match terminé DÉJÀ connu mais sans résultat en base → settlement
+        //     (le score n'est jamais écrasé : applyApiResult vérifie home_score)
+        await applyApiResult(f);
+      } else {
+        // 2b) Match à venir déjà connu → on RAFRAÎCHIT l'horaire
+        //     (changement d'horaire, report... les heures restent exactes)
+        //     Uniquement si aucun résultat enregistré.
+        await admin
+          .from("matches")
+          .update({ match_date: row.match_date, status: "scheduled" })
+          .eq("external_id", row.external_id)
+          .is("home_score", null)
+          .neq("status", "finished");
+      }
     }
   }
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { PronosClient } from "@/components/pronos/PronosClient";
-import { getMatchesForPrediction } from "@/lib/services/predictions.service";
+import { getMatchesForPrediction, getStartedMatches, getAdminPredictionPeek } from "@/lib/services/predictions.service";
 import { getSettings } from "@/lib/services/settings.service";
 import { getSessionUser } from "@/lib/supabase/server";
 
@@ -16,10 +16,14 @@ export default async function PronosPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?next=/pronos");
 
-  const [{ matches, predictions }, settings] = await Promise.all([
+  const [{ matches, predictions }, settings, startedMatches] = await Promise.all([
     getMatchesForPrediction(user.id),
     getSettings(),
+    getStartedMatches(),
   ]);
+
+  // Admin : aperçu des pronos des joueurs avant le coup d'envoi
+  const adminPeek = user.is_admin ? await getAdminPredictionPeek(matches.map((m) => m.id)) : undefined;
 
   return (
     <div className="container space-y-6 py-8">
@@ -30,7 +34,13 @@ export default async function PronosPage() {
           {matches.length > 1 ? "s" : ""} — les pronostics se verrouillent automatiquement au coup d'envoi.
         </p>
       </header>
-      <PronosClient matches={matches} predictions={predictions} settings={settings} />
+      <PronosClient
+        matches={matches}
+        predictions={predictions}
+        settings={settings}
+        startedMatches={startedMatches}
+        adminPeek={adminPeek}
+      />
     </div>
   );
 }

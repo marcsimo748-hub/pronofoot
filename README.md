@@ -434,3 +434,19 @@ Discussions privées liées au compte : les coordonnées ne sortent JAMAIS du si
 - ⚠️ MIGRATION 011 à exécuter dans Supabase SQL Editor (APRÈS 009 et 010) :
   supabase/migrations/011_prono_notifications_verified.sql
   Sans elle le site fonctionne quand même : notifications vides et badge absent (fallback propre).
+
+## Mission 11 — Pronos dévoilés + heures à jour + IA complète 🔴🤖 (2026-09-12)
+- Pronostics DÉVOILÉS dès le coup d'envoi : onglet 🔴 En direct sur /pronos (48 dernières
+  heures) avec les pronos de TOUS les joueurs, les scores réels et les points gagnés.
+  Impossible de copier avant le match : la RLS bloque jusqu'au coup d'envoi.
+- Admin : aperçu 👁 des pronos de tous les joueurs même AVANT le match (sur chaque carte).
+- Heures de rencontre toujours à jour : l'import des fixtures met maintenant à jour les
+  horaires des matchs déjà connus (changements d'horaire, reports) et règle aussi les
+  matchs terminés en prolongation ou tirs au but (FT, AET, PEN).
+- Assistant IA : réponses en STREAMING mot à mot, prompt enrichi (connaît tout le site),
+  contexte temps réel étendu (top 5, rang du joueur). Nouvel outil Admin 🤖 Assistant IA :
+  l'admin colle sa clé Groq (console.groq.com, gratuite) ou Gemini — stockée dans une table
+  PRIVÉE prono_secrets, jamais lisible publiquement. Sans clé : mode local amélioré.
+- ⚠️ MIGRATION 012 à exécuter dans Supabase SQL Editor (après 011) :
+  supabase/migrations/012_prono_visibility_ai.sql — OBLIGATOIRE pour le dévoilement
+  des pronos et le stockage des clés IA.
