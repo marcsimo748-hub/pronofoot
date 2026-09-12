@@ -357,7 +357,7 @@ async function* groqStream(messages: ChatMsg[], system: string): AsyncGenerator<
 async function callGemini(messages: ChatMsg[], system: string): Promise<string> {
   const { gemini: key } = await loadSecrets();
   if (!key) throw new Error("no_key");
-  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
@@ -389,7 +389,7 @@ async function callGemini(messages: ChatMsg[], system: string): Promise<string> 
 async function callGeminiSearch(messages: ChatMsg[], system: string): Promise<string> {
   const { gemini: key } = await loadSecrets();
   if (!key) throw new Error("no_key");
-  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
@@ -424,7 +424,7 @@ export async function analyzeImage(prompt: string, dataUrl: string): Promise<str
   if (!key) {
     return "Pour analyser des images, l'admin doit ajouter une clé Gemini (gratuite sur aistudio.google.com) dans Admin → 🤖 Assistant IA 📷";
   }
-  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
   const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!m) return "Format d'image non reconnu.";
 
