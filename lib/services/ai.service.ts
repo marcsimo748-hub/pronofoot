@@ -342,6 +342,38 @@ export async function* chatStream(
   yield { chunk: localFallback(lastUser, context) };
 }
 
+/** Diagnostic détaillé (admin) : présence des clés + appel réel à Groq */
+export async function diagnoseAi(): Promise<{
+  groq_key: boolean;
+  gemini_key: boolean;
+  groq_model: string;
+  groq_error: string | null;
+}> {
+  const { groq, gemini } = await loadSecrets();
+  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  let groq_error: string | null = null;
+  if (groq) {
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${groq}` },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "user", content: "Réponds juste : ok" }],
+          max_tokens: 5,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        groq_error = `HTTP ${res.status} — ${body.slice(0, 220)}`;
+      }
+    } catch (e) {
+      groq_error = `Réseau : ${(e as Error).message}`;
+    }
+  }
+  return { groq_key: !!groq, gemini_key: !!gemini, groq_model: model, groq_error };
+}
+
 /** Compat : réponse complète sans streaming (tests admin) */
 export async function chat(messages: ChatMsg[], userId?: string): Promise<{ reply: string; provider: string }> {
   let reply = "";

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/supabase/admin";
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
-import { chat, getAiKeyStatus, invalidateSecretsCache } from "@/lib/services/ai.service";
+import { chat, getAiKeyStatus, invalidateSecretsCache, diagnoseAi } from "@/lib/services/ai.service";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +29,17 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as { groq_api_key?: string; gemini_api_key?: string; test?: boolean };
 
-    // Mode test : vérifie que l'IA répond
+    // Mode test : diagnostic complet (clés, appel réel Groq, réponse)
     if (body.test) {
-      const { reply, provider } = await chat([{ role: "user", content: "Réponds simplement : tout fonctionne." }], admin.id);
-      return NextResponse.json({ ok: true, data: { reply: reply.slice(0, 200), provider } });
+      const diag = await diagnoseAi();
+      let reply = "";
+      let provider = "local";
+      if (!diag.groq_error) {
+        const r = await chat([{ role: "user", content: "Réponds simplement : tout fonctionne." }], admin.id);
+        reply = r.reply.slice(0, 200);
+        provider = r.provider;
+      }
+      return NextResponse.json({ ok: true, data: { ...diag, reply, provider } });
     }
 
     const db = tryGetSupabaseAdminClient();

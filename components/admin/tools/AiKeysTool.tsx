@@ -23,6 +23,12 @@ export function AiKeysTool() {
   const [geminiKey, setGeminiKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [diag, setDiag] = useState<{
+    groq_key: boolean;
+    groq_model: string;
+    groq_error: string | null;
+    provider: string;
+  } | null>(null);
 
   const load = async () => {
     try {
@@ -72,8 +78,22 @@ export function AiKeysTool() {
   const test = async () => {
     setTesting(true);
     try {
-      const data = await adminFetch<{ reply: string; provider: string }>("/api/admin/ai-keys", { test: true });
-      toast.success(`Réponse du provider ${data.provider}`, { description: data.reply.slice(0, 120) });
+      const data = await adminFetch<{
+        groq_key: boolean;
+        gemini_key: boolean;
+        groq_model: string;
+        groq_error: string | null;
+        reply: string;
+        provider: string;
+      }>("/api/admin/ai-keys", { test: true });
+      setDiag(data);
+      if (!data.groq_key && !data.gemini_key) {
+        toast.error("Aucune clé enregistrée", { description: "Colle ta clé Groq ci-dessus puis Enregistrer." });
+      } else if (data.groq_error) {
+        toast.error("Groq refuse la clé", { description: data.groq_error.slice(0, 150) });
+      } else {
+        toast.success(`IA active ! Provider : ${data.provider}`, { description: data.reply.slice(0, 120) });
+      }
     } catch {
       toast.error("Test impossible.");
     } finally {
@@ -156,6 +176,18 @@ export function AiKeysTool() {
           {testing ? "Test en cours…" : "🧪 Tester l'assistant"}
         </Button>
       </div>
+
+      {diag && (
+        <div className={`rounded-lg border p-3 text-xs ${diag.groq_error ? "border-red-500/40 bg-red-500/10 text-red-300" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"}`}>
+          <p className="font-bold">
+            {diag.groq_error ? "❌ Problème détecté" : "✅ Diagnostic OK"}
+          </p>
+          <p className="mt-1 break-words text-foreground/80">
+            Clé Groq : {diag.groq_key ? "présente" : "absente"} · Modèle : {diag.groq_model} · Provider actif : {diag.provider}
+          </p>
+          {diag.groq_error && <p className="mt-1 break-words">{diag.groq_error}</p>}
+        </div>
+      )}
 
       <p className="rounded-lg bg-secondary/40 p-3 text-[11px] text-muted-foreground">
         🔒 Sécurité : les clés sont stockées dans une table privée (prono_secrets), invisible
