@@ -45,14 +45,27 @@ export async function POST(req: Request) {
 
     const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
     const encoder = new TextEncoder();
+
+    // Le premier événement du générateur porte TOUJOURS le provider :
+    // on le lit AVANT de construire la réponse pour un en-tête exact.
+    const gen = chatStream(messages, userId);
+    const first = await gen.next();
     let provider = "local";
+    let firstChunk = "";
+    if (!first.done) {
+      if (first.value.provider) provider = first.value.provider;
+      if (first.value.chunk) firstChunk = first.value.chunk;
+    }
 
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         let full = "";
         try {
-          for await (const ev of chatStream(messages, userId)) {
-            if (ev.provider) provider = ev.provider;
+          if (firstChunk) {
+            full += firstChunk;
+            controller.enqueue(encoder.encode(firstChunk));
+          }
+          for await (const ev of gen) {
             if (ev.chunk) {
               full += ev.chunk;
               controller.enqueue(encoder.encode(ev.chunk));

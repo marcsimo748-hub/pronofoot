@@ -107,8 +107,10 @@ export async function buildContext(userId?: string): Promise<string> {
         }
       }
 
-      const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-      parts.push(`Date du jour : ${today}.`);
+      const now = new Date();
+      const today = now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      const heure = now.toLocaleTimeString("fr-FR", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" });
+      parts.push(`Date et heure actuelles : ${today}, il est ${heure} (heure de Berlin, UTC+2 en été).`);
 
       return parts.length ? "Contexte temps réel du site (données actuelles) :\n" + parts.join("\n\n") : "";
     },
