@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { PronosClient } from "@/components/pronos/PronosClient";
+import { BannerRotator } from "@/components/shared/BannerRotator";
 import { getMatchesForPrediction, getStartedMatches, getAdminPredictionPeek } from "@/lib/services/predictions.service";
 import { getSettings } from "@/lib/services/settings.service";
 import { getSessionUser } from "@/lib/supabase/server";
@@ -26,9 +27,14 @@ export default async function PronosPage() {
   const adminPeek = user.is_admin ? await getAdminPredictionPeek(matches.map((m) => m.id)) : undefined;
 
   return (
-    <div className="container space-y-6 py-8">
+    <div className="theme-foot container space-y-6 py-8">
+      <BannerRotator
+        images={["/banners/foot/01.jpg", "/banners/foot/02.jpg", "/banners/foot/03.jpg", "/banners/foot/04.jpg", "/banners/foot/05.jpg"]}
+        title="Le journal des pronos"
+        subtitle="6 championnats, 19 équipes vedettes — les pronos se verrouillent au coup d'envoi, les scores tombent en direct."
+      />
       <header className="space-y-1">
-        <h1 className="text-3xl font-black">⚽ <span className="text-gradient">PRONO</span> - Pronostics</h1>
+        <h1 className="font-display text-4xl font-black">⚽ <span className="text-gradient">PRONO</span> - Pronostics</h1>
         <p className="text-muted-foreground">
           {matches.length} match{matches.length > 1 ? "s" : ""} ouvert
           {matches.length > 1 ? "s" : ""} — les pronostics se verrouillent automatiquement au coup d'envoi.

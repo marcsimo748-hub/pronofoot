@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BannerRotator } from "@/components/shared/BannerRotator";
 import { getSessionUser } from "@/lib/supabase/server";
 import { getHousingLetter, getHousingPrefill } from "@/lib/services/pronohousing.service";
 import { HousingClient } from "@/components/pronohousing/HousingClient";
@@ -31,6 +32,11 @@ export default async function PronoHousingPage() {
 
   return (
     <div className="theme-housing container space-y-10 py-8">
+      <BannerRotator
+        images={["/banners/housing/01.jpg", "/banners/housing/02.jpg", "/banners/housing/03.jpg", "/banners/housing/04.jpg", "/banners/housing/05.jpg"]}
+        title="Trouver toit à Berlin"
+        subtitle="WG-Gesucht, ImmoScout24, Immowelt, Kleinanzeigen — tes filtres, la lettre de motivation en allemand, 100% légal."
+      />
       {/* ===== En-tête ===== */}
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">

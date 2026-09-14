@@ -130,6 +130,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     last_cleanup: 0,
     last_standings_sync: 0,
     last_fixtures_import: 0,
+    last_events_sync: 0,
     requests_remaining: null,
     requests_day: null,
   },

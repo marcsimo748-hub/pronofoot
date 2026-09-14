@@ -476,3 +476,29 @@ Discussions privées liées au compte : les coordonnées ne sortent JAMAIS du si
 - Architecture retenue (tout gratuit) : Groq GPT-OSS 120B (conversation + raisonnement),
   Pollinations (images), Gemini (web + vision, clé gratuite optionnelle), pdf.js + Tesseract
   (lecture fichiers), jsPDF (export), Supabase (mémoire + historique).
+
+## Mission 14 — Vestiaire Edition : légal + design éditorial + événements 🏛️🎨⚽ (2026-09-14)
+- LÉGAL (Allemagne) : 3 pages publiques /impressum (§ 5 DDG, Marc Simo, Berlin),
+  /datenschutz (DSGVO : Vercel, Supabase, pronos à vie Art. 6 f, PronoScore Art. 22,
+  droits), /agb (jeu gratuit sans argent, pronos à vie, classement auto) + liens dans
+  le Footer (FR/EN/DE) + CookieBanner (Akzeptieren/Ablehnen, localStorage, cookies
+  techniques uniquement).
+- BUG LIVE CORRIGÉ : les matchs finis ne restent plus affichés LIVE — purge des lignes
+  périmées dans live_scores à chaque synchro (statut non-live ou > 4 h sans maj) +
+  filtre strict à la lecture (statuts live uniquement, fraîcheur 3 h) + LiveTicker filtré.
+- ÉVÉNEMENTS DE MATCH : buteurs (⚽ minute), cartons (🟨/🟥) sur les cartes de score.
+  Synchro /fixtures/events auto-throttlée (max 5 matchs, 1 fois / 20 min, seulement si
+  matchs live, quota > 15 restantes). ⚠️ MIGRATION 014 à exécuter :
+  supabase/migrations/014_prono_match_events.sql
+- DESIGN ÉVOLUTION (rien de cassé, thème sombre conservé) : fonts Instrument Serif
+  (titres .font-display) + IBM Plex Mono (tous les chiffres : scores, points, cotes) ;
+  couleurs signal par service : foot #FFE600 (texte noir dessus), job #0047FF,
+  housing #00C950, profil #FF2E2E ; BannerRotator (rotation 8 s en fondu, image
+  grayscale + voile noir 40 %, aucune image externe) sur Pronos, Emploi, Logement ;
+  15 bannières locales libre de droits dans public/banners/{foot,job,housing}/.
+- PARTAGE : bouton « Partager ↗ » (Web Share API + repli copier lien avec toast) sur
+  les cartes emplois (lien direct de l'offre), annonces et matchs dévoilés.
+- DASHBOARD : onglet « Communauté » — pronos de tous les joueurs dévoilés (RLS :
+  visibles seulement après le coup d'envoi), mêmes cartes que /pronos.
+- i18n : sélecteur FR/EN/DE désormais visible aussi sur mobile ; toutes les NOUVELLES
+  chaînes (légal, cookies) traduites dans les 3 langues.

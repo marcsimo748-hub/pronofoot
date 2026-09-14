@@ -113,6 +113,13 @@ const fr = {
   "footer.scorer": "Meilleur buteur",
   "footer.madeBy": "Développé par",
   "footer.for": "pour",
+  "footer.legalTitle": "Informations légales",
+  "footer.impressum": "Impressum (mentions légales)",
+  "footer.datenschutz": "Datenschutz (confidentialité)",
+  "footer.agb": "AGB (conditions d'utilisation)",
+  "cookies.text": "Ce site utilise uniquement des cookies techniques (connexion). Aucune publicité, aucun traqueur. Tu acceptes ?",
+  "cookies.accept": "Akzeptieren",
+  "cookies.decline": "Ablehnen",
 };
 
 /** Type imposant les mêmes clés dans toutes les langues */
@@ -203,6 +210,13 @@ const en: Dict = {
   "footer.scorer": "Top scorer",
   "footer.madeBy": "Developed by",
   "footer.for": "for",
+  "footer.legalTitle": "Legal information",
+  "footer.impressum": "Impressum (legal notice)",
+  "footer.datenschutz": "Datenschutz (privacy)",
+  "footer.agb": "AGB (terms of use)",
+  "cookies.text": "This site only uses technical cookies (login). No ads, no trackers. Do you accept?",
+  "cookies.accept": "Accept",
+  "cookies.decline": "Decline",
 };
 
 const de: Dict = {
@@ -290,6 +304,13 @@ const de: Dict = {
   "footer.scorer": "Torschützenkönig",
   "footer.madeBy": "Entwickelt von",
   "footer.for": "für",
+  "footer.legalTitle": "Rechtliches",
+  "footer.impressum": "Impressum",
+  "footer.datenschutz": "Datenschutz",
+  "footer.agb": "AGB (Nutzungsbedingungen)",
+  "cookies.text": "Diese Website verwendet nur technische Cookies (Anmeldung). Keine Werbung, keine Tracker. Akzeptierst du?",
+  "cookies.accept": "Akzeptieren",
+  "cookies.decline": "Ablehnen",
 };
 
 const DICTS: Record<Lang, Dict> = { fr, en, de };

@@ -144,7 +144,7 @@ export function MatchPredictionCard({ match, prediction, adminPeek }: Props) {
               disabled={locked}
               placeholder="–"
               aria-label={`Score ${match.home_team}`}
-              className="no-spinner order-first h-11 w-14 rounded-lg border border-input bg-background text-center text-xl font-bold tabular-nums focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+              className="no-spinner order-first h-11 w-14 rounded-lg border border-input bg-background text-center font-mono text-xl font-bold tabular-nums focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
             />
           )}
         </div>
@@ -170,7 +170,7 @@ export function MatchPredictionCard({ match, prediction, adminPeek }: Props) {
               disabled={locked}
               placeholder="–"
               aria-label={`Score ${match.away_team}`}
-              className="no-spinner h-11 w-14 rounded-lg border border-input bg-background text-center text-xl font-bold tabular-nums focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+              className="no-spinner h-11 w-14 rounded-lg border border-input bg-background text-center font-mono text-xl font-bold tabular-nums focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
             />
           )}
           <TeamName name={match.away_team} />

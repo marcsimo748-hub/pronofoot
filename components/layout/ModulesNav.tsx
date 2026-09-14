@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 /** Thème couleur du module actif : le bandeau prend l'identité du service ouvert */
 const THEME_BY_MODULE: Record<string, string> = {
   "/prono-job": "theme-job",
-  "/prono-profil": "theme-job",
+  "/prono-profil": "theme-profil",
   "/prono-visa": "theme-visa",
   "/prono-housing": "theme-housing",
   "/prono-annonces": "theme-annonces",

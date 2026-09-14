@@ -25,9 +25,9 @@ export default async function ClassementPage() {
   };
 
   return (
-    <div className="container space-y-6 py-8">
+    <div className="theme-foot container space-y-6 py-8">
       <header className="space-y-1">
-        <h1 className="text-3xl font-black">🏆 Classements</h1>
+        <h1 className="font-display text-4xl font-black">🏆 Classements</h1>
         <p className="text-muted-foreground">
           Général, par championnat, mensuel et entre amis — mis à jour automatiquement après chaque match.
         </p>

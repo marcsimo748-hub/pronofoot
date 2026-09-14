@@ -10,7 +10,7 @@
  */
 
 import { LEAGUES, LEAGUE_CODES, FEATURED_TEAMS, TEAM_ALIASES } from "@/lib/constants";
-import type { LiveScoreRow, Match, StandingEntry, LeagueCode } from "@/lib/types";
+import type { LiveScoreRow, Match, StandingEntry, LeagueCode, MatchEventRow } from "@/lib/types";
 import { normalizeTeam, safeQuery } from "@/lib/utils";
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSettings, updateSetting } from "./settings.service";
@@ -74,6 +74,8 @@ function ourLeague(apiLeagueId: number): LeagueCode | null {
 // ---------------------------------------------------------------
 /** Statuts API-Sports considérés comme match terminé (FT, prolong., tirs au but) */
 const FINISHED_API_STATUSES = ["FT", "AET", "PEN"];
+/** Statuts API-Sports = match réellement EN COURS (le reste ne doit jamais s'afficher LIVE) */
+const LIVE_API_STATUSES = ["1H", "2H", "HT", "ET", "BT", "P", "LIVE"];
 
 export async function syncLiveScores(): Promise<{ synced: number; settled: number; skipped?: string }> {
   const admin = tryGetSupabaseAdminClient();
@@ -107,6 +109,14 @@ export async function syncLiveScores(): Promise<{ synced: number; settled: numbe
   for (const f of finished) {
     settled += await applyApiResult(f);
   }
+
+  // 3) PURGE des lignes périmées : un match fini ou sorti du flux live ne
+  //    doit JAMAIS rester affiché comme LIVE dans live_scores.
+  const staleBefore = new Date(Date.now() - 4 * 3600_000).toISOString();
+  // a) statut terminé / annulé / reporté → sortie du cache live
+  await admin.from("live_scores").delete().not("status", "in", `("${LIVE_API_STATUSES.join('","')}")`);
+  // b) plus aucune maj depuis 4 h (match sorti du flux live) → périmé
+  await admin.from("live_scores").delete().lt("updated_at", staleBefore);
 
   return { synced: ours.length, settled };
 }
@@ -285,7 +295,8 @@ export async function getLiveScores(): Promise<LiveScoreRow[]> {
     const { data } = await supabase
       .from("live_scores")
       .select("*")
-      .neq("status", "FT")
+      .in("status", LIVE_API_STATUSES)
+      .gte("updated_at", new Date(Date.now() - 3 * 3600_000).toISOString())
       .order("updated_at", { ascending: false })
       .limit(30);
     return (data ?? []) as LiveScoreRow[];
@@ -322,5 +333,111 @@ export async function getRecentResults(limit = 20): Promise<Match[]> {
       .order("match_date", { ascending: false })
       .limit(limit);
     return (data ?? []) as Match[];
+  }, []);
+}
+
+
+// ---------------------------------------------------------------
+// ÉVÉNEMENTS DE MATCH (buteurs, cartons, penalties) — API-Football
+// /fixtures/events. QUOTA PROTÉGÉ : max 5 matchs, 1 synchro / 20 min,
+// uniquement quand des matchs sont réellement en direct.
+// ---------------------------------------------------------------
+
+interface ApiEvent {
+  time: { elapsed: number | null };
+  team: { name: string };
+  player: { name: string };
+  type: string;
+  detail: string | null;
+}
+
+/** Synchro des événements des matchs live (appelée depuis /api/scores/sync) */
+export async function syncMatchEvents(): Promise<{ events: number; skipped?: string }> {
+  const admin = tryGetSupabaseAdminClient();
+  if (!admin) return { events: 0, skipped: "no_supabase" };
+  if (!process.env.API_SPORTS_KEY) return { events: 0, skipped: "no_api_key" };
+
+  // Throttle : une synchro des événements max toutes les 20 minutes
+  const settings = await getSettings();
+  const now = Date.now();
+  if (now - (settings.sync_state.last_events_sync ?? 0) < 20 * 60_000) {
+    return { events: 0, skipped: "throttled" };
+  }
+  await updateSetting("sync_state", { last_events_sync: now }).catch(() => {});
+
+  // Garde-fou quota : il faut rester au-dessus de 15 requêtes
+  const { requests_remaining, requests_day } = settings.sync_state;
+  const today = new Date().toISOString().slice(0, 10);
+  if (requests_remaining !== null && requests_day === today && requests_remaining < 15) {
+    return { events: 0, skipped: "quota_low" };
+  }
+
+  // Matchs réellement en direct (max 5 fixtures = 5 requêtes)
+  const { data: liveRows } = await admin
+    .from("live_scores")
+    .select("id")
+    .in("status", LIVE_API_STATUSES)
+    .limit(5);
+  if (!liveRows || liveRows.length === 0) return { events: 0, skipped: "no_live" };
+
+  let count = 0;
+  for (const row of liveRows) {
+    const events = await apiGetEvents("/fixtures/events", { fixture: row.id });
+    for (const ev of events) {
+      const isGoal = ev.type === "Goal";
+      const isCard = ev.type === "Card";
+      const isPen = ev.type === "Var" || /penalty/i.test(ev.detail ?? "");
+      if (!isGoal && !isCard && !isPen) continue; // on garde buts + cartons + VAR/penalty
+      const { error } = await admin.from("prono_match_events").upsert(
+        {
+          fixture_id: row.id,
+          team: apiTeamToOurs(ev.team.name),
+          player: ev.player.name || "?",
+          type: isGoal ? "Goal" : isCard ? "Card" : "Penalty",
+          detail: ev.detail,
+          minute: ev.time.elapsed,
+        },
+        { onConflict: "fixture_id,team,player,type,detail,minute" }
+      );
+      if (!error) count++;
+    }
+  }
+  return { events: count };
+}
+
+/** Appel GET API-Football générique (events) */
+async function apiGetEvents(path: string, params: Record<string, string | number>): Promise<ApiEvent[]> {
+  const key = process.env.API_SPORTS_KEY;
+  if (!key) return [];
+  const url = new URL(API_BASE + path);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
+  try {
+    const res = await fetch(url, { headers: { "x-apisports-key": key }, cache: "no-store" });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { response?: ApiEvent[] };
+    return json.response ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Événements des matchs live actuels (lecture publique, pour /scores) */
+export async function getLiveEvents(): Promise<MatchEventRow[]> {
+  const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+  return safeQuery(async () => {
+    const supabase = createSupabaseServerClient();
+    const { data: live } = await supabase
+      .from("live_scores")
+      .select("id")
+      .in("status", LIVE_API_STATUSES)
+      .limit(10);
+    if (!live || live.length === 0) return [];
+    const ids = live.map((r: { id: string }) => r.id);
+    const { data } = await supabase
+      .from("prono_match_events")
+      .select("fixture_id, team, player, type, detail, minute")
+      .in("fixture_id", ids)
+      .order("minute", { ascending: true });
+    return (data ?? []) as MatchEventRow[];
   }, []);
 }

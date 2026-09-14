@@ -214,7 +214,7 @@ export function Header({ user }: { user: SessionUser | null }) {
         {/* Zone utilisateur */}
         <div className="flex items-center gap-2">
           {/* Sélecteur de langue FR / EN / DE */}
-          <div className="hidden items-center gap-0.5 rounded-lg border border-white/5 bg-secondary/50 p-0.5 sm:flex" role="group" aria-label="Langue / Language / Sprache">
+          <div className="flex items-center gap-0.5 rounded-lg border border-white/5 bg-secondary/50 p-0.5" role="group" aria-label="Langue / Language / Sprache">
             {LANGS.map((l) => (
               <button
                 key={l.code}

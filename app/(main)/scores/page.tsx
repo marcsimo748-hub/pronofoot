@@ -4,7 +4,7 @@ import { ScoreCard } from "@/components/scores/ScoreCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Radio, CalendarDays, History, Trophy, Info } from "lucide-react";
-import { getLiveScores, getUpcomingMatches, getRecentResults } from "@/lib/services/football.service";
+import { getLiveScores, getUpcomingMatches, getRecentResults, getLiveEvents } from "@/lib/services/football.service";
 import { getSettings } from "@/lib/services/settings.service";
 import { LEAGUES, LEAGUE_CODES } from "@/lib/constants";
 import type { LeagueCode, StandingEntry } from "@/lib/types";
@@ -17,19 +17,20 @@ export const metadata: Metadata = { title: "Scores live" };
  * ⭐ Le front lit UNIQUEMENT Supabase (cache + temps réel), jamais l'API externe.
  */
 export default async function ScoresPage() {
-  const [live, upcoming, results, settings] = await Promise.all([
+  const [live, upcoming, results, settings, events] = await Promise.all([
     getLiveScores(),
     getUpcomingMatches(10),
     getRecentResults(12),
     getSettings(),
+    getLiveEvents(),
   ]);
 
   const standings = settings.standings_cache;
 
   return (
-    <div className="container space-y-10 py-8">
+    <div className="theme-foot container space-y-10 py-8">
       <header className="space-y-2">
-        <h1 className="flex items-center gap-3 text-3xl font-black">
+        <h1 className="flex items-center gap-3 font-display text-4xl font-black">
           <Radio className="h-8 w-8 text-primary" /> Scores
           {live.length > 0 && <Badge variant="live" className="gap-1.5">
             <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-red-500" /> {live.length} en direct
@@ -52,7 +53,7 @@ export default async function ScoresPage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {live.filter((m) => m.status !== "FT").map((m) => (
-              <ScoreCard key={m.id} match={m} />
+              <ScoreCard key={m.id} match={m} events={events.filter((e) => e.fixture_id === m.id)} />
             ))}
           </div>
         )}

@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { MapPin, Building2, ExternalLink, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ShareButton } from "@/components/shared/ShareButton";
 import type { PronoScoredJob } from "@/lib/types";
 
 const CONTRACT_LABELS: Record<string, string> = {
@@ -136,6 +137,12 @@ export function JobCard({
             Voir l&apos;offre <ExternalLink className="h-3.5 w-3.5" />
           </Button>
         </a>
+        <ShareButton
+          title={`${job.title} — ${job.company} (offre sur PRONO)`}
+          text={`Offre d'emploi : ${job.title} chez ${job.company}`}
+          url={job.url}
+          variant="outline"
+        />
       </div>
     </motion.div>
   );

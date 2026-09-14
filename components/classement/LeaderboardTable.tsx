@@ -77,12 +77,12 @@ export function LeaderboardTable({
                 </div>
               </td>
               {showPreds && (
-                <td className="hidden px-2 py-3 text-right tabular-nums text-muted-foreground sm:table-cell">
+                <td className="hidden px-2 py-3 text-right font-mono tabular-nums text-muted-foreground sm:table-cell">
                   {row.preds || "—"}
                 </td>
               )}
               <td className="px-4 py-3 text-right">
-                <span className="font-black tabular-nums text-primary">{row.points}</span>
+                <span className="font-black font-mono tabular-nums text-primary">{row.points}</span>
               </td>
             </tr>
           ))}

@@ -2,6 +2,7 @@ import { SiteBackground } from "@/components/ui/SiteBackground";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { CookieBanner } from "@/components/layout/CookieBanner";
 import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
 import { getSessionUser } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/services/settings.service";
@@ -22,6 +23,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
       <main className="flex-1 pb-20 md:pb-0">{children}</main>
       <Footer />
       <MobileNav user={user} />
+      <CookieBanner />
       </div>
     </>
   );

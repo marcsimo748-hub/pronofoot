@@ -1,5 +1,21 @@
 import type { Metadata, Viewport } from "next";
+import { Instrument_Serif, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+
+/* Typo éditoriale : Instrument Serif (titres journal) + IBM Plex Mono (chiffres/scores) */
+const instrumentSerif = Instrument_Serif({
+  weight: "400",
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+const plexMono = IBM_Plex_Mono({
+  weight: ["400", "500", "600"],
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
 import { Toaster } from "@/components/ui/toaster";
 import { NewsTicker } from "@/components/news/NewsTicker";
 import { MusicPlayer } from "@/components/music/MusicPlayer";
@@ -64,7 +80,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           }}
         />
       </head>
-      <body className="min-h-dvh font-sans">
+      <body className={`${instrumentSerif.variable} ${plexMono.variable} min-h-dvh font-sans`}>
         <NewsTicker initialNews={news as NewsItem[]} />
         {children}
         {/* Lecteur global + assistant IA : actifs sur tout le site */}

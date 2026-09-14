@@ -45,6 +45,16 @@ export function Footer() {
         </div>
       </div>
 
+      {/* Colonne légale (Allemagne : Impressum / Datenschutz / AGB) */}
+      <div className="container pt-2">
+        <h3 className="mb-3 text-sm font-semibold">{t("footer.legalTitle")}</h3>
+        <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+          <li><Link href="/impressum" className="hover:text-primary">{t("footer.impressum")}</Link></li>
+          <li><Link href="/datenschutz" className="hover:text-primary">{t("footer.datenschutz")}</Link></li>
+          <li><Link href="/agb" className="hover:text-primary">{t("footer.agb")}</Link></li>
+        </ul>
+      </div>
+
       <div className="border-t border-white/5 py-4">
         <div className="container space-y-2 text-center">
           <p className="text-xs text-muted-foreground">

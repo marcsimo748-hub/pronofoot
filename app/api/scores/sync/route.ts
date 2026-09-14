@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches } from "@/lib/services/football.service";
+import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches, syncMatchEvents } from "@/lib/services/football.service";
 import { getSettings, updateSetting } from "@/lib/services/settings.service";
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -52,6 +52,9 @@ async function handle(req: Request) {
   try {
     const result = await syncLiveScores();
 
+    // Événements (buteurs, cartons) des matchs live — auto-throttlé 20 min
+    const events = await syncMatchEvents().catch(() => ({ events: 0, skipped: "error" }));
+
     // Import des nouveaux matchs des 19 équipes (1x/6h) + classements (1x/1h)
     const fixturesDue = now - settings.sync_state.last_fixtures_import > 6 * 3600_000;
     const fixtures = fixturesDue ? await importFixtures() : null;
@@ -61,7 +64,7 @@ async function handle(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      data: { ...result, fixturesImported: fixtures?.imported ?? 0, standingsUpdated: standings?.updated ?? 0 },
+      data: { ...result, eventsSynced: events.events, fixturesImported: fixtures?.imported ?? 0, standingsUpdated: standings?.updated ?? 0 },
       cleaned: cleanupDue,
       cron: Boolean(hasCronSecret),
     });

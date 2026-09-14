@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, SlidersHorizontal, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BannerRotator } from "@/components/shared/BannerRotator";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -199,6 +200,11 @@ export function PronoJobClient({
 
   return (
     <div className="theme-job container space-y-6 py-8">
+      <BannerRotator
+        images={["/banners/job/01.jpg", "/banners/job/02.jpg", "/banners/job/03.jpg", "/banners/job/04.jpg", "/banners/job/05.jpg"]}
+        title="Emploi en Allemagne"
+        subtitle="Offres ciblées, PronoScore qui matche ton profil, candidature en un clic — gratuitement."
+      />
       {/* ===== En-tête ===== */}
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">

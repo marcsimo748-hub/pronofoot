@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
+  Radio,
   Trophy, Target, Crosshair, TrendingUp, Users, CalendarDays, Lock, History, ChevronRight, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GroupsPanel } from "@/components/classement/GroupsPanel";
 import { PronoJobApplications } from "@/components/dashboard/PronoJobApplications";
 import { PronoProfileCard } from "@/components/dashboard/PronoProfileCard";
+import { StartedMatchCard } from "@/components/pronos/StartedMatchCard";
+import type { StartedMatch } from "@/lib/services/predictions.service";
 import { cn, formatMatchDate } from "@/lib/utils";
 import { LEAGUES } from "@/lib/constants";
 import type { Match, Prediction } from "@/lib/types";
@@ -35,12 +38,14 @@ export function DashboardClient({
   userId,
   emailVerified = true,
   email = null,
+  community = [],
 }: {
   username: string;
   data: DashboardData;
   userId: string;
   emailVerified?: boolean;
   email?: string | null;
+  community?: StartedMatch[];
 }) {
   const upcoming = useMemo(() => data.predictions.filter((p) => p.matches?.status === "scheduled"), [data.predictions]);
   const history = useMemo(() => data.predictions.filter((p) => p.calculated), [data.predictions]);
@@ -151,6 +156,9 @@ export function DashboardClient({
           <TabsTrigger value="groups" className="gap-1.5">
             <Users className="h-3.5 w-3.5" /> Mes groupes
           </TabsTrigger>
+          <TabsTrigger value="community" className="gap-1.5">
+            <Radio className="h-3.5 w-3.5" /> Communauté
+          </TabsTrigger>
         </TabsList>
 
         {/* Pronostics à venir */}
@@ -177,6 +185,15 @@ export function DashboardClient({
         {/* Groupes */}
         <TabsContent value="groups" className="mt-4">
           <GroupsPanel currentUserId={userId} />
+        </TabsContent>
+
+        {/* 🆕 Communauté : les pronos de tous les joueurs, dévoilés au coup d'envoi */}
+        <TabsContent value="community" className="mt-4 space-y-3">
+          {community.length === 0 ? (
+            <EmptyState text="Aucun match en cours ou récent — les pronos de la communauté apparaîtront ici dès le coup d'envoi." />
+          ) : (
+            community.map((d) => <StartedMatchCard key={d.match.id} data={d} />)
+          )}
         </TabsContent>
       </Tabs>
 

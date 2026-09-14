@@ -87,6 +87,16 @@ export interface LiveScoreRow {
   elapsed: number | null;
 }
 
+/** Événement d'un match en direct (buteur, carton, penalty...) */
+export interface MatchEventRow {
+  fixture_id: string;
+  team: string;
+  player: string;
+  type: string; // Goal | Card | Var | Sub
+  detail: string | null; // Normal Goal | Yellow Card | Red Card | Penalty...
+  minute: number | null;
+}
+
 /** Article d'actualité en cache (table `news`) */
 export interface NewsItem {
   id: string;
@@ -144,6 +154,7 @@ export interface SiteSettings {
     last_cleanup: number;
     last_standings_sync: number;
     last_fixtures_import: number;
+    last_events_sync: number;
     requests_remaining: number | null;
     requests_day: string | null;
   };

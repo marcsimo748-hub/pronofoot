@@ -40,7 +40,7 @@ export default async function LandingPage() {
   }, { players: 0, matches: 629 });
 
   return (
-    <>
+    <div className="theme-foot">
       <Hero
         stats={{ ...stats, teams: FEATURED_TEAMS.length }}
         loggedIn={Boolean(user)}
@@ -72,6 +72,6 @@ export default async function LandingPage() {
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }

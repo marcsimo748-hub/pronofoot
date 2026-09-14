@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { categoryInfo, timeAgoFr } from "./annonces-data";
+import { ShareButton } from "@/components/shared/ShareButton";
 import type { PronoAnnonce } from "@/lib/types";
 
 interface Props {
@@ -76,6 +77,14 @@ export function AnnonceCard({ annonce, isOwner, onOpen, onHide, onDelete }: Prop
           <span>📍 {annonce.city || "—"}</span>
           <span>{timeAgoFr(annonce.created_at)}</span>
         </div>
+
+        <ShareButton
+          title={`${annonce.title} — annonce PRONO`}
+          text={`Annonce : ${annonce.title}${annonce.city ? ` à ${annonce.city}` : ""}`}
+          url="/prono-annonces"
+          variant="outline"
+          className="h-7 w-full justify-center px-2 text-xs"
+        />
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Avatar className="h-5 w-5">

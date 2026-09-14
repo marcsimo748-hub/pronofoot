@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
-import { getDashboardData } from "@/lib/services/predictions.service";
+import { getDashboardData, getStartedMatches } from "@/lib/services/predictions.service";
 import { getSessionUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -15,11 +15,14 @@ export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?next=/dashboard");
 
-  const data = await getDashboardData(user.id);
+  const [data, community] = await Promise.all([
+    getDashboardData(user.id),
+    getStartedMatches(6),
+  ]);
 
   return (
     <div className="container py-8">
-      <DashboardClient username={user.username} data={data} userId={user.id} emailVerified={user.email_verified} email={user.email} />
+      <DashboardClient username={user.username} data={data} userId={user.id} emailVerified={user.email_verified} email={user.email} community={community} />
     </div>
   );
 }
