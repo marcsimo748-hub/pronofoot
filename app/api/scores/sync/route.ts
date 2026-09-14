@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches, syncMatchEvents } from "@/lib/services/football.service";
+import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches, syncMatchEvents, lastApiMeta } from "@/lib/services/football.service";
 import { getSettings, updateSetting } from "@/lib/services/settings.service";
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -62,6 +62,18 @@ async function handle(req: Request) {
     const standingsDue = now - settings.sync_state.last_standings_sync > 3600_000;
     const standings = standingsDue ? await syncStandings() : null;
 
+    // 🔍 DIAGNOSTIC : on journalise le résultat complet de la vraie synchro
+    // dans site_settings (lisible par l'admin et le support — observabilité).
+    const debug = {
+      at: new Date().toISOString(),
+      result,
+      events,
+      apiMeta: lastApiMeta,
+      fixturesImported: fixtures?.imported ?? 0,
+      standingsUpdated: standings?.updated ?? 0,
+    };
+    await updateSetting("sync_state", { last_scores_result: JSON.stringify(debug) }).catch(() => {});
+
     return NextResponse.json({
       ok: true,
       data: { ...result, eventsSynced: events.events, fixturesImported: fixtures?.imported ?? 0, standingsUpdated: standings?.updated ?? 0 },
@@ -70,6 +82,9 @@ async function handle(req: Request) {
     });
   } catch (e) {
     console.error("[api/scores/sync]", e);
+    await updateSetting("sync_state", {
+      last_scores_result: JSON.stringify({ at: new Date().toISOString(), error: (e as Error).message, apiMeta: lastApiMeta }),
+    }).catch(() => {});
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }
 }

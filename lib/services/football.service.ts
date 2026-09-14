@@ -24,6 +24,16 @@ interface ApiFixture {
   goals: { home: number | null; away: number | null };
 }
 
+/** Diagnostic du dernier appel API-Sports (lisible juste après par la route sync) */
+export let lastApiMeta: {
+  path: string;
+  ok: boolean;
+  status: number;
+  quotaHeaderRemaining: string | null;
+  errors: unknown;
+  count: number;
+} | null = null;
+
 /** Appel GET vers API-FOOTBALL avec gestion du quota */
 async function apiGet(path: string, params: Record<string, string | number>): Promise<ApiFixture[] | null> {
   const key = process.env.API_SPORTS_KEY;
@@ -36,10 +46,13 @@ async function apiGet(path: string, params: Record<string, string | number>): Pr
     headers: { "x-apisports-key": key },
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(`API-Sports ${res.status}`);
+  const remaining = res.headers.get("x-requests-remaining") ?? res.headers.get("x-ratelimit-requests-remaining");
+  if (!res.ok) {
+    lastApiMeta = { path, ok: false, status: res.status, quotaHeaderRemaining: remaining, errors: null, count: 0 };
+    throw new Error(`API-Sports ${res.status}`);
+  }
 
   // Suivi du quota → pause automatique si < 10 requêtes restantes
-  const remaining = res.headers.get("x-requests-remaining");
   if (remaining !== null) {
     const today = new Date().toISOString().slice(0, 10);
     const state = (await getSettings()).sync_state;
@@ -49,9 +62,16 @@ async function apiGet(path: string, params: Record<string, string | number>): Pr
   }
 
   const json = (await res.json()) as { response?: ApiFixture[]; errors?: unknown };
-  if (json.errors && Object.keys(json.errors).length) {
-    console.warn("[football.service] erreurs API:", json.errors);
-  }
+  const hasErrors = json.errors && Object.keys(json.errors).length > 0;
+  if (hasErrors) console.warn("[football.service] erreurs API:", json.errors);
+  lastApiMeta = {
+    path,
+    ok: true,
+    status: res.status,
+    quotaHeaderRemaining: remaining,
+    errors: hasErrors ? json.errors : null,
+    count: json.response?.length ?? 0,
+  };
   return json.response ?? [];
 }
 
@@ -75,7 +95,7 @@ function ourLeague(apiLeagueId: number): LeagueCode | null {
 /** Statuts API-Sports considérés comme match terminé (FT, prolong., tirs au but) */
 const FINISHED_API_STATUSES = ["FT", "AET", "PEN"];
 /** Statuts API-Sports = match réellement EN COURS (le reste ne doit jamais s'afficher LIVE) */
-const LIVE_API_STATUSES = ["1H", "2H", "HT", "ET", "BT", "P", "LIVE"];
+const LIVE_API_STATUSES = ["1H", "2H", "HT", "ET", "BT", "P", "LIVE", "INT", "SUSP"];
 
 export async function syncLiveScores(): Promise<{ synced: number; settled: number; skipped?: string }> {
   const admin = tryGetSupabaseAdminClient();

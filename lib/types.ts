@@ -155,6 +155,8 @@ export interface SiteSettings {
     last_standings_sync: number;
     last_fixtures_import: number;
     last_events_sync: number;
+    /** Diagnostic : résultat JSON de la dernière vraie synchro (debug) */
+    last_scores_result?: string | null;
     requests_remaining: number | null;
     requests_day: string | null;
   };
