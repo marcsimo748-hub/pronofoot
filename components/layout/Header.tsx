@@ -85,13 +85,15 @@ export function Header({ user }: { user: SessionUser | null }) {
   // --- Easter egg : 5 clics sur le logo ---
   const clicks = useRef(0);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleLogoClick = useCallback(() => {
+  const handleLogoClick = useCallback((e?: React.MouseEvent) => {
     clicks.current += 1;
     if (resetTimer.current) clearTimeout(resetTimer.current);
     resetTimer.current = setTimeout(() => (clicks.current = 0), 1600);
 
     if (clicks.current >= 5) {
       clicks.current = 0;
+      // 5e clic rapide : on reste sur place, l'easter egg prend la main
+      e?.preventDefault();
       if (user?.is_admin) {
         setAdminUnlocked(true);
         toast.success("🔓 PASS VIP ADMIN ACTIVÉ !", {
@@ -127,17 +129,18 @@ export function Header({ user }: { user: SessionUser | null }) {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-background/80 backdrop-blur-xl">
       <div className="container flex h-16 items-center justify-between gap-4">
-        {/* Logo (5 clics = admin) */}
-        <button
+        {/* Logo : 1 clic = retour accueil · 5 clics rapides = easter egg admin */}
+        <Link
+          href="/"
           onClick={handleLogoClick}
           className="flex items-center gap-2 select-none"
-          aria-label="PRONO, accueil"
+          aria-label="PRONO, retour à l'accueil"
         >
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/15 shadow-glow-sm text-xl">⚽</span>
           <span className="text-lg font-black tracking-tight">
             <span className="text-gradient">PRONO</span>
           </span>
-        </button>
+        </Link>
 
         {/* Navigation desktop */}
         <nav className="hidden md:flex items-center gap-1">

@@ -16,10 +16,10 @@ export function Footer() {
     <footer className="border-t border-white/5 bg-background/60">
       <div className="container grid gap-8 py-10 md:grid-cols-3">
         <div>
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2" aria-label="PRONO, retour à l'accueil">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/15 text-lg">⚽</span>
             <span className="font-black text-gradient">{SITE_NAME}</span>
-          </div>
+          </Link>
           <p className="mt-3 text-sm text-muted-foreground">{t("footer.tagline")}</p>
         </div>
 
