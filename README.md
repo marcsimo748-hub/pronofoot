@@ -502,3 +502,22 @@ Discussions privées liées au compte : les coordonnées ne sortent JAMAIS du si
   visibles seulement après le coup d'envoi), mêmes cartes que /pronos.
 - i18n : sélecteur FR/EN/DE désormais visible aussi sur mobile ; toutes les NOUVELLES
   chaînes (légal, cookies) traduites dans les 3 langues.
+
+## Mission 14.1 — Communauté : pronos visibles, filtre corrigé, coupons publics 🎟️👥 (2026-09-14)
+- PRONOS DES JOUEURS EN BAS DE CHAQUE MATCH : sur les matchs à venir, la carte montre
+  qui a déjà pronostiqué (👥 pseudos + total — les scores restent secrets jusqu'au coup
+  d'envoi, anti-triche côté serveur) ; dès le coup d'envoi, tous les scores se dévoilent.
+- CORRECTIF FILTRE CHAMPIONNAT : après un pronostic dans l'onglet « Tous », le match
+  reste marqué « Enregistré » dans son onglet championnat (l'état vit dans le parent,
+  plus de re-saisie). Resynchronisation automatique du formulaire si la donnée arrive tard.
+- VISIBILITÉ COMMUNAUTÉ : la lecture des pronos dévoilés passe par le client SERVICE
+  côté serveur avec filtre strict match_date <= now — les pronos des autres joueurs
+  s'affichent même si la migration 012 n'est pas encore exécutée (l'anti-triche est
+  garanti par le serveur, la RLS reste en seconde couche).
+- PAGE PUBLIQUE /coupons : archive de TOUS les pronostics du site (30 derniers matchs
+  disputés, pronos dévoilés par match) + compteurs globaux (pronos, joueurs actifs,
+  matchs couverts, points distribués).
+- PAGE PUBLIQUE /joueur/[id] : le coupon de chaque joueur — points, pronos, scores
+  exacts, bonnes issues, taux de réussite, liste complète de ses pronos dévoilés.
+  Pseudos cliquables depuis les matchs dévoilés ET le classement.
+- Lien « Coupons de la communauté » dans le footer (FR/EN/DE) + sur /pronos.

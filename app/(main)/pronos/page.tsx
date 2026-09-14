@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { PronosClient } from "@/components/pronos/PronosClient";
 import { BannerRotator } from "@/components/shared/BannerRotator";
-import { getMatchesForPrediction, getStartedMatches, getAdminPredictionPeek } from "@/lib/services/predictions.service";
+import { getMatchesForPrediction, getStartedMatches, getAdminPredictionPeek, getUpcomingParticipants } from "@/lib/services/predictions.service";
 import { getSettings } from "@/lib/services/settings.service";
 import { getSessionUser } from "@/lib/supabase/server";
 
@@ -26,6 +26,9 @@ export default async function PronosPage() {
   // Admin : aperçu des pronos des joueurs avant le coup d'envoi
   const adminPeek = user.is_admin ? await getAdminPredictionPeek(matches.map((m) => m.id)) : undefined;
 
+  // 👥 Qui a déjà pronostiqué chaque match à venir (pseudos, jamais les scores)
+  const participants = await getUpcomingParticipants(matches.map((m) => m.id));
+
   return (
     <div className="theme-foot container space-y-6 py-8">
       <BannerRotator
@@ -36,6 +39,8 @@ export default async function PronosPage() {
       <header className="space-y-1">
         <h1 className="font-display text-4xl font-black">⚽ <span className="text-gradient">PRONO</span> - Pronostics</h1>
         <p className="text-muted-foreground">
+          <a href="/coupons" className="font-semibold text-primary hover:underline">🎟️ Tous les pronos de la communauté →</a>
+          <span className="mx-2">·</span>
           {matches.length} match{matches.length > 1 ? "s" : ""} ouvert
           {matches.length > 1 ? "s" : ""} — les pronostics se verrouillent automatiquement au coup d'envoi.
         </p>
@@ -46,6 +51,7 @@ export default async function PronosPage() {
         settings={settings}
         startedMatches={startedMatches}
         adminPeek={adminPeek}
+        participants={participants}
       />
     </div>
   );

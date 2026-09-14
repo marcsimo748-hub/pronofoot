@@ -6,6 +6,7 @@
  * (protégés par la RLS jusqu'au coup d'envoi — migration 012).
  */
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -98,7 +99,13 @@ export function StartedMatchCard({ data }: { data: StartedMatch }) {
                       {(p.username ?? "?").slice(0, 1).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="min-w-0 flex-1 truncate font-medium">{p.username ?? "Joueur"}</span>
+                  <Link
+                    href={`/joueur/${p.user_id}`}
+                    className="min-w-0 flex-1 truncate font-medium hover:text-primary hover:underline"
+                    title={`Voir le coupon de ${p.username ?? "ce joueur"}`}
+                  >
+                    {p.username ?? "Joueur"}
+                  </Link>
                   <span className="shrink-0 rounded-md bg-background/60 px-2 py-0.5 font-bold font-mono tabular-nums">
                     {p.home_score} - {p.away_score}
                   </span>

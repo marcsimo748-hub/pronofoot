@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import { Trophy } from "lucide-react";
 import { MatchPredictionCard } from "./MatchPredictionCard";
 import { StartedMatchCard } from "./StartedMatchCard";
-import type { PublicPrediction, StartedMatch } from "@/lib/services/predictions.service";
+import type { MatchParticipants, PublicPrediction, StartedMatch } from "@/lib/services/predictions.service";
 import { BonusPanel } from "./BonusPanel";
 import { cn, formatDayLabel } from "@/lib/utils";
 import { LEAGUES, LEAGUE_CODES } from "@/lib/constants";
@@ -24,18 +24,39 @@ interface Props {
   startedMatches: StartedMatch[];
   /** Admin uniquement : pronos des joueurs sur les matchs à venir */
   adminPeek?: Record<string, PublicPrediction[]>;
+  /** Qui a déjà pronostiqué sur chaque match à venir (pseudos, jamais les scores) */
+  participants?: Record<string, MatchParticipants>;
 }
 
 type Tab = LeagueCode | "all" | "live" | "bonus";
 
-export function PronosClient({ matches, predictions, settings, startedMatches, adminPeek }: Props) {
+export function PronosClient({ matches, predictions, settings, startedMatches, adminPeek, participants }: Props) {
   const [tab, setTab] = useState<Tab>("all");
 
+  // CORRECTIF FILTRE : les pronos restent en mémoire quand on change
+  // d'onglet championnat — plus jamais de « re-pronostiquer » un match déjà joué.
+  const [myPredictions, setMyPredictions] = useState<Prediction[]>(predictions);
   const predictionsByMatch = useMemo(() => {
     const map = new Map<string, Prediction>();
-    predictions.forEach((p) => map.set(p.match_id, p));
+    myPredictions.forEach((p) => map.set(p.match_id, p));
     return map;
-  }, [predictions]);
+  }, [myPredictions]);
+
+  // Un prono vient d'être sauvé sur une carte : on l'ajoute à l'état global
+  // pour que TOUTES les vues (Tous + championnat) le reflètent instantanément.
+  const handleSaved = (matchId: string, home: number, away: number) => {
+    setMyPredictions((prev) => {
+      const existing = prev.find((p) => p.match_id === matchId);
+      const updated: Prediction = {
+        ...(existing ?? { id: `local-${matchId}`, user_id: "", match_id: matchId, created_at: new Date().toISOString() }),
+        home_score: home,
+        away_score: away,
+        calculated: false,
+        points_earned: 0,
+      } as Prediction;
+      return [...prev.filter((p) => p.match_id !== matchId), updated];
+    });
+  };
 
   const filtered = useMemo(
     () => (tab === "all" || tab === "bonus" ? matches : matches.filter((m) => m.league === tab)),
@@ -163,6 +184,8 @@ export function PronosClient({ matches, predictions, settings, startedMatches, a
                     match={m}
                     prediction={predictionsByMatch.get(m.id)}
                     adminPeek={adminPeek?.[m.id]}
+                    participants={participants?.[m.id]}
+                    onSaved={handleSaved}
                   />
                 ))}
               </motion.div>

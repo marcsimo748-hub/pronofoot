@@ -5,7 +5,7 @@
  */
 
 import Link from "next/link";
-import { Trophy, Radio, Newspaper, Music4, BarChart3, MessageCircle, Mail } from "lucide-react";
+import { Trophy, Radio, Newspaper, Music4, BarChart3, MessageCircle, Mail, Ticket } from "lucide-react";
 import { SITE_NAME } from "@/lib/constants";
 import { useT } from "@/lib/i18n";
 
@@ -31,6 +31,7 @@ export function Footer() {
             <li><Link href="/news" className="flex items-center gap-2 hover:text-foreground"><Newspaper className="h-3.5 w-3.5" /> {t("footer.linkNews")}</Link></li>
             <li><Link href="/music" className="flex items-center gap-2 hover:text-foreground"><Music4 className="h-3.5 w-3.5" /> {t("footer.linkMusic")}</Link></li>
             <li><Link href="/classement" className="flex items-center gap-2 hover:text-foreground"><BarChart3 className="h-3.5 w-3.5" /> {t("footer.linkRank")}</Link></li>
+            <li><Link href="/coupons" className="flex items-center gap-2 hover:text-foreground"><Ticket className="h-3.5 w-3.5" /> {t("footer.linkCoupons")}</Link></li>
           </ul>
         </div>
 

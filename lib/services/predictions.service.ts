@@ -7,6 +7,7 @@
 import type { Match, Prediction, StandingRow, GroupInfo } from "@/lib/types";
 import type { LeagueCode } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 import { safeQuery } from "@/lib/utils";
 
 /** Matchs ouverts au pronostic + pronostics existants de l'utilisateur */
@@ -64,7 +65,10 @@ export interface StartedMatch {
 export async function getStartedMatches(limit = 12): Promise<StartedMatch[]> {
   return safeQuery(
     async () => {
-      const supabase = createSupabaseServerClient();
+      // Lecture serveur (clé service) : les pronos de la communauté sont
+      // renvoyés UNIQUEMENT pour les matchs déjà commencés (filtre SQL
+      // match_date <= now) — impossible de copier avant le coup d'envoi.
+      const supabase = tryGetSupabaseAdminClient() ?? createSupabaseServerClient();
       const now = new Date();
       const from = new Date(now.getTime() - 48 * 3600_000).toISOString();
 
@@ -148,6 +152,175 @@ export async function getAdminPredictionPeek(matchIds: string[]): Promise<Record
       return result;
     },
     {}
+  );
+}
+
+// ---------------------------------------------------------------
+// COMMUNAUTÉ — participants, archives publiques, coupons joueurs
+// (lecture serveur via clé service ; seuls les matchs COMMENCÉS
+//  voient leurs pronos dévoilés — l'anti-triche reste côté serveur)
+// ---------------------------------------------------------------
+
+/** Qui a déjà pronostiqué sur un match À VENIR (pseudos + total, jamais les scores) */
+export interface MatchParticipants {
+  match_id: string;
+  count: number;
+  usernames: string[];
+}
+
+export async function getUpcomingParticipants(matchIds: string[]): Promise<Record<string, MatchParticipants>> {
+  if (!matchIds.length) return {};
+  return safeQuery(
+    async () => {
+      const admin = tryGetSupabaseAdminClient();
+      if (!admin) return {};
+      const { data } = await admin
+        .from("predictions")
+        .select("match_id, user:profiles(username)")
+        .in("match_id", matchIds);
+      const result: Record<string, MatchParticipants> = {};
+      for (const row of (data ?? []) as unknown as {
+        match_id: string;
+        user: { username: string | null } | null;
+      }[]) {
+        const entry = (result[row.match_id] ??= { match_id: row.match_id, count: 0, usernames: [] });
+        entry.count++;
+        const name = row.user?.username ?? "Joueur";
+        if (entry.usernames.length < 4) entry.usernames.push(name);
+      }
+      return result;
+    },
+    {}
+  );
+}
+
+/** Statistiques globales des pronostics du site (page Coupons) */
+export interface SitePredictionStats {
+  totalPredictions: number;
+  activePlayers: number;
+  matchesCovered: number;
+  totalPoints: number;
+}
+
+export async function getSitePredictionStats(): Promise<SitePredictionStats> {
+  return safeQuery(
+    async () => {
+      const admin = tryGetSupabaseAdminClient();
+      if (!admin) return { totalPredictions: 0, activePlayers: 0, matchesCovered: 0, totalPoints: 0 };
+      const { data, count } = await admin
+        .from("predictions")
+        .select("match_id, user_id, points_earned", { count: "exact" })
+        .limit(10000);
+      const rows = (data ?? []) as { match_id: string; user_id: string; points_earned: number }[];
+      return {
+        totalPredictions: count ?? rows.length,
+        activePlayers: new Set(rows.map((r) => r.user_id)).size,
+        matchesCovered: new Set(rows.map((r) => r.match_id)).size,
+        totalPoints: rows.reduce((sum, r) => sum + (r.points_earned ?? 0), 0),
+      };
+    },
+    { totalPredictions: 0, activePlayers: 0, matchesCovered: 0, totalPoints: 0 }
+  );
+}
+
+/** ARCHIVE PUBLIQUE : tous les matchs commencés (toutes époques) + tous les pronos dévoilés */
+export async function getAllCommunityPredictions(limit = 40, offset = 0): Promise<StartedMatch[]> {
+  return safeQuery(
+    async () => {
+      const admin = tryGetSupabaseAdminClient();
+      if (!admin) return [];
+      const now = new Date().toISOString();
+      const { data: matches } = await admin
+        .from("matches")
+        .select("*")
+        .lte("match_date", now)
+        .order("match_date", { ascending: false })
+        .range(offset, offset + limit - 1);
+      const played = (matches ?? []).filter((m) => (m as Match).match_date <= now);
+      if (!played.length) return [];
+
+      const { data: preds } = await admin
+        .from("predictions")
+        .select("match_id, user_id, home_score, away_score, points_earned, calculated, user:profiles(username, avatar_url)")
+        .in("match_id", played.map((m) => (m as Match).id));
+      const byMatch = new Map<string, PublicPrediction[]>();
+      for (const p of (preds ?? []) as unknown as {
+        match_id: string;
+        user_id: string;
+        home_score: number;
+        away_score: number;
+        points_earned: number;
+        calculated: boolean;
+        user: { username: string | null; avatar_url: string | null } | null;
+      }[]) {
+        const list = byMatch.get(p.match_id) ?? [];
+        list.push({
+          user_id: p.user_id,
+          username: p.user?.username ?? null,
+          avatar_url: p.user?.avatar_url ?? null,
+          home_score: p.home_score,
+          away_score: p.away_score,
+          points_earned: p.points_earned,
+          calculated: p.calculated,
+        });
+        byMatch.set(p.match_id, list);
+      }
+      return played.map((m) => ({
+        match: m as Match,
+        predictions: (byMatch.get((m as Match).id) ?? []).sort((a, b) => b.points_earned - a.points_earned),
+      }));
+    },
+    []
+  );
+}
+
+/** COUPON PUBLIC d'un joueur : profil + stats + ses pronos sur les matchs commencés */
+export interface PlayerCoupon {
+  profile: { id: string; username: string | null; avatar_url: string | null; total_points: number };
+  stats: { total: number; calculated: number; exacts: number; outcomes: number; pending: number };
+  predictions: (Prediction & { match: Match })[];
+  upcomingCount: number;
+}
+
+export async function getPlayerCoupon(userId: string): Promise<PlayerCoupon | null> {
+  return safeQuery(
+    async () => {
+      const admin = tryGetSupabaseAdminClient();
+      if (!admin) return null;
+      const now = new Date().toISOString();
+
+      const [{ data: profile }, { data: preds }] = await Promise.all([
+        admin.from("profiles").select("id, username, avatar_url, total_points").eq("id", userId).maybeSingle(),
+        admin
+          .from("predictions")
+          .select("*, match:matches(*)")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(200),
+      ]);
+      if (!profile) return null;
+
+      const all = (preds ?? []) as unknown as (Prediction & { match: Match })[];
+      // Anti-triche : le coupon public ne montre QUE les matchs déjà commencés
+      const visible = all.filter((p) => p.match && new Date(p.match.match_date).getTime() <= Date.now());
+      const upcomingCount = all.length - visible.length;
+      const calculated = visible.filter((p) => p.calculated);
+      const exacts = calculated.filter((p) => p.points_earned >= 5).length;
+      const outcomes = calculated.filter((p) => p.points_earned > 0 && p.points_earned < 5).length;
+
+      return {
+        profile: {
+          id: profile.id,
+          username: profile.username ?? null,
+          avatar_url: profile.avatar_url ?? null,
+          total_points: profile.total_points ?? 0,
+        },
+        stats: { total: all.length, calculated: calculated.length, exacts, outcomes, pending: upcomingCount },
+        predictions: visible.slice(0, 60),
+        upcomingCount,
+      };
+    },
+    null
   );
 }
 
