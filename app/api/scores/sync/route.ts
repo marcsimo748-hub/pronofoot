@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches, syncMatchEvents, lastApiMeta } from "@/lib/services/football.service";
+import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches, syncMatchEvents, lastApiMeta, LIVE_API_STATUSES } from "@/lib/services/football.service";
 import { getSettings, updateSetting } from "@/lib/services/settings.service";
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -21,15 +21,46 @@ async function handle(req: Request) {
     return NextResponse.json({ ok: true, skipped: "no_supabase" });
   }
 
-  // 1) Throttle global
+  // 1) THROTTLE ADAPTATIF :
+  //    • matchs LIVE en base ou coup d'envoi imminent (±15 min) → 90 s max
+  //      (les scores vivent en direct pendant les matchs)
+  //    • sinon → intervalle long (min 20 min) pour préserver le quota gratuit
+  //    • l'env SCORES_SYNC_INTERVAL reste la base si elle est plus stricte
   const settings = await getSettings();
-  const interval = (Number(process.env.SCORES_SYNC_INTERVAL) || 90) * 1000;
+  const baseInterval = (Number(process.env.SCORES_SYNC_INTERVAL) || 90) * 1000;
   const now = Date.now();
   const hasCronSecret =
     process.env.CRON_SECRET && req.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`;
 
+  let hot = false;
+  try {
+    const [liveCount, upcomingHot, missedKickoffs] = await Promise.all([
+      // a) matchs déjà dans le cache live
+      admin.from("live_scores").select("id", { count: "exact", head: true }),
+      // b) coup d'envoi imminent (dans les 15 prochaines minutes)
+      admin
+        .from("matches")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "scheduled")
+        .gte("match_date", new Date(now - 30 * 60_000).toISOString())
+        .lte("match_date", new Date(now + 15 * 60_000).toISOString()),
+      // c) COUPS D'ENVOI MANQUÉS : matchs programmés dont l'heure est passée
+      //    (ils sont en train de se jouer mais pas encore dans live_scores)
+      admin
+        .from("matches")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "scheduled")
+        .lt("match_date", new Date(now).toISOString())
+        .gte("match_date", new Date(now - 3 * 3600_000).toISOString()),
+    ]);
+    hot = (liveCount.count ?? 0) > 0 || (upcomingHot.count ?? 0) > 0 || (missedKickoffs.count ?? 0) > 0;
+  } catch {
+    /* si le check échoue on reste sur l'intervalle de base */
+  }
+  const interval = hot ? Math.min(baseInterval, 90_000) : Math.max(baseInterval, 20 * 60_000);
+
   if (now - settings.sync_state.last_scores_sync < interval) {
-    return NextResponse.json({ ok: true, skipped: "throttled" });
+    return NextResponse.json({ ok: true, skipped: "throttled", hot });
   }
   await updateSetting("sync_state", { last_scores_sync: now }).catch(() => {});
 

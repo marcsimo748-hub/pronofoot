@@ -95,7 +95,7 @@ function ourLeague(apiLeagueId: number): LeagueCode | null {
 /** Statuts API-Sports considérés comme match terminé (FT, prolong., tirs au but) */
 const FINISHED_API_STATUSES = ["FT", "AET", "PEN"];
 /** Statuts API-Sports = match réellement EN COURS (le reste ne doit jamais s'afficher LIVE) */
-const LIVE_API_STATUSES = ["1H", "2H", "HT", "ET", "BT", "P", "LIVE", "INT", "SUSP"];
+export const LIVE_API_STATUSES = ["1H", "2H", "HT", "ET", "BT", "P", "LIVE", "INT", "SUSP"];
 
 export async function syncLiveScores(): Promise<{ synced: number; settled: number; skipped?: string }> {
   const admin = tryGetSupabaseAdminClient();
