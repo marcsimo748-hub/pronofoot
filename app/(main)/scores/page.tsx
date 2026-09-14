@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Radio, CalendarDays, History, Trophy, Info } from "lucide-react";
 import { getLiveScores, getUpcomingMatches, getRecentResults, getLiveEvents } from "@/lib/services/football.service";
 import { getSettings } from "@/lib/services/settings.service";
+import { getSessionUser } from "@/lib/supabase/server";
 import { LEAGUES, LEAGUE_CODES } from "@/lib/constants";
 import type { LeagueCode, StandingEntry } from "@/lib/types";
 
@@ -17,12 +18,13 @@ export const metadata: Metadata = { title: "Scores live" };
  * ⭐ Le front lit UNIQUEMENT Supabase (cache + temps réel), jamais l'API externe.
  */
 export default async function ScoresPage() {
-  const [live, upcoming, results, settings, events] = await Promise.all([
+  const [live, upcoming, results, settings, events, user] = await Promise.all([
     getLiveScores(),
     getUpcomingMatches(10),
     getRecentResults(12),
     getSettings(),
     getLiveEvents(),
+    getSessionUser(),
   ]);
 
   const standings = settings.standings_cache;
@@ -40,6 +42,20 @@ export default async function ScoresPage() {
           Résultats mis à jour automatiquement toutes les 90 secondes (cache Supabase + temps réel).
         </p>
       </header>
+
+      {/* ⚠️ Alerte admin : fournisseur de données en erreur (ex : compte API suspendu) */}
+      {user?.is_admin && settings.sync_state.api_error && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
+          <p className="font-bold text-amber-400">⚠️ Fournisseur API-Football en erreur</p>
+          <p className="mt-1 text-amber-200/80">
+            Les scores live et les imports sont désactivés : {settings.sync_state.api_error}
+          </p>
+          <p className="mt-1 text-amber-200/60">
+            Vérifie ton compte sur dashboard.api-football.com puis mets à jour la clé API_SPORTS_KEY
+            (Admin ⚙️ ou variables Vercel). Les résultats peuvent être saisis manuellement en attendant.
+          </p>
+        </div>
+      )}
 
       <LiveTicker initialLive={live} upcoming={upcoming} />
 

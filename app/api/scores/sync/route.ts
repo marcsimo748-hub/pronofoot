@@ -103,7 +103,12 @@ async function handle(req: Request) {
       fixturesImported: fixtures?.imported ?? 0,
       standingsUpdated: standings?.updated ?? 0,
     };
-    await updateSetting("sync_state", { last_scores_result: JSON.stringify(debug) }).catch(() => {});
+    // ⚠️ Erreur fournisseur (compte suspendu, clé refusée...) → visible par l'admin
+    const apiError =
+      lastApiMeta?.errors && Object.keys(lastApiMeta.errors as Record<string, unknown>).length > 0
+        ? JSON.stringify(lastApiMeta.errors)
+        : null;
+    await updateSetting("sync_state", { last_scores_result: JSON.stringify(debug), api_error: apiError }).catch(() => {});
 
     return NextResponse.json({
       ok: true,
@@ -115,6 +120,7 @@ async function handle(req: Request) {
     console.error("[api/scores/sync]", e);
     await updateSetting("sync_state", {
       last_scores_result: JSON.stringify({ at: new Date().toISOString(), error: (e as Error).message, apiMeta: lastApiMeta }),
+      api_error: (e as Error).message,
     }).catch(() => {});
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }
