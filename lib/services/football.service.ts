@@ -79,19 +79,24 @@ export async function syncLiveScores(
     });
   }
 
-  // 3) Les matchs TERMINÉS alimentent la table `matches` → calcul des points
+  // 3) Les matchs TERMINÉS alimentent la table `matches` → calcul des points,
+  //    et leur ligne live_scores est SUPPRIMÉE immédiatement (sinon le match
+  //    resterait affiché « en cours » avec son dernier score pendant des heures).
   let settled = 0;
   const finished = result.fixtures.filter((f) => f.status === "ft" && f.homeScore !== null && f.awayScore !== null);
   for (const f of finished) {
     settled += await applyResultNormalized(f);
+    await admin.from("live_scores").delete().eq("id", f.id);
   }
 
   // 4) PURGE des lignes périmées : un match fini ou sorti du flux live ne
   //    doit JAMAIS rester affiché comme LIVE dans live_scores.
-  const staleBefore = new Date(Date.now() - 4 * 3600_000).toISOString();
+  //    (les matchs encore en jeu viennent d'être upsertés au-dessus avec un
+  //    updated_at frais → ils sont automatiquement épargnés par la règle b)
+  const staleBefore = new Date(Date.now() - 20 * 60_000).toISOString();
   // a) statut terminé / annulé / reporté → sortie du cache live
   await admin.from("live_scores").delete().not("status", "in", `("${LIVE_API_STATUSES.join('","')}")`);
-  // b) plus aucune maj depuis 4 h (match sorti du flux live) → périmé
+  // b) plus aucune maj depuis 20 min (match fini sorti du flux live) → périmé
   await admin.from("live_scores").delete().lt("updated_at", staleBefore);
 
   return {
