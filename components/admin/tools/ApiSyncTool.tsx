@@ -1,27 +1,33 @@
 "use client";
 
 /**
- * ⚡ Outil 1 : Synchro API-Sports.
- * • Déclenchement manuel des synchros (scores / news)
- * • 🔑 Gestion de la clé API-FOOTBALL : saisie dans l'Admin (prono_secrets,
- *   privée) qui PRIME sur la variable Vercel — test en direct avant enregistrement.
- * • État du quota et des derniers sync.
+ * ⚡ Outil 1 : Synchro + FOURNISSEURS DE DONNÉES.
+ * Chaîne de secours automatique :
+ *   1. API-Football (live + événements buteurs/cartons)
+ *   2. football-data.org (nos 6 compétitions, gratuit à vie)
+ *   3. ESPN (sans clé, toujours dispo)
+ * Le premier qui répond sert la synchro ; en cas d'échec on bascule seul.
+ * Les clés sont testées en direct avant enregistrement (prono_secrets, privée).
  */
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { RefreshCw, Database, Gauge, KeyRound } from "lucide-react";
+import { RefreshCw, Database, Gauge, KeyRound, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { adminFetch } from "../adminShared";
 import type { SiteSettings } from "@/lib/types";
 
-type KeyStatus = {
-  dbKey: string | null;
-  envKey: string | null;
-  source: "admin" | "vercel" | "none";
-  hasKey: boolean;
+type ProviderId = "api_sports" | "football_data" | "espn";
+
+type ProviderStatus = {
+  id: ProviderId;
+  label: string;
+  needsKey: boolean;
+  dbKey?: string | null;
+  envKey?: string | null;
+  source: "admin" | "vercel" | "none" | "always";
 };
 
 type KeyTest = {
@@ -32,26 +38,33 @@ type KeyTest = {
   quotaRemaining: string | null;
 };
 
+const PROVIDER_ORDER: { id: ProviderId; num: number; desc: string; keyHint?: string }[] = [
+  { id: "api_sports", num: 1, desc: "Live + événements (buteurs, cartons). 100 req/jour gratuit.", keyHint: "dashboard.api-football.com" },
+  { id: "football_data", num: 2, desc: "Nos 6 compétitions. Gratuit à vie, 10 req/min. Scores légèrement retardés.", keyHint: "www.football-data.org" },
+  { id: "espn", num: 3, desc: "Secours sans clé — scores du jour. Toujours disponible, aucune inscription." },
+];
+
 export function ApiSyncTool({ settings }: { settings: SiteSettings }) {
   const [busy, setBusy] = useState(false);
   const [newsBusy, setNewsBusy] = useState(false);
   const sync = settings.sync_state;
 
-  const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null);
-  const [keyInput, setKeyInput] = useState("");
-  const [savingKey, setSavingKey] = useState(false);
-  const [testResult, setTestResult] = useState<KeyTest | null>(null);
+  const [statuses, setStatuses] = useState<ProviderStatus[] | null>(null);
+  const [keyInput, setKeyInput] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+  const [tests, setTests] = useState<Record<string, KeyTest | null>>({});
 
-  const loadKeyStatus = async () => {
+  const loadStatuses = async () => {
     try {
-      setKeyStatus(await adminFetch<KeyStatus>("/api/admin/api-sports-key", undefined, "GET"));
+      const data = await adminFetch<{ providers: ProviderStatus[] }>("/api/admin/provider-keys", undefined, "GET");
+      setStatuses(data.providers);
     } catch {
       /* silencieux */
     }
   };
 
   useEffect(() => {
-    void loadKeyStatus();
+    void loadStatuses();
   }, []);
 
   async function runSync(kind: "scores" | "news") {
@@ -63,13 +76,16 @@ export function ApiSyncTool({ settings }: { settings: SiteSettings }) {
         toast.info(`Synchronisation ${kind} ignorée : ${json.skipped}`, {
           description:
             json.skipped === "throttled"
-              ? "Trop récente — le throttle protège le quota de l'API."
-              : json.skipped === "no_api_key"
-              ? "Ajoute la clé API-Sports ci-dessous (ou API_SPORTS_KEY chez Vercel)."
+              ? "Trop récente — le throttle protège le quota."
+              : json.skipped === "all_providers_failed"
+              ? "Aucun fournisseur n'a répondu — vérifie les clés ci-dessous."
               : undefined,
         });
       } else {
-        toast.success(`Synchro ${kind} terminée ✅`, { description: JSON.stringify(json) });
+        const provider = json.data?.provider ? ` via ${json.data.provider}` : "";
+        toast.success(`Synchro ${kind} terminée${provider} ✅`, {
+          description: `${json.data?.synced ?? 0} live · ${json.data?.settled ?? 0} clôturés`,
+        });
       }
     } catch {
       toast.error("Échec de la synchronisation.");
@@ -78,75 +94,82 @@ export function ApiSyncTool({ settings }: { settings: SiteSettings }) {
     }
   }
 
-  async function saveKey() {
-    const k = keyInput.trim();
+  async function saveKey(provider: ProviderId) {
+    const k = (keyInput[provider] ?? "").trim();
     if (!k) {
-      toast.error("Colle d'abord la clé API-Sports.");
+      toast.error("Colle d'abord la clé.");
       return;
     }
-    setSavingKey(true);
-    setTestResult(null);
+    setSaving(provider);
+    setTests((t) => ({ ...t, [provider]: null }));
     try {
-      const data = await adminFetch<{ saved: boolean; test: KeyTest | null }>("/api/admin/api-sports-key", { key: k });
-      setTestResult(data.test);
+      const data = await adminFetch<{ saved: boolean; test: KeyTest | null }>("/api/admin/provider-keys", {
+        provider,
+        key: k,
+      });
+      setTests((t) => ({ ...t, [provider]: data.test }));
       if (data.test?.ok) {
-        toast.success("Clé API-Sports enregistrée et validée ✅", {
-          description: `${data.test.liveFixturesFound} match(s) live détecté(s) en ce moment · quota restant : ${data.test.quotaRemaining ?? "?"}`,
+        toast.success("Clé enregistrée et validée ✅", {
+          description: `${data.test.liveFixturesFound} match(s) détecté(s) · quota : ${data.test.quotaRemaining ?? "?"}`,
         });
       } else {
-        toast.error("Clé refusée par API-Sports ❌", {
+        toast.error("Clé refusée ❌", {
           description: data.test?.errors ? JSON.stringify(data.test.errors) : `HTTP ${data.test?.httpStatus}`,
         });
       }
-      setKeyInput("");
-      await loadKeyStatus();
+      setKeyInput((i) => ({ ...i, [provider]: "" }));
+      await loadStatuses();
     } catch (e) {
-      toast.error((e as Error).message || "Échec de l'enregistrement de la clé.");
+      toast.error((e as Error).message || "Échec de l'enregistrement.");
     } finally {
-      setSavingKey(false);
+      setSaving(null);
     }
   }
 
-  async function deleteKey() {
-    setSavingKey(true);
+  async function testProvider(provider: ProviderId) {
+    setSaving(provider);
+    setTests((t) => ({ ...t, [provider]: null }));
     try {
-      await adminFetch("/api/admin/api-sports-key", { key: "" });
-      toast.success("Clé admin supprimée — retour à la clé Vercel (si présente).");
-      await loadKeyStatus();
-    } catch {
-      toast.error("Échec de la suppression.");
-    } finally {
-      setSavingKey(false);
-    }
-  }
-
-  async function testCurrentKey() {
-    setSavingKey(true);
-    setTestResult(null);
-    try {
-      const data = await adminFetch<{ hasKey: boolean; test: KeyTest | null }>("/api/admin/api-sports-key", { test: true });
-      setTestResult(data.test);
+      const data = await adminFetch<{ hasKey: boolean; test: KeyTest | null }>("/api/admin/provider-keys", {
+        provider,
+        test: true,
+      });
+      setTests((t) => ({ ...t, [provider]: data.test }));
       if (data.test?.ok) {
-        toast.success("Clé valide ✅", {
-          description: `${data.test.liveFixturesFound} match(s) live détecté(s) · quota restant : ${data.test.quotaRemaining ?? "?"}`,
+        toast.success("Fournisseur opérationnel ✅", {
+          description: `${data.test.liveFixturesFound} match(s) détecté(s)`,
         });
       } else {
-        toast.error("La clé active ne fonctionne pas ❌", {
+        toast.error("Ce fournisseur ne répond pas ❌", {
           description: data.test?.errors ? JSON.stringify(data.test.errors) : "Clé absente ou refusée.",
         });
       }
     } catch {
       toast.error("Échec du test.");
     } finally {
-      setSavingKey(false);
+      setSaving(null);
+    }
+  }
+
+  async function deleteKey(provider: ProviderId) {
+    setSaving(provider);
+    try {
+      await adminFetch("/api/admin/provider-keys", { provider, key: "" });
+      toast.success("Clé admin supprimée.");
+      await loadStatuses();
+    } catch {
+      toast.error("Échec de la suppression.");
+    } finally {
+      setSaving(null);
     }
   }
 
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        Déclenche manuellement la synchronisation serveur. En temps normal, tout est automatique
-        (SyncManager côté client toutes les 90 s / 10 min + crons configurés).
+        Trois fournisseurs de données se relaient <strong>automatiquement</strong> : si l&apos;un
+        échoue (compte suspendu, quota, panne), la synchro bascule seule sur le suivant. Le
+        premier qui répond sert les scores du site.
       </p>
 
       <div className="flex flex-wrap gap-2">
@@ -160,63 +183,78 @@ export function ApiSyncTool({ settings }: { settings: SiteSettings }) {
         </Button>
       </div>
 
-      {/* 🔑 GESTION DE LA CLÉ API-SPORTS */}
-      <div className="space-y-3 rounded-xl border border-white/10 bg-secondary/30 p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <KeyRound className="h-4 w-4 text-primary" />
-          <h4 className="text-sm font-bold">Clé API-Football</h4>
-          <Badge variant={keyStatus?.source === "admin" ? "default" : keyStatus?.source === "vercel" ? "secondary" : "destructive"}>
-            {keyStatus?.source === "admin"
-              ? `Active : Admin (${keyStatus.dbKey})`
-              : keyStatus?.source === "vercel"
-              ? `Active : Vercel (${keyStatus.envKey})`
-              : "Aucune clé configurée"}
-          </Badge>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Colle ici ta clé API-Sports (dashboard.api-football.com) : elle est stockée dans la table
-          privée <span className="font-mono">prono_secrets</span> et <strong>prime sur la variable
-          Vercel</strong>. Elle est testée en direct avant enregistrement — une clé refusée
-          (compte suspendu, faute de frappe) n'est jamais sauvegardée.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <Input
-            type="password"
-            placeholder="Nouvelle clé API-Sports…"
-            value={keyInput}
-            onChange={(e) => setKeyInput(e.target.value)}
-            className="min-w-[220px] flex-1"
-          />
-          <Button onClick={saveKey} disabled={savingKey} className="gap-2">
-            {savingKey ? "Test en cours…" : "💾 Enregistrer + tester"}
-          </Button>
-          <Button onClick={testCurrentKey} disabled={savingKey} variant="outline" className="gap-2">
-            🧪 Tester la clé active
-          </Button>
-          {keyStatus?.source === "admin" && (
-            <Button onClick={deleteKey} disabled={savingKey} variant="ghost" className="gap-2">
-              🗑️ Supprimer la clé admin
-            </Button>
-          )}
-        </div>
-        {testResult && (
-          <div
-            className={`rounded-lg border p-3 text-xs ${
-              testResult.ok ? "border-emerald-500/40 bg-emerald-500/10" : "border-red-500/40 bg-red-500/10"
-            }`}
-          >
-            <p className="font-bold">
-              {testResult.ok ? "✅ Clé fonctionnelle" : "❌ Problème avec la clé"} — HTTP {testResult.httpStatus}
-            </p>
-            <p className="mt-1">
-              Matchs live détectés à l'instant : <strong>{testResult.liveFixturesFound}</strong> · Quota restant :{" "}
-              <strong>{testResult.quotaRemaining ?? "?"}</strong>
-            </p>
-            {testResult.errors && (
-              <p className="mt-1 font-mono text-[11px] opacity-80">{JSON.stringify(testResult.errors)}</p>
-            )}
-          </div>
-        )}
+      {/* 🔑 LES 3 FOURNISSEURS */}
+      <div className="space-y-3">
+        {PROVIDER_ORDER.map((p) => {
+          const st = statuses?.find((s) => s.id === p.id);
+          const test = tests[p.id];
+          return (
+            <div key={p.id} className="space-y-2 rounded-xl border border-white/10 bg-secondary/30 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-primary/20 text-xs font-black text-primary">
+                  {p.num}
+                </span>
+                <h4 className="text-sm font-bold">{st?.label ?? p.id}</h4>
+                {p.id === "espn" ? (
+                  <Badge variant="secondary" className="gap-1">
+                    <ShieldCheck className="h-3 w-3" /> sans clé
+                  </Badge>
+                ) : (
+                  <Badge variant={st?.source === "admin" ? "default" : st?.source === "vercel" ? "secondary" : "destructive"}>
+                    {st?.source === "admin"
+                      ? `Clé Admin (${st.dbKey})`
+                      : st?.source === "vercel"
+                      ? `Clé Vercel (${st.envKey})`
+                      : "Aucune clé"}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">{p.desc}</p>
+              {p.keyHint && <p className="text-[11px] text-muted-foreground/70">Créer une clé : {p.keyHint}</p>}
+              <div className="flex flex-wrap gap-2">
+                {p.id !== "espn" && (
+                  <Input
+                    type="password"
+                    placeholder="Coller la clé…"
+                    value={keyInput[p.id] ?? ""}
+                    onChange={(e) => setKeyInput((i) => ({ ...i, [p.id]: e.target.value }))}
+                    className="min-w-[200px] flex-1"
+                  />
+                )}
+                {p.id !== "espn" && (
+                  <Button size="sm" onClick={() => saveKey(p.id)} disabled={saving === p.id}>
+                    <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+                    {saving === p.id ? "Test…" : "💾 Enregistrer + tester"}
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" onClick={() => testProvider(p.id)} disabled={saving === p.id}>
+                  🧪 Tester
+                </Button>
+                {p.id !== "espn" && st?.source === "admin" && (
+                  <Button size="sm" variant="ghost" onClick={() => deleteKey(p.id)} disabled={saving === p.id}>
+                    🗑️
+                  </Button>
+                )}
+              </div>
+              {test && (
+                <div
+                  className={`rounded-lg border p-2.5 text-xs ${
+                    test.ok ? "border-emerald-500/40 bg-emerald-500/10" : "border-red-500/40 bg-red-500/10"
+                  }`}
+                >
+                  <p className="font-bold">
+                    {test.ok ? "✅ Opérationnel" : "❌ Problème"} — HTTP {test.httpStatus}
+                  </p>
+                  <p className="mt-0.5">
+                    Matchs détectés : <strong>{test.liveFixturesFound}</strong>
+                    {test.quotaRemaining ? <> · Quota : <strong>{test.quotaRemaining}</strong></> : null}
+                  </p>
+                  {test.errors && <p className="mt-1 font-mono text-[11px] opacity-80">{JSON.stringify(test.errors)}</p>}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <div className="grid gap-2 text-xs sm:grid-cols-2">
@@ -232,13 +270,13 @@ export function ApiSyncTool({ settings }: { settings: SiteSettings }) {
         />
         <InfoRow
           icon={<Gauge className="h-3.5 w-3.5" />}
-          label="Quota API-Sports restant"
-          value={sync.requests_remaining !== null ? `${sync.requests_remaining} requêtes (au ${sync.requests_day ?? "?"})` : "inconnu (aucun appel encore effectué)"}
+          label="Quota API-Football restant"
+          value={sync.requests_remaining !== null ? `${sync.requests_remaining} requêtes (au ${sync.requests_day ?? "?"})` : "inconnu"}
         />
         <InfoRow
           icon={<Database className="h-3.5 w-3.5" />}
           label="Classements en cache"
-          value={Object.keys(settings.standings_cache.leagues).length ? `${Object.keys(settings.standings_cache.leagues).length} championnats (${settings.standings_cache.updated_at ? new Date(settings.standings_cache.updated_at).toLocaleTimeString("fr-FR") : "?"})` : "aucun"}
+          value={Object.keys(settings.standings_cache.leagues).length ? `${Object.keys(settings.standings_cache.leagues).length} championnats` : "aucun"}
         />
       </div>
     </div>

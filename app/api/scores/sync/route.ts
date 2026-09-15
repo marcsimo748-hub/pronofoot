@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches, syncMatchEvents, lastApiMeta, LIVE_API_STATUSES, getApiSportsKey } from "@/lib/services/football.service";
+import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches, syncMatchEvents, lastApiMeta, LIVE_API_STATUSES } from "@/lib/services/football.service";
 import { getSettings, updateSetting } from "@/lib/services/settings.service";
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -64,24 +64,23 @@ async function handle(req: Request) {
   }
   await updateSetting("sync_state", { last_scores_sync: now }).catch(() => {});
 
-  // 2) Garde-fou quota (plan gratuit : 100 req/jour)
+  // 2) Garde-fou quota API-Football (plan gratuit : 100 req/jour) :
+  //    on ne bloque plus la synchro — on SAUTE api-football et la chaîne
+  //    de secours (football-data.org → ESPN) prend automatiquement le relais.
   const { requests_remaining, requests_day } = settings.sync_state;
   const today = new Date().toISOString().slice(0, 10);
-  if (requests_remaining !== null && requests_day === today && requests_remaining < 10) {
-    return NextResponse.json({ ok: true, skipped: "quota_low", remaining: requests_remaining });
-  }
+  const skipApiFootball =
+    requests_remaining !== null && requests_day === today && requests_remaining < 10;
 
   // 3) Nettoyage automatique des matchs passés (1x/heure suffit)
   const cleanupDue = now - settings.sync_state.last_cleanup > 3600_000;
   if (cleanupDue) await cleanupPassedMatches();
 
-  // 4) Pas de clé API → on s'arrête proprement (le site fonctionne en mode manuel)
-  if (!(await getApiSportsKey())) {
-    return NextResponse.json({ ok: true, skipped: "no_api_key", cleaned: cleanupDue });
-  }
-
   try {
-    const result = await syncLiveScores();
+    // 4) Chaîne de fournisseurs : API-Football → football-data.org → ESPN
+    //    (aucune clé n'est requise pour que la synchro fonctionne — ESPN
+    //    sert de plan B permanent sans inscription)
+    const result = await syncLiveScores({ skipApiFootball });
 
     // Événements (buteurs, cartons) des matchs live — auto-throttlé 20 min
     const events = await syncMatchEvents().catch(() => ({ events: 0, skipped: "error" }));
@@ -103,11 +102,12 @@ async function handle(req: Request) {
       fixturesImported: fixtures?.imported ?? 0,
       standingsUpdated: standings?.updated ?? 0,
     };
-    // ⚠️ Erreur fournisseur (compte suspendu, clé refusée...) → visible par l'admin
-    const apiError =
-      lastApiMeta?.errors && Object.keys(lastApiMeta.errors as Record<string, unknown>).length > 0
-        ? JSON.stringify(lastApiMeta.errors)
-        : null;
+    // ⚠️ Bandeau d'erreur : uniquement si TOUTE la chaîne a échoué.
+    //    Un fournisseur en panne avec bascule réussie ≠ site en erreur.
+    const allFailed = result.skipped === "all_providers_failed";
+    const apiError = allFailed
+      ? JSON.stringify(result.providerErrors ?? [{ provider: "chaine", error: "aucun fournisseur disponible" }])
+      : null;
     await updateSetting("sync_state", { last_scores_result: JSON.stringify(debug), api_error: apiError }).catch(() => {});
 
     return NextResponse.json({

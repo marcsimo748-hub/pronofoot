@@ -42,7 +42,7 @@ export function AdminPanel({ settings }: { settings: SiteSettings }) {
   }, []);
 
   const TOOLS = [
-    { id: "sync", emoji: "⚡", title: "Synchro API-Sports", desc: "Récupérer les scores et matchs maintenant", component: <ApiSyncTool settings={settings} /> },
+    { id: "sync", emoji: "⚡", title: "Fournisseurs & Synchro", desc: "3 API de secours automatique + clés", component: <ApiSyncTool settings={settings} /> },
     { id: "tester", emoji: "🔴", title: "Mode Testeur LIVE", desc: "Simuler des scores en direct pour tester le site", component: <LiveTesterTool active={liveState.active} onChange={setLiveState} /> },
     { id: "manual", emoji: "⚽", title: "Saisie Manuelle", desc: "Entrer un résultat (avec recherche) et clôturer les bonus", component: <ManualEntryTool /> },
     { id: "wallpapers", emoji: "🖼️", title: "Fonds d'Écran Globaux", desc: "Arrière-plans Connexion / Accueil", component: <WallpapersTool settings={settings} /> },

@@ -13,151 +13,80 @@ import { LEAGUES, LEAGUE_CODES, FEATURED_TEAMS, TEAM_ALIASES } from "@/lib/const
 import type { LiveScoreRow, Match, StandingEntry, LeagueCode, MatchEventRow } from "@/lib/types";
 import { normalizeTeam, safeQuery } from "@/lib/utils";
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  apiGet,
+  getApiSportsKey,
+  LIVE_API_STATUSES,
+  FINISHED_API_STATUSES,
+  lastApiMeta,
+  fetchFixturesWithFallback,
+  apiTeamToOurs,
+  ourLeague,
+  type NormalizedFixture,
+} from "./football.providers";
+
+export { getApiSportsKey, lastApiMeta, LIVE_API_STATUSES };
+export { invalidateProviderKeyCaches } from "./football.providers";
 import { getSettings, updateSetting } from "./settings.service";
 
 const API_BASE = "https://v3.football.api-sports.io";
 
-interface ApiFixture {
-  fixture: { id: number; date: string; status: { short: string; elapsed: number | null } };
-  league: { id: number; name: string; season: number };
-  teams: { home: { id: number; name: string }; away: { id: number; name: string } };
-  goals: { home: number | null; away: number | null };
-}
 
-/**
- * Clé API-Sports EFFECTIVE : la clé saisie dans l'Admin (prono_secrets,
- * table privée) prime sur la variable d'environnement Vercel.
- * Cache 30 s pour ne pas interroger la base à chaque appel.
- */
-let apiKeyCache: { key: string | null; at: number } | null = null;
 
-export function invalidateApiSportsKeyCache(): void {
-  apiKeyCache = null;
-}
-
-export async function getApiSportsKey(): Promise<string | null> {
-  if (apiKeyCache && Date.now() - apiKeyCache.at < 30_000) return apiKeyCache.key;
-  let key: string | null = process.env.API_SPORTS_KEY ?? null;
-  try {
-    const admin = tryGetSupabaseAdminClient();
-    if (admin) {
-      const { data } = await admin.from("prono_secrets").select("value").eq("key", "api_sports_key").maybeSingle();
-      if (data?.value) key = String(data.value);
-    }
-  } catch {
-    /* base injoignable : on reste sur la variable d'environnement */
-  }
-  apiKeyCache = { key, at: Date.now() };
-  return key;
-}
-
-/** Diagnostic du dernier appel API-Sports (lisible juste après par la route sync) */
-export let lastApiMeta: {
-  path: string;
-  ok: boolean;
-  status: number;
-  quotaHeaderRemaining: string | null;
-  errors: unknown;
-  count: number;
-} | null = null;
-
-/** Appel GET vers API-FOOTBALL avec gestion du quota */
-async function apiGet(path: string, params: Record<string, string | number>): Promise<ApiFixture[] | null> {
-  const key = await getApiSportsKey();
-  if (!key) return null;
-
-  const url = new URL(API_BASE + path);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
-
-  const res = await fetch(url, {
-    headers: { "x-apisports-key": key },
-    cache: "no-store",
-  });
-  const remaining = res.headers.get("x-requests-remaining") ?? res.headers.get("x-ratelimit-requests-remaining");
-  if (!res.ok) {
-    lastApiMeta = { path, ok: false, status: res.status, quotaHeaderRemaining: remaining, errors: null, count: 0 };
-    throw new Error(`API-Sports ${res.status}`);
-  }
-
-  // Suivi du quota → pause automatique si < 10 requêtes restantes
-  if (remaining !== null) {
-    const today = new Date().toISOString().slice(0, 10);
-    const state = (await getSettings()).sync_state;
-    if (state.requests_day !== today || state.requests_remaining !== Number(remaining)) {
-      await updateSetting("sync_state", { requests_remaining: Number(remaining), requests_day: today }).catch(() => {});
-    }
-  }
-
-  const json = (await res.json()) as { response?: ApiFixture[]; errors?: unknown };
-  const hasErrors = json.errors && Object.keys(json.errors).length > 0;
-  if (hasErrors) console.warn("[football.service] erreurs API:", json.errors);
-  lastApiMeta = {
-    path,
-    ok: true,
-    status: res.status,
-    quotaHeaderRemaining: remaining,
-    errors: hasErrors ? json.errors : null,
-    count: json.response?.length ?? 0,
-  };
-  return json.response ?? [];
-}
-
-/** Traduit le nom d'une équipe API vers notre nom FR en base */
-function apiTeamToOurs(name: string): string {
-  const norm = normalizeTeam(name);
-  return TEAM_ALIASES[norm] ?? name;
-}
-
-/** Nos 6 championnats sont-ils concernés par ce fixture ? */
-function ourLeague(apiLeagueId: number): LeagueCode | null {
-  for (const code of LEAGUE_CODES) {
-    if (LEAGUES[code].apiId === apiLeagueId) return code;
-  }
-  return null;
-}
 
 // ---------------------------------------------------------------
 // SYNCHRO SCORES LIVE (appelée par /api/scores/sync toutes les ~90s)
 // ---------------------------------------------------------------
 /** Statuts API-Sports considérés comme match terminé (FT, prolong., tirs au but) */
-const FINISHED_API_STATUSES = ["FT", "AET", "PEN"];
 /** Statuts API-Sports = match réellement EN COURS (le reste ne doit jamais s'afficher LIVE) */
-export const LIVE_API_STATUSES = ["1H", "2H", "HT", "ET", "BT", "P", "LIVE", "INT", "SUSP"];
 
-export async function syncLiveScores(): Promise<{ synced: number; settled: number; skipped?: string }> {
+export async function syncLiveScores(
+  opts: { skipApiFootball?: boolean } = {}
+): Promise<{
+  synced: number;
+  settled: number;
+  provider?: string;
+  providerErrors?: { provider: string; error: string }[];
+  skipped?: string;
+}> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return { synced: 0, settled: 0, skipped: "no_supabase" };
 
-  const fixtures = await apiGet("/fixtures", { live: "all" });
-  if (fixtures === null) return { synced: 0, settled: 0, skipped: "no_api_key" };
+  // 1) CHAÎNE DE FOURNISSEURS : API-Football → football-data.org → ESPN.
+  //    Le premier qui répond gagne ; en cas d'échec (compte suspendu,
+  //    quota, panne) on bascule automatiquement sur le suivant.
+  const { result, attempts } = await fetchFixturesWithFallback(opts);
+  if (!result) {
+    return { synced: 0, settled: 0, skipped: "all_providers_failed", providerErrors: attempts };
+  }
 
-  // 1) Cache live_scores : uniquement nos championnats
-  const ours = fixtures.filter((f) => ourLeague(f.league.id) !== null);
-  for (const f of ours) {
-    const row = {
-      id: String(f.fixture.id),
-      league: ourLeague(f.league.id),
-      match_date: f.fixture.date,
-      home_team: apiTeamToOurs(f.teams.home.name),
-      away_team: apiTeamToOurs(f.teams.away.name),
-      home_score: f.goals.home,
-      away_score: f.goals.away,
-      status: f.fixture.status.short,
-      elapsed: f.fixture.status.elapsed,
+  // 2) Cache live_scores : uniquement les matchs EN COURS (id stable par
+  //    match → aucun doublon quand on change de fournisseur)
+  const live = result.fixtures.filter((f) => f.status === "live");
+  for (const f of live) {
+    await admin.from("live_scores").upsert({
+      id: f.id,
+      league: f.league,
+      match_date: f.date,
+      home_team: f.home,
+      away_team: f.away,
+      home_score: f.homeScore,
+      away_score: f.awayScore,
+      status: f.liveStatus,
+      elapsed: f.elapsed,
       raw: f,
       updated_at: new Date().toISOString(),
-    };
-    await admin.from("live_scores").upsert(row);
+    });
   }
 
-  // 2) Les matchs TERMINÉS alimentent la table `matches` → calcul des points
+  // 3) Les matchs TERMINÉS alimentent la table `matches` → calcul des points
   let settled = 0;
-  const finished = ours.filter((f) => FINISHED_API_STATUSES.includes(f.fixture.status.short));
+  const finished = result.fixtures.filter((f) => f.status === "ft" && f.homeScore !== null && f.awayScore !== null);
   for (const f of finished) {
-    settled += await applyApiResult(f);
+    settled += await applyResultNormalized(f);
   }
 
-  // 3) PURGE des lignes périmées : un match fini ou sorti du flux live ne
+  // 4) PURGE des lignes périmées : un match fini ou sorti du flux live ne
   //    doit JAMAIS rester affiché comme LIVE dans live_scores.
   const staleBefore = new Date(Date.now() - 4 * 3600_000).toISOString();
   // a) statut terminé / annulé / reporté → sortie du cache live
@@ -165,42 +94,45 @@ export async function syncLiveScores(): Promise<{ synced: number; settled: numbe
   // b) plus aucune maj depuis 4 h (match sorti du flux live) → périmé
   await admin.from("live_scores").delete().lt("updated_at", staleBefore);
 
-  return { synced: ours.length, settled };
+  return {
+    synced: live.length,
+    settled,
+    provider: result.provider,
+    providerErrors: attempts.length ? attempts : undefined,
+  };
 }
 
-/** Fait correspondre un fixture API à un match en base (équipes + date ±2j) puis enregistre le résultat */
-async function applyApiResult(f: ApiFixture): Promise<number> {
+/** Enregistre un résultat FT (tous fournisseurs confondus) : match en base par équipes + date ±2j */
+async function applyResultNormalized(f: NormalizedFixture): Promise<number> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return 0;
 
-  const home = apiTeamToOurs(f.teams.home.name);
-  const away = apiTeamToOurs(f.teams.away.name);
-  const date = new Date(f.fixture.date);
-  const from = new Date(date.getTime() - 48 * 3600_000).toISOString();
-  const to = new Date(date.getTime() + 48 * 3600_000).toISOString();
+  const from = new Date(new Date(f.date).getTime() - 48 * 3600_000).toISOString();
+  const to = new Date(new Date(f.date).getTime() + 48 * 3600_000).toISOString();
 
   const { data: candidates } = await admin
     .from("matches")
     .select("id, home_team, away_team, home_score, league")
     .gte("match_date", from)
     .lte("match_date", to)
-    .or(`home_team.eq.${home},away_team.eq.${away}`);
+    .or(`home_team.eq.${f.home},away_team.eq.${f.away}`);
 
   const match = (candidates ?? []).find(
     (m) =>
-      normalizeTeam(m.home_team) === normalizeTeam(home) &&
-      normalizeTeam(m.away_team) === normalizeTeam(away)
+      normalizeTeam(m.home_team) === normalizeTeam(f.home) &&
+      normalizeTeam(m.away_team) === normalizeTeam(f.away)
   );
   if (!match || match.home_score !== null) return 0;
 
   // Enregistre le résultat + calcule les points de tous les pronostics (RPC SQL)
   const { data } = await admin.rpc("set_match_result", {
     p_match_id: match.id,
-    p_home: f.goals.home ?? 0,
-    p_away: f.goals.away ?? 0,
+    p_home: f.homeScore ?? 0,
+    p_away: f.awayScore ?? 0,
   });
   return typeof data === "number" ? data : 0;
 }
+
 
 // ---------------------------------------------------------------
 // IMPORT DES FIXTURES des 19 équipes vedettes (nouvelles saisons,
@@ -244,8 +176,23 @@ export async function importFixtures(): Promise<{ imported: number; skipped?: st
 
       if (isFinished) {
         // 2a) Match terminé DÉJÀ connu mais sans résultat en base → settlement
-        //     (le score n'est jamais écrasé : applyApiResult vérifie home_score)
-        await applyApiResult(f);
+        //     (le score n'est jamais écrasé : applyResultNormalized vérifie home_score)
+        const homeName = apiTeamToOurs(f.teams.home.name);
+        const awayName = apiTeamToOurs(f.teams.away.name);
+        await applyResultNormalized({
+          id: `${homeName}-${awayName}-${f.fixture.date.slice(0, 10)}`,
+          sourceId: String(f.fixture.id),
+          provider: "api-football",
+          league: league,
+          date: f.fixture.date,
+          home: homeName,
+          away: awayName,
+          homeScore: f.goals.home,
+          awayScore: f.goals.away,
+          status: "ft",
+          liveStatus: "FT",
+          elapsed: null,
+        });
       } else {
         // 2b) Match à venir déjà connu → on RAFRAÎCHIT l'horaire
         //     (changement d'horaire, report... les heures restent exactes)
@@ -419,17 +366,23 @@ export async function syncMatchEvents(): Promise<{ events: number; skipped?: str
     return { events: 0, skipped: "quota_low" };
   }
 
-  // Matchs réellement en direct (max 5 fixtures = 5 requêtes)
+  // Matchs réellement en direct — les événements (buteurs/cartons) ne sont
+  // disponibles que chez API-Football : on n'interroge que les matchs
+  // synchronisés par ce fournisseur (id source dans raw.sourceId).
   const { data: liveRows } = await admin
     .from("live_scores")
-    .select("id")
+    .select("id, raw")
     .in("status", LIVE_API_STATUSES)
-    .limit(5);
-  if (!liveRows || liveRows.length === 0) return { events: 0, skipped: "no_live" };
+    .limit(10);
+  const apiRows = (liveRows ?? []).filter(
+    (r) => (r.raw as { provider?: string } | null)?.provider === "api-football"
+  );
+  if (apiRows.length === 0) return { events: 0, skipped: "no_live" };
 
   let count = 0;
-  for (const row of liveRows) {
-    const events = await apiGetEvents("/fixtures/events", { fixture: row.id });
+  for (const row of apiRows.slice(0, 5)) {
+    const sourceId = (row.raw as { sourceId?: string } | null)?.sourceId ?? row.id;
+    const events = await apiGetEvents("/fixtures/events", { fixture: sourceId });
     for (const ev of events) {
       const isGoal = ev.type === "Goal";
       const isCard = ev.type === "Card";
@@ -456,7 +409,7 @@ export async function syncMatchEvents(): Promise<{ events: number; skipped?: str
 async function apiGetEvents(path: string, params: Record<string, string | number>): Promise<ApiEvent[]> {
   const key = await getApiSportsKey();
   if (!key) return [];
-  const url = new URL(API_BASE + path);
+  const url = new URL("https://v3.football.api-sports.io" + path);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
   try {
     const res = await fetch(url, { headers: { "x-apisports-key": key }, cache: "no-store" });
