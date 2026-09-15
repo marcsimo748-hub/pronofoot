@@ -138,7 +138,12 @@ async function applyResultNormalized(f: NormalizedFixture): Promise<number> {
 // IMPORT DES FIXTURES des 19 équipes vedettes (nouvelles saisons,
 // ajouts automatiques de matchs) — toutes les 6h maximum
 // ---------------------------------------------------------------
-export async function importFixtures(): Promise<{ imported: number; settled?: number; skipped?: string }> {
+export async function importFixtures(): Promise<{
+  imported: number;
+  settled?: number;
+  skipped?: string;
+  diag?: { team: string; count: number; errors: string | null }[];
+}> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return { imported: 0, skipped: "no_supabase" };
   if (!(await getApiSportsKey())) return { imported: 0, skipped: "no_api_key" };
@@ -146,10 +151,24 @@ export async function importFixtures(): Promise<{ imported: number; settled?: nu
   const season = LEAGUES.premier.season;
   let imported = 0;
   let settled = 0;
+  const diag: { team: string; count: number; errors: string | null }[] = [];
 
   for (const team of FEATURED_TEAMS) {
-    const fixtures = await apiGet("/fixtures", { team: team.apiId, season });
-    if (!fixtures) continue;
+    // Une équipe qui échoue (429, réseau…) n'arrête plus tout l'import
+    let fixtures: Awaited<ReturnType<typeof apiGet>>;
+    try {
+      fixtures = await apiGet("/fixtures", { team: team.apiId, season });
+    } catch (e) {
+      diag.push({ team: team.name, count: -1, errors: `throw: ${(e as Error).message}` });
+      continue;
+    }
+    const meta = lastApiMeta;
+    const respErr =
+      meta?.errors && Object.keys(meta.errors as Record<string, unknown>).length > 0
+        ? JSON.stringify(meta.errors).slice(0, 160)
+        : null;
+    diag.push({ team: team.name, count: fixtures?.length ?? -1, errors: respErr });
+    if (!fixtures || fixtures.length === 0) continue;
 
     for (const f of fixtures) {
       const league = ourLeague(f.league.id);
@@ -209,7 +228,7 @@ export async function importFixtures(): Promise<{ imported: number; settled?: nu
   }
 
   await updateSetting("sync_state", { last_fixtures_import: Date.now() }).catch(() => {});
-  return { imported, settled };
+  return { imported, settled, diag };
 }
 
 // ---------------------------------------------------------------

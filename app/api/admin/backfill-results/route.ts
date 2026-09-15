@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({
       ok: true,
-      data: { imported: result.imported, settled: result.settled ?? 0 },
+      data: { imported: result.imported, settled: result.settled ?? 0, diag: result.diag ?? [] },
     });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });

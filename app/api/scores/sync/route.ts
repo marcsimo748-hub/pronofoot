@@ -115,6 +115,8 @@ async function handle(req: Request) {
       events,
       apiMeta: lastApiMeta,
       fixturesImported: fixtures?.imported ?? 0,
+      fixturesSettled: fixtures?.settled ?? 0,
+      fixturesDiag: fixtures?.diag ?? (fixturesDue ? [] : null),
       standingsUpdated: standings?.updated ?? 0,
     };
     // ⚠️ Bandeau d'erreur : uniquement si TOUTE la chaîne a échoué.
