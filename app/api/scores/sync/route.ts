@@ -85,8 +85,23 @@ async function handle(req: Request) {
     // Événements (buteurs, cartons) des matchs live — auto-throttlé 20 min
     const events = await syncMatchEvents().catch(() => ({ events: 0, skipped: "error" }));
 
-    // Import des nouveaux matchs des 19 équipes (1x/6h) + classements (1x/1h)
-    const fixturesDue = now - settings.sync_state.last_fixtures_import > 6 * 3600_000;
+    // Import des nouveaux matchs des 19 équipes (1x/6h) + classements (1x/1h).
+    // AUTO-RATTRAPAGE : si des matchs PASSÉS n'ont toujours pas de résultat
+    // (panne API, compte suspendu…), on relance l'import toutes les 30 min
+    // jusqu'à ce qu'ils soient clôturés — les points ne restent jamais bloqués.
+    let missedSettlements = 0;
+    try {
+      const { count } = await admin
+        .from("matches")
+        .select("id", { count: "exact", head: true })
+        .is("home_score", null)
+        .in("status", ["scheduled", "missed"])
+        .lt("match_date", new Date(now - 2 * 3600_000).toISOString());
+      missedSettlements = count ?? 0;
+    } catch { /* aucune valeur */ }
+    const fixturesDue =
+      now - settings.sync_state.last_fixtures_import > 6 * 3600_000 ||
+      (missedSettlements > 0 && now - settings.sync_state.last_fixtures_import > 30 * 60_000);
     const fixtures = fixturesDue ? await importFixtures() : null;
 
     const standingsDue = now - settings.sync_state.last_standings_sync > 3600_000;

@@ -44,7 +44,7 @@ export function AdminPanel({ settings }: { settings: SiteSettings }) {
   const TOOLS = [
     { id: "sync", emoji: "⚡", title: "Fournisseurs & Synchro", desc: "3 API de secours automatique + clés", component: <ApiSyncTool settings={settings} /> },
     { id: "tester", emoji: "🔴", title: "Mode Testeur LIVE", desc: "Simuler des scores en direct pour tester le site", component: <LiveTesterTool active={liveState.active} onChange={setLiveState} /> },
-    { id: "manual", emoji: "⚽", title: "Saisie Manuelle", desc: "Entrer un résultat (avec recherche) et clôturer les bonus", component: <ManualEntryTool /> },
+    { id: "manual", emoji: "⚽", title: "Résultats & Pronostics", desc: "Clôturer les matchs, voir tous les pronos, saisir/vérifier les scores", component: <ManualEntryTool /> },
     { id: "wallpapers", emoji: "🖼️", title: "Fonds d'Écran Globaux", desc: "Arrière-plans Connexion / Accueil", component: <WallpapersTool settings={settings} /> },
     { id: "banners", emoji: "🏟️", title: "Bannières par Championnat", desc: "Bandeau en haut de la page Pronos", component: <BannersTool settings={settings} /> },
     { id: "backgrounds", emoji: "🌄", title: "Arrière-plans par Championnat", desc: "Fond derrière les matchs de chaque ligue", component: <LeagueBackgroundsTool settings={settings} /> },

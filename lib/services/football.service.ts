@@ -138,13 +138,14 @@ async function applyResultNormalized(f: NormalizedFixture): Promise<number> {
 // IMPORT DES FIXTURES des 19 équipes vedettes (nouvelles saisons,
 // ajouts automatiques de matchs) — toutes les 6h maximum
 // ---------------------------------------------------------------
-export async function importFixtures(): Promise<{ imported: number; skipped?: string }> {
+export async function importFixtures(): Promise<{ imported: number; settled?: number; skipped?: string }> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return { imported: 0, skipped: "no_supabase" };
   if (!(await getApiSportsKey())) return { imported: 0, skipped: "no_api_key" };
 
   const season = LEAGUES.premier.season;
   let imported = 0;
+  let settled = 0;
 
   for (const team of FEATURED_TEAMS) {
     const fixtures = await apiGet("/fixtures", { team: team.apiId, season });
@@ -179,7 +180,7 @@ export async function importFixtures(): Promise<{ imported: number; skipped?: st
         //     (le score n'est jamais écrasé : applyResultNormalized vérifie home_score)
         const homeName = apiTeamToOurs(f.teams.home.name);
         const awayName = apiTeamToOurs(f.teams.away.name);
-        await applyResultNormalized({
+        settled += await applyResultNormalized({
           id: `${homeName}-${awayName}-${f.fixture.date.slice(0, 10)}`,
           sourceId: String(f.fixture.id),
           provider: "api-football",
@@ -208,7 +209,7 @@ export async function importFixtures(): Promise<{ imported: number; skipped?: st
   }
 
   await updateSetting("sync_state", { last_fixtures_import: Date.now() }).catch(() => {});
-  return { imported };
+  return { imported, settled };
 }
 
 // ---------------------------------------------------------------
