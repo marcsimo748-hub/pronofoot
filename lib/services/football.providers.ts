@@ -184,6 +184,17 @@ async function providerApiFootball(): Promise<ProviderResult> {
   try {
     const fixtures = await apiGet("/fixtures", { live: "all" });
     if (fixtures === null) return { provider: "api-football", fixtures: [], error: "no_key" };
+    // ⚠️ PIÈGE : un compte suspendu/clé refusée renvoie 200 avec errors + count 0.
+    // Un « 0 match » n'est sain QUE s'il n'y a aucune erreur dans la réponse.
+    const meta = lastApiMeta;
+    const respErrors = meta?.errors as Record<string, unknown> | null | undefined;
+    if (respErrors && Object.keys(respErrors).length > 0) {
+      return {
+        provider: "api-football",
+        fixtures: [],
+        error: `refusé: ${JSON.stringify(respErrors).slice(0, 120)}`,
+      };
+    }
     const ours: NormalizedFixture[] = [];
     for (const f of fixtures) {
       const league = ourLeague(f.league.id);
