@@ -65,6 +65,9 @@ export async function syncLiveScores(
   //    match → aucun doublon quand on change de fournisseur)
   const live = result.fixtures.filter((f) => f.status === "live");
   for (const f of live) {
+    // Recale la date du match en base si elle a dérivé (reprogrammation TV,
+    // seed approximatif) → le FT sera rattrapé naturellement au bon jour.
+    await fixDriftedMatchDate(admin, f);
     await admin.from("live_scores").upsert({
       id: f.id,
       league: f.league,
@@ -106,6 +109,34 @@ export async function syncLiveScores(
     provider: result.provider,
     providerErrors: attempts.length ? attempts : undefined,
   };
+}
+
+/** Recale la date d'un match en base sur la date réelle du flux live (dérive de
+ *  reprogrammation ou de seed) — uniquement si pas encore joué, écart > 2 h. */
+async function fixDriftedMatchDate(
+  admin: NonNullable<ReturnType<typeof tryGetSupabaseAdminClient>>,
+  f: NormalizedFixture
+): Promise<void> {
+  try {
+    const from = new Date(new Date(f.date).getTime() - 48 * 3600_000).toISOString();
+    const to = new Date(new Date(f.date).getTime() + 48 * 3600_000).toISOString();
+    const { data } = await admin
+      .from("matches")
+      .select("id, match_date, home_team, away_team")
+      .gte("match_date", from)
+      .lte("match_date", to)
+      .or(`home_team.eq.${f.home},away_team.eq.${f.away}`)
+      .eq("status", "scheduled")
+      .is("home_score", null);
+    const m = (data ?? []).find(
+      (x) => normalizeTeam(x.home_team) === normalizeTeam(f.home) && normalizeTeam(x.away_team) === normalizeTeam(f.away)
+    );
+    if (m && Math.abs(new Date(m.match_date).getTime() - new Date(f.date).getTime()) > 2 * 3600_000) {
+      await admin.from("matches").update({ match_date: f.date }).eq("id", m.id);
+    }
+  } catch {
+    /* silencieux — le recalage est une optimisation */
+  }
 }
 
 /** Enregistre un résultat FT (tous fournisseurs confondus) : match en base par équipes + date ±2j */
@@ -170,39 +201,51 @@ export async function backfillMissedResults(): Promise<{
     .limit(400);
   if (!missedRows || missedRows.length === 0) return { settled: 0, dates: [], diag: [] };
 
-  // 2) Une passe par date concernée
+  // 2) Une passe par date concernée (date en base ± 1 jour : la date réelle
+  //    peut différer — reprogrammation TV, seed approximatif)
   const byDate = new Map<string, typeof missedRows>();
   for (const m of missedRows) {
     const d = m.match_date.slice(0, 10);
-    (byDate.get(d) ?? byDate.set(d, []).get(d)!).push(m);
+    if (!byDate.has(d)) byDate.set(d, []);
+    byDate.get(d)!.push(m);
   }
   const diag: { date: string; source: string; found: number; settled: number; error: string | null }[] = [];
   let totalSettled = 0;
+  let calls = 0;
 
   for (const [dateStr, rows] of byDate) {
-    if (byDate.size > 14) break; // garde-fou : max ~2 semaines de rattrapage par passe
+    if (calls >= 14) break; // garde-fou quota : max 14 requêtes par passe
     const leagues = [...new Set(rows.map((r) => r.league))];
+    const dayMs = 86_400_000;
+    const variants = [
+      dateStr,
+      new Date(new Date(dateStr).getTime() - dayMs).toISOString().slice(0, 10),
+      new Date(new Date(dateStr).getTime() + dayMs).toISOString().slice(0, 10),
+    ];
 
-    // a) API-Football par date (sans season → autorisé plan gratuit)
     let fixtures: NormalizedFixture[] = [];
     let source = "aucune";
     let error: string | null = null;
-    try {
-      const day = await apiGet("/fixtures", { date: dateStr });
-      const meta = lastApiMeta;
-      const respErr =
-        meta?.errors && Object.keys(meta.errors as Record<string, unknown>).length > 0
-          ? JSON.stringify(meta.errors).slice(0, 140)
-          : null;
-      if (respErr) {
-        error = `api-football: ${respErr}`;
-      } else if (day) {
-        for (const f of day) {
+
+    // a) API-Football par date (autorisé sur ± 1 jour pour le plan gratuit)
+    for (const d of variants) {
+      if (calls >= 14) break;
+      calls++;
+      try {
+        const day = await apiGet("/fixtures", { date: d });
+        const meta = lastApiMeta;
+        const respErr =
+          meta?.errors && Object.keys(meta.errors as Record<string, unknown>).length > 0
+            ? JSON.stringify(meta.errors).slice(0, 120)
+            : null;
+        if (respErr) {
+          error = `api-football ${d}: ${respErr}`;
+          continue; // date hors fenêtre plan gratuit → ESPN prendra le relai
+        }
+        for (const f of day ?? []) {
           const league = ourLeague(f.league.id);
           if (!league) continue;
-          const short = f.fixture.status.short;
-          const isFt = FINISHED_API_STATUSES.includes(short);
-          if (!isFt) continue; // rattrapage = résultats finaux uniquement
+          if (!FINISHED_API_STATUSES.includes(f.fixture.status.short)) continue;
           const home = apiTeamToOurs(f.teams.home.name);
           const away = apiTeamToOurs(f.teams.away.name);
           fixtures.push({
@@ -216,25 +259,34 @@ export async function backfillMissedResults(): Promise<{
             homeScore: f.goals.home,
             awayScore: f.goals.away,
             status: "ft",
-            liveStatus: short,
+            liveStatus: f.fixture.status.short,
             elapsed: null,
           });
         }
-        source = "api-football";
+        if (fixtures.length > 0) {
+          source = "api-football";
+          break; // cette date a donné des résultats, inutile de chercher ailleurs
+        }
+      } catch (e) {
+        error = `api-football ${d}: ${(e as Error).message}`;
       }
-    } catch (e) {
-      error = `api-football: ${(e as Error).message}`;
     }
 
-    // b) Repli ESPN si API-Football n'a rien donné pour cette date
+    // b) Repli ESPN (sans clé) sur les 3 dates si API-Football n'a rien donné
     if (fixtures.length === 0) {
-      try {
-        const r = await espnFixturesForDate(dateStr, leagues);
-        fixtures = r.fixtures.filter((f) => f.status === "ft" && f.homeScore !== null && f.awayScore !== null);
-        if (fixtures.length > 0 || r.failed === 0) source = "espn";
-        if (fixtures.length === 0 && r.failed > 0) error = (error ?? "") + ` espn: ${r.failed} appels échoués`;
-      } catch (e) {
-        error = (error ?? "") + ` espn: ${(e as Error).message}`;
+      for (const d of variants) {
+        try {
+          const r = await espnFixturesForDate(d, leagues);
+          const ft = r.fixtures.filter((f) => f.status === "ft" && f.homeScore !== null && f.awayScore !== null);
+          if (ft.length > 0) {
+            fixtures = ft;
+            source = "espn";
+            break;
+          }
+          if (r.failed > 0) error = (error ?? "") + ` espn ${d}: ${r.failed} appels échoués`;
+        } catch (e) {
+          error = (error ?? "") + ` espn ${d}: ${(e as Error).message}`;
+        }
       }
     }
 
