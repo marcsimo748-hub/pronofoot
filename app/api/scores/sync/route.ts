@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches, syncMatchEvents, lastApiMeta, LIVE_API_STATUSES } from "@/lib/services/football.service";
+import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches, syncMatchEvents, backfillMissedResults, lastApiMeta, LIVE_API_STATUSES } from "@/lib/services/football.service";
 import { getSettings, updateSetting } from "@/lib/services/settings.service";
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -87,8 +87,8 @@ async function handle(req: Request) {
 
     // Import des nouveaux matchs des 19 équipes (1x/6h) + classements (1x/1h).
     // AUTO-RATTRAPAGE : si des matchs PASSÉS n'ont toujours pas de résultat
-    // (panne API, compte suspendu…), on relance l'import toutes les 30 min
-    // jusqu'à ce qu'ils soient clôturés — les points ne restent jamais bloqués.
+    // (panne API, plan gratuit sans saison, compte suspendu…), on relance un
+    // rattrapage par DATE toutes les 30 min jusqu'à clôture complète.
     let missedSettlements = 0;
     try {
       const { count } = await admin
@@ -99,9 +99,14 @@ async function handle(req: Request) {
         .lt("match_date", new Date(now - 2 * 3600_000).toISOString());
       missedSettlements = count ?? 0;
     } catch { /* aucune valeur */ }
-    const fixturesDue =
-      now - settings.sync_state.last_fixtures_import > 6 * 3600_000 ||
-      (missedSettlements > 0 && now - settings.sync_state.last_fixtures_import > 30 * 60_000);
+    const backfillDue =
+      missedSettlements > 0 && now - settings.sync_state.last_fixtures_import > 30 * 60_000;
+    let backfill: Awaited<ReturnType<typeof backfillMissedResults>> | null = null;
+    if (backfillDue) {
+      backfill = await backfillMissedResults();
+      await updateSetting("sync_state", { last_fixtures_import: now }).catch(() => {});
+    }
+    const fixturesDue = now - settings.sync_state.last_fixtures_import > 6 * 3600_000;
     const fixtures = fixturesDue ? await importFixtures() : null;
 
     const standingsDue = now - settings.sync_state.last_standings_sync > 3600_000;
@@ -115,7 +120,8 @@ async function handle(req: Request) {
       events,
       apiMeta: lastApiMeta,
       fixturesImported: fixtures?.imported ?? 0,
-      fixturesSettled: fixtures?.settled ?? 0,
+      fixturesSettled: (fixtures?.settled ?? 0) + (backfill?.settled ?? 0),
+      backfillDiag: backfill?.diag ?? null,
       fixturesDiag: fixtures?.diag ?? (fixturesDue ? [] : null),
       standingsUpdated: standings?.updated ?? 0,
     };

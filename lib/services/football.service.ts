@@ -22,6 +22,7 @@ import {
   fetchFixturesWithFallback,
   apiTeamToOurs,
   ourLeague,
+  espnFixturesForDate,
   type NormalizedFixture,
 } from "./football.providers";
 
@@ -140,6 +141,116 @@ async function applyResultNormalized(f: NormalizedFixture): Promise<number> {
 
 
 // ---------------------------------------------------------------
+// RATTRAPAGE DES RÉSULTATS MANQUANTS (matchs passés sans score)
+// ⚠️ Le plan gratuit API-Football n'a pas accès à la saison en cours :
+// les requêtes team+season sont refusées ("Free plans do not have
+// access to this season"). On récupère donc les résultats passés :
+//   1) par DATE via API-Football (autorisé, 1 requête/jour concerné)
+//   2) en repli via ESPN (sans clé) si l'appel par date échoue
+// ---------------------------------------------------------------
+
+export async function backfillMissedResults(): Promise<{
+  settled: number;
+  dates: string[];
+  diag: { date: string; source: string; found: number; settled: number; error: string | null }[];
+  skipped?: string;
+}> {
+  const admin = tryGetSupabaseAdminClient();
+  if (!admin) return { settled: 0, dates: [], diag: [], skipped: "no_supabase" };
+
+  // 1) Matchs passés (30 derniers jours) sans résultat en base
+  const { data: missedRows } = await admin
+    .from("matches")
+    .select("id, home_team, away_team, match_date, league")
+    .is("home_score", null)
+    .in("status", ["scheduled", "missed"])
+    .gte("match_date", new Date(Date.now() - 30 * 86_400_000).toISOString())
+    .lt("match_date", new Date(Date.now() - 2 * 3600_000).toISOString())
+    .order("match_date", { ascending: true })
+    .limit(400);
+  if (!missedRows || missedRows.length === 0) return { settled: 0, dates: [], diag: [] };
+
+  // 2) Une passe par date concernée
+  const byDate = new Map<string, typeof missedRows>();
+  for (const m of missedRows) {
+    const d = m.match_date.slice(0, 10);
+    (byDate.get(d) ?? byDate.set(d, []).get(d)!).push(m);
+  }
+  const diag: { date: string; source: string; found: number; settled: number; error: string | null }[] = [];
+  let totalSettled = 0;
+
+  for (const [dateStr, rows] of byDate) {
+    if (byDate.size > 14) break; // garde-fou : max ~2 semaines de rattrapage par passe
+    const leagues = [...new Set(rows.map((r) => r.league))];
+
+    // a) API-Football par date (sans season → autorisé plan gratuit)
+    let fixtures: NormalizedFixture[] = [];
+    let source = "aucune";
+    let error: string | null = null;
+    try {
+      const day = await apiGet("/fixtures", { date: dateStr });
+      const meta = lastApiMeta;
+      const respErr =
+        meta?.errors && Object.keys(meta.errors as Record<string, unknown>).length > 0
+          ? JSON.stringify(meta.errors).slice(0, 140)
+          : null;
+      if (respErr) {
+        error = `api-football: ${respErr}`;
+      } else if (day) {
+        for (const f of day) {
+          const league = ourLeague(f.league.id);
+          if (!league) continue;
+          const short = f.fixture.status.short;
+          const isFt = FINISHED_API_STATUSES.includes(short);
+          if (!isFt) continue; // rattrapage = résultats finaux uniquement
+          const home = apiTeamToOurs(f.teams.home.name);
+          const away = apiTeamToOurs(f.teams.away.name);
+          fixtures.push({
+            id: `${home}-${away}-${f.fixture.date.slice(0, 10)}`,
+            sourceId: String(f.fixture.id),
+            provider: "api-football",
+            league,
+            date: f.fixture.date,
+            home,
+            away,
+            homeScore: f.goals.home,
+            awayScore: f.goals.away,
+            status: "ft",
+            liveStatus: short,
+            elapsed: null,
+          });
+        }
+        source = "api-football";
+      }
+    } catch (e) {
+      error = `api-football: ${(e as Error).message}`;
+    }
+
+    // b) Repli ESPN si API-Football n'a rien donné pour cette date
+    if (fixtures.length === 0) {
+      try {
+        const r = await espnFixturesForDate(dateStr, leagues);
+        fixtures = r.fixtures.filter((f) => f.status === "ft" && f.homeScore !== null && f.awayScore !== null);
+        if (fixtures.length > 0 || r.failed === 0) source = "espn";
+        if (fixtures.length === 0 && r.failed > 0) error = (error ?? "") + ` espn: ${r.failed} appels échoués`;
+      } catch (e) {
+        error = (error ?? "") + ` espn: ${(e as Error).message}`;
+      }
+    }
+
+    // c) Clôture des matchs finis trouvés
+    let settledCount = 0;
+    for (const f of fixtures) {
+      settledCount += await applyResultNormalized(f);
+    }
+    totalSettled += settledCount;
+    diag.push({ date: dateStr, source, found: fixtures.length, settled: settledCount, error: error || null });
+  }
+
+  return { settled: totalSettled, dates: [...byDate.keys()], diag };
+}
+
+// ---------------------------------------------------------------
 // IMPORT DES FIXTURES des 19 équipes vedettes (nouvelles saisons,
 // ajouts automatiques de matchs) — toutes les 6h maximum
 // ---------------------------------------------------------------
@@ -165,7 +276,13 @@ export async function importFixtures(): Promise<{
       fixtures = await apiGet("/fixtures", { team: team.apiId, season });
     } catch (e) {
       diag.push({ team: team.name, count: -1, errors: `throw: ${(e as Error).message}` });
+      if (diag.length >= 3 && diag.slice(0, 3).every((x) => x.errors?.includes("429"))) break; // rate-limit
       continue;
+    }
+    // Plan gratuit sans accès à la saison → inutile de continuer (19 appels gaspillés)
+    const planErr = JSON.stringify(lastApiMeta?.errors ?? {});
+    if (planErr.includes("Free plans") || planErr.includes("this season")) {
+      return { imported: 0, settled: 0, skipped: "plan_season_forbidden", diag };
     }
     const meta = lastApiMeta;
     const respErr =

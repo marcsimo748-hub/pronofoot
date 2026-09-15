@@ -313,72 +313,82 @@ const ESPN_LEAGUES: Record<string, LeagueCode> = {
   "ger.1": "bundesliga",
 };
 
+/** Récupère les matchs (live + finis) d'UNE date via ESPN — sans clé. */
+export async function espnFixturesForDate(
+  dateStr: string,
+  onlyLeagues?: LeagueCode[]
+): Promise<{ fixtures: NormalizedFixture[]; failed: number }> {
+  const fixtures: NormalizedFixture[] = [];
+  let failed = 0;
+  const espnDate = dateStr.replace(/-/g, "");
+  for (const [slug, league] of Object.entries(ESPN_LEAGUES)) {
+    if (onlyLeagues && !onlyLeagues.includes(league)) continue;
+    try {
+      const res = await fetch(
+        `https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${espnDate}`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) {
+        failed++;
+        continue;
+      }
+      const json = (await res.json()) as {
+        events?: {
+          id: string;
+          date: string;
+          status?: { type?: { state?: string; shortDetail?: string } };
+          competitions?: {
+            competitors?: { homeAway: string; team?: { displayName?: string }; score?: string }[];
+          }[];
+        }[];
+      };
+      for (const ev of json.events ?? []) {
+        const comp = ev.competitions?.[0];
+        const homeC = comp?.competitors?.find((c) => c.homeAway === "home");
+        const awayC = comp?.competitors?.find((c) => c.homeAway === "away");
+        const homeName = homeC?.team?.displayName;
+        const awayName = awayC?.team?.displayName;
+        if (!homeName || !awayName) continue;
+        const state = ev.status?.type?.state;
+        if (state !== "in" && state !== "post") continue;
+        const home = toOurName(homeName);
+        const away = toOurName(awayName);
+        const detail = ev.status?.type?.shortDetail ?? "";
+        fixtures.push({
+          id: stableId(ev.date, home, away),
+          sourceId: ev.id,
+          provider: "espn",
+          league,
+          date: ev.date,
+          home,
+          away,
+          homeScore: homeC.score !== undefined ? Number(homeC.score) : null,
+          awayScore: awayC.score !== undefined ? Number(awayC.score) : null,
+          status: state === "in" ? "live" : "ft",
+          liveStatus: state === "in" ? (/halftime|pause/i.test(detail) ? "HT" : "LIVE") : "FT",
+          elapsed: null,
+        });
+      }
+    } catch {
+      failed++;
+    }
+  }
+  return { fixtures, failed };
+}
+
 async function providerEspn(): Promise<ProviderResult> {
   try {
     const now = new Date();
-    const days = [now, new Date(now.getTime() - 86_400_000)];
+    const days = [now.toISOString().slice(0, 10), new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10)];
     const fixtures: NormalizedFixture[] = [];
-    let okCalls = 0;
-    let failedCalls = 0;
-
-    for (const [slug, league] of Object.entries(ESPN_LEAGUES)) {
-      for (const d of days) {
-        const dateStr = d.toISOString().slice(0, 10).replace(/-/g, "");
-        try {
-          const res = await fetch(
-            `https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${dateStr}`,
-            { cache: "no-store" }
-          );
-          if (!res.ok) {
-            failedCalls++;
-            continue;
-          }
-          okCalls++;
-          const json = (await res.json()) as {
-            events?: {
-              id: string;
-              date: string;
-              status?: { type?: { state?: string; shortDetail?: string } };
-              competitions?: {
-                competitors?: { homeAway: string; team?: { displayName?: string }; score?: string }[];
-              }[];
-            }[];
-          };
-          for (const ev of json.events ?? []) {
-            const comp = ev.competitions?.[0];
-            const homeC = comp?.competitors?.find((c) => c.homeAway === "home");
-            const awayC = comp?.competitors?.find((c) => c.homeAway === "away");
-            const homeName = homeC?.team?.displayName;
-            const awayName = awayC?.team?.displayName;
-            if (!homeName || !awayName) continue;
-            const state = ev.status?.type?.state;
-            if (state !== "in" && state !== "post") continue;
-            const home = toOurName(homeName);
-            const away = toOurName(awayName);
-            const detail = ev.status?.type?.shortDetail ?? "";
-            fixtures.push({
-              id: stableId(ev.date, home, away),
-              sourceId: ev.id,
-              provider: "espn",
-              league,
-              date: ev.date,
-              home,
-              away,
-              homeScore: homeC.score !== undefined ? Number(homeC.score) : null,
-              awayScore: awayC.score !== undefined ? Number(awayC.score) : null,
-              status: state === "in" ? "live" : "ft",
-              liveStatus: state === "in" ? (/halftime|pause/i.test(detail) ? "HT" : "LIVE") : "FT",
-              elapsed: null,
-            });
-          }
-        } catch {
-          failedCalls++;
-        }
-      }
+    let failed = 0;
+    for (const d of days) {
+      const r = await espnFixturesForDate(d);
+      fixtures.push(...r.fixtures);
+      failed += r.failed;
     }
-
-    if (okCalls === 0 && failedCalls > 0) {
-      return { provider: "espn", fixtures: [], error: `HTTP échoué (${failedCalls} appels)` };
+    if (fixtures.length === 0 && failed > 0) {
+      return { provider: "espn", fixtures: [], error: `HTTP échoué (${failed} appels)` };
     }
     lastApiMeta = { provider: "espn", path: "scoreboard", ok: true, status: 200, quotaHeaderRemaining: null, errors: null, count: fixtures.length };
     return { provider: "espn", fixtures, error: null };

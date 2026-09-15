@@ -107,6 +107,22 @@ export const TEAM_ALIASES: Record<string, string> = {
   "bayer leverkusen": "Bayer Leverkusen",
   "rb leipzig": "RB Leipzig",
   "eintracht frankfurt": "Eintracht Francfort",
+  // --- noms ESPN (displayName anglais) ---
+  "bologna": "Bologne",
+  "leeds united": "Leeds United",
+  "rayo vallecano": "Rayo Vallecano",
+  "real sociedad": "Real Sociedad",
+  "athletic club": "Athletic Bilbao",
+  "olympique lyon": "Olympique Lyonnais",
+  "lazio": "Lazio",
+  "udinese": "Udinese",
+  "sassuolo": "Sassuolo",
+  "everton": "Everton",
+  "fulham": "Fulham",
+  "sunderland": "Sunderland",
+  "paderborn": "Paderborn",
+  "elversberg": "Elversberg",
+  "brest": "Brest",
 };
 
 /** Barème des points (règles d'or du jeu) */

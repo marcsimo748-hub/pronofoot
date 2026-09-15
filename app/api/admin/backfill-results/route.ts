@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/supabase/admin";
-import { importFixtures } from "@/lib/services/football.service";
+import { importFixtures, backfillMissedResults } from "@/lib/services/football.service";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -15,13 +15,18 @@ export async function POST(req: Request) {
   if (!admin) return NextResponse.json({ ok: false, error: "Accès refusé" }, { status: 403 });
 
   try {
-    const result = await importFixtures();
-    if (result.skipped) {
-      return NextResponse.json({ ok: false, error: `Import impossible : ${result.skipped}` }, { status: 400 });
-    }
+    // 1) Rattrapage des résultats manquants (par date, plan-gratuit compatible)
+    const backfill = await backfillMissedResults();
+    // 2) Import classique des nouveaux fixtures (no-op si saison interdite au plan)
+    const result = await importFixtures().catch(() => ({ imported: 0, settled: 0 }));
     return NextResponse.json({
       ok: true,
-      data: { imported: result.imported, settled: result.settled ?? 0, diag: result.diag ?? [] },
+      data: {
+        imported: result.imported ?? 0,
+        settled: (backfill.settled ?? 0) + (result.settled ?? 0),
+        diag: backfill.diag ?? [],
+        dates: backfill.dates ?? [],
+      },
     });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
