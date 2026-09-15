@@ -123,6 +123,14 @@ export const TEAM_ALIASES: Record<string, string> = {
   "paderborn": "Paderborn",
   "elversberg": "Elversberg",
   "brest": "Brest",
+  // --- variantes ESPN/api-football decouvertes au rattrapage du 15/09 ---
+  "ss lazio": "Lazio",
+  "sv elversberg": "Elversberg",
+  "sc paderborn 07": "Paderborn",
+  "paderborn 07": "Paderborn",
+  "leeds": "Leeds United",
+  "bayern": "Bayern Munich",
+  "rennes": "Rennes",
 };
 
 /** Barème des points (règles d'or du jeu) */
