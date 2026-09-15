@@ -40,6 +40,10 @@ export const metadata: Metadata = {
   description:
     "Pronostics, Emploi, Visa, Logement et Annonces : la Super-App de la Diaspora. Scores live, news et assistant IA inclus. 100% gratuit.",
   applicationName: SITE_NAME,
+  // ⚠️ mobile-web-app-capable : la nouvelle norme (apple-mobile-web-app-capable est deprecie)
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

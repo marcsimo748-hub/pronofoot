@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { format, formatDistanceToNow, isToday, isTomorrow, isYesterday } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { LeagueCode } from "./types";
 import { LEAGUES } from "./constants";
@@ -32,20 +32,48 @@ export function normalizeTeam(name: string): string {
 }
 
 /** "2026-09-12T18:00:00Z" → "sam. 12 sept. · 20:00" */
+/**
+ * Formatage horaire en fuseau FIXE Europe/Berlin (le public du site).
+ * ⚠️ Ne JAMAIS formater une date avec le fuseau local du runtime :
+ * serveur (UTC sur Vercel) ≠ navigateur (Berlin) → texte différent →
+ * erreur d'hydratation React #425/#418 sur toutes les cartes de match.
+ */
+const BERLIN_TZ = "Europe/Berlin";
+
+function fmtBerlin(d: Date, opts: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat("fr-FR", { timeZone: BERLIN_TZ, ...opts }).format(d);
+}
+
+/** Jour calendaire à Berlin, format YYYY-MM-DD (comparaison stable) */
+function berlinDayKey(d: Date): string {
+  return new Intl.DateTimeFormat("fr-CA", { timeZone: BERLIN_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
+
+/** Nombre de jours (calendrier Berlin) entre une date et maintenant */
+function berlinDayDiff(d: Date): number {
+  const target = berlinDayKey(d);
+  const today = berlinDayKey(new Date());
+  const MS = 86400000;
+  return Math.round((Date.parse(target + "T12:00:00Z") - Date.parse(today + "T12:00:00Z")) / MS);
+}
+
 export function formatMatchDate(dateStr: string): string {
   const d = new Date(dateStr);
-  if (isToday(d)) return `Aujourd'hui · ${format(d, "HH:mm")}`;
-  if (isTomorrow(d)) return `Demain · ${format(d, "HH:mm")}`;
-  if (isYesterday(d)) return `Hier · ${format(d, "HH:mm")}`;
-  return format(d, "EEE d MMM · HH:mm", { locale: fr });
+  const time = fmtBerlin(d, { hour: "2-digit", minute: "2-digit" });
+  const diff = berlinDayDiff(d);
+  if (diff === 0) return `Aujourd'hui · ${time}`;
+  if (diff === 1) return `Demain · ${time}`;
+  if (diff === -1) return `Hier · ${time}`;
+  return `${fmtBerlin(d, { weekday: "short", day: "numeric", month: "short" })} · ${time}`;
 }
 
 /** "2026-09-12T18:00:00Z" → "sam. 12 septembre 2026" */
 export function formatDayLabel(dateStr: string): string {
   const d = new Date(dateStr);
-  if (isToday(d)) return "Aujourd'hui";
-  if (isTomorrow(d)) return "Demain";
-  return format(d, "EEEE d MMMM", { locale: fr });
+  const diff = berlinDayDiff(d);
+  if (diff === 0) return "Aujourd'hui";
+  if (diff === 1) return "Demain";
+  return fmtBerlin(d, { weekday: "long", day: "numeric", month: "long" });
 }
 
 /** Temps relatif : "il y a 5 min" */
