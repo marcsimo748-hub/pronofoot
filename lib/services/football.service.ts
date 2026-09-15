@@ -24,6 +24,33 @@ interface ApiFixture {
   goals: { home: number | null; away: number | null };
 }
 
+/**
+ * Clé API-Sports EFFECTIVE : la clé saisie dans l'Admin (prono_secrets,
+ * table privée) prime sur la variable d'environnement Vercel.
+ * Cache 30 s pour ne pas interroger la base à chaque appel.
+ */
+let apiKeyCache: { key: string | null; at: number } | null = null;
+
+export function invalidateApiSportsKeyCache(): void {
+  apiKeyCache = null;
+}
+
+export async function getApiSportsKey(): Promise<string | null> {
+  if (apiKeyCache && Date.now() - apiKeyCache.at < 30_000) return apiKeyCache.key;
+  let key: string | null = process.env.API_SPORTS_KEY ?? null;
+  try {
+    const admin = tryGetSupabaseAdminClient();
+    if (admin) {
+      const { data } = await admin.from("prono_secrets").select("value").eq("key", "api_sports_key").maybeSingle();
+      if (data?.value) key = String(data.value);
+    }
+  } catch {
+    /* base injoignable : on reste sur la variable d'environnement */
+  }
+  apiKeyCache = { key, at: Date.now() };
+  return key;
+}
+
 /** Diagnostic du dernier appel API-Sports (lisible juste après par la route sync) */
 export let lastApiMeta: {
   path: string;
@@ -36,7 +63,7 @@ export let lastApiMeta: {
 
 /** Appel GET vers API-FOOTBALL avec gestion du quota */
 async function apiGet(path: string, params: Record<string, string | number>): Promise<ApiFixture[] | null> {
-  const key = process.env.API_SPORTS_KEY;
+  const key = await getApiSportsKey();
   if (!key) return null;
 
   const url = new URL(API_BASE + path);
@@ -182,7 +209,7 @@ async function applyApiResult(f: ApiFixture): Promise<number> {
 export async function importFixtures(): Promise<{ imported: number; skipped?: string }> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return { imported: 0, skipped: "no_supabase" };
-  if (!process.env.API_SPORTS_KEY) return { imported: 0, skipped: "no_api_key" };
+  if (!(await getApiSportsKey())) return { imported: 0, skipped: "no_api_key" };
 
   const season = LEAGUES.premier.season;
   let imported = 0;
@@ -243,13 +270,13 @@ export async function importFixtures(): Promise<{ imported: number; skipped?: st
 export async function syncStandings(): Promise<{ updated: number; skipped?: string }> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return { updated: 0, skipped: "no_supabase" };
-  if (!process.env.API_SPORTS_KEY) return { updated: 0, skipped: "no_api_key" };
+  if (!(await getApiSportsKey())) return { updated: 0, skipped: "no_api_key" };
 
   const season = LEAGUES.premier.season;
   const leagues: Partial<Record<LeagueCode, StandingEntry[]>> = {};
 
   for (const code of LEAGUE_CODES) {
-    const key = process.env.API_SPORTS_KEY!;
+    const key = (await getApiSportsKey())!;
     const url = new URL(`${API_BASE}/standings`);
     url.searchParams.set("league", String(LEAGUES[code].apiId));
     url.searchParams.set("season", String(season));
@@ -375,7 +402,7 @@ interface ApiEvent {
 export async function syncMatchEvents(): Promise<{ events: number; skipped?: string }> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return { events: 0, skipped: "no_supabase" };
-  if (!process.env.API_SPORTS_KEY) return { events: 0, skipped: "no_api_key" };
+  if (!(await getApiSportsKey())) return { events: 0, skipped: "no_api_key" };
 
   // Throttle : une synchro des événements max toutes les 20 minutes
   const settings = await getSettings();
@@ -427,7 +454,7 @@ export async function syncMatchEvents(): Promise<{ events: number; skipped?: str
 
 /** Appel GET API-Football générique (events) */
 async function apiGetEvents(path: string, params: Record<string, string | number>): Promise<ApiEvent[]> {
-  const key = process.env.API_SPORTS_KEY;
+  const key = await getApiSportsKey();
   if (!key) return [];
   const url = new URL(API_BASE + path);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));

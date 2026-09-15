@@ -21,7 +21,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
       <Header user={user} />
       <AnnouncementBanner settings={settings} />
       <main className="flex-1 pb-20 md:pb-0">{children}</main>
-      <Footer />
+      <Footer isAdmin={Boolean(user?.is_admin)} />
       <MobileNav user={user} />
       <CookieBanner />
       </div>

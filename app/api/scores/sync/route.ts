@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches, syncMatchEvents, lastApiMeta, LIVE_API_STATUSES } from "@/lib/services/football.service";
+import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches, syncMatchEvents, lastApiMeta, LIVE_API_STATUSES, getApiSportsKey } from "@/lib/services/football.service";
 import { getSettings, updateSetting } from "@/lib/services/settings.service";
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -76,7 +76,7 @@ async function handle(req: Request) {
   if (cleanupDue) await cleanupPassedMatches();
 
   // 4) Pas de clé API → on s'arrête proprement (le site fonctionne en mode manuel)
-  if (!process.env.API_SPORTS_KEY) {
+  if (!(await getApiSportsKey())) {
     return NextResponse.json({ ok: true, skipped: "no_api_key", cleaned: cleanupDue });
   }
 
