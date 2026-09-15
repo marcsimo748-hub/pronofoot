@@ -33,8 +33,7 @@ export default async function NewsPage() {
           <Newspaper className="mx-auto h-10 w-10 text-muted-foreground/40" />
           <p className="mt-4 font-semibold">Aucune actualité en cache pour l'instant</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Les news arrivent automatiquement (toutes les 10 min) — ou force une première
-            synchronisation avec le bouton <b>Actualiser</b>.
+            Les dernières actus du foot arrivent ici automatiquement.
           </p>
         </div>
       ) : (

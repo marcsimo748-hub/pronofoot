@@ -66,8 +66,8 @@ const fr = {
   "features.f1g": "5 pts score exact",
   "features.f2t": "Scores live instantanés",
   "features.f2d":
-    "Résultats en direct rafraîchis toutes les 90 secondes. Le site lit son cache Supabase, jamais l'API directement.",
-  "features.f2g": "maj 90 s",
+    "Les scores arrivent en direct pendant les matchs, sur tout le site.",
+  "features.f2g": "en direct",
   "features.f3t": "Actus monde en direct",
   "features.f3d":
     "Un bandeau défilant avec les dernières actualités internationales, mis à jour toutes les 10 minutes.",
@@ -166,8 +166,8 @@ const en: Dict = {
   "features.f1g": "5 pts exact score",
   "features.f2t": "Instant live scores",
   "features.f2d":
-    "Live results refreshed every 90 seconds. The site reads its Supabase cache, never the API directly.",
-  "features.f2g": "90 s refresh",
+    "Live scores throughout the matches, everywhere on the site.",
+  "features.f2g": "live",
   "features.f3t": "Live world news",
   "features.f3d":
     "A scrolling ticker with the latest international news, updated every 10 minutes.",
@@ -261,8 +261,8 @@ const de: Dict = {
   "features.f1g": "5 Pkt exakt",
   "features.f2t": "Sofortige Live-Scores",
   "features.f2d":
-    "Live-Ergebnisse, alle 90 Sekunden aktualisiert. Die Seite liest ihren Supabase-Cache, nie die API direkt.",
-  "features.f2g": "90-Sek-Update",
+    "Live-Ergebnisse während der Spiele, überall auf der Seite.",
+  "features.f2g": "live",
   "features.f3t": "Welt-News live",
   "features.f3d":
     "Ein Laufband mit den neuesten internationalen Nachrichten, alle 10 Minuten aktualisiert.",

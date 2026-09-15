@@ -39,7 +39,7 @@ export default async function ScoresPage() {
           </Badge>}
         </h1>
         <p className="text-muted-foreground">
-          Résultats mis à jour automatiquement toutes les 90 secondes (cache Supabase + temps réel).
+          Les matchs des six grands championnats, en direct.
         </p>
       </header>
 
@@ -81,7 +81,7 @@ export default async function ScoresPage() {
           <History className="h-5 w-5 text-primary" /> Derniers résultats
         </h2>
         {results.length === 0 ? (
-          <EmptyCard text="Les résultats apparaîtront ici dès qu'un match sera terminé (synchro automatique ou saisie admin)." />
+          <EmptyCard text="Les résultats apparaîtront ici dès la fin des matchs." />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {results.map((m) => (
@@ -112,9 +112,9 @@ export default async function ScoresPage() {
           <div className="flex items-start gap-3 rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
             <Info className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <div>
-              Classements disponibles dès qu'une clé <b>API_SPORTS_KEY</b> est configurée et la première
-              synchronisation effectuée (Admin → ⚡ Synchro API-Sports). En attendant, le classement des
-              <b> joueurs </b> est toujours disponible sur la page <a href="/classement" className="text-primary hover:underline">Classement</a>.
+              Les classements des championnats seront affichés ici dès leur première mise à jour.
+              En attendant, le classement des <b>joueurs</b> est disponible sur la page{" "}
+              <a href="/classement" className="text-primary hover:underline">Classement</a>.
             </div>
           </div>
         ) : (

@@ -29,7 +29,7 @@ export default async function ClassementPage() {
       <header className="space-y-1">
         <h1 className="font-display text-4xl font-black">🏆 Classements</h1>
         <p className="text-muted-foreground">
-          Général, par championnat, mensuel et entre amis — mis à jour automatiquement après chaque match.
+          Général, par championnat, mensuel et entre amis.
         </p>
       </header>
       <ClassementClient initial={initial} currentUserId={user?.id} loggedIn={Boolean(user)} />

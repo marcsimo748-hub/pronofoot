@@ -73,8 +73,8 @@ export function HowItWorks() {
           </ul>
           <p className="mt-5 flex items-start gap-2 text-xs text-muted-foreground">
             <Star className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-            Le calcul est 100% automatique : dès qu'un résultat est connu (synchro API ou saisie admin),
-            les points de chaque pronostic sont calculés en base de données.
+            Le calcul est 100% automatique : dès le coup de sifflet final, les points de chaque
+            pronostic sont crédités instantanément.
           </p>
         </motion.div>
       </div>
