@@ -226,8 +226,17 @@ export async function backfillMissedResults(): Promise<{
     let fixtures: NormalizedFixture[] = [];
     let source = "aucune";
     let error: string | null = null;
+    const seenIds = new Set<string>();
+    const push = (f: NormalizedFixture) => {
+      if (!seenIds.has(f.id)) {
+        seenIds.add(f.id);
+        fixtures.push(f);
+      }
+    };
 
-    // a) API-Football par date (autorisé sur ± 1 jour pour le plan gratuit)
+    // a) API-Football par date, sur CHACUNE des 3 dates (± 1 jour) —
+    //    une date fructueuse ne doit pas masquer les autres (le match peut
+    //    avoir été reprogrammé sur une autre journée que la date en base)
     for (const d of variants) {
       if (calls >= 14) break;
       calls++;
@@ -248,7 +257,7 @@ export async function backfillMissedResults(): Promise<{
           if (!FINISHED_API_STATUSES.includes(f.fixture.status.short)) continue;
           const home = apiTeamToOurs(f.teams.home.name);
           const away = apiTeamToOurs(f.teams.away.name);
-          fixtures.push({
+          push({
             id: `${home}-${away}-${f.fixture.date.slice(0, 10)}`,
             sourceId: String(f.fixture.id),
             provider: "api-football",
@@ -263,32 +272,29 @@ export async function backfillMissedResults(): Promise<{
             elapsed: null,
           });
         }
-        if (fixtures.length > 0) {
-          source = "api-football";
-          break; // cette date a donné des résultats, inutile de chercher ailleurs
-        }
       } catch (e) {
         error = `api-football ${d}: ${(e as Error).message}`;
       }
     }
+    if (fixtures.length > 0) source = "api-football";
 
-    // b) Repli ESPN (sans clé) sur les 3 dates si API-Football n'a rien donné
-    if (fixtures.length === 0) {
-      for (const d of variants) {
-        try {
-          const r = await espnFixturesForDate(d, leagues);
-          const ft = r.fixtures.filter((f) => f.status === "ft" && f.homeScore !== null && f.awayScore !== null);
-          if (ft.length > 0) {
-            fixtures = ft;
-            source = "espn";
-            break;
-          }
-          if (r.failed > 0) error = (error ?? "") + ` espn ${d}: ${r.failed} appels échoués`;
-        } catch (e) {
-          error = (error ?? "") + ` espn ${d}: ${(e as Error).message}`;
-        }
+    // b) Repli ESPN (sans clé, toutes ligues) sur chaque date où API-Football
+    //    n'a rien pu donner (date hors fenêtre du plan gratuit)
+    let espnCalls = 0;
+    for (const d of variants) {
+      if (espnCalls >= 18) break; // budget temps
+      espnCalls += 6;
+      try {
+        const r = await espnFixturesForDate(d); // toutes nos ligues
+        const ft = r.fixtures.filter((f) => f.status === "ft" && f.homeScore !== null && f.awayScore !== null);
+        for (const f of ft) push(f);
+        if (ft.length > 0 && source === "aucune") source = "espn";
+        if (r.failed > 0) error = (error ?? "") + ` espn ${d}: ${r.failed} appels échoués`;
+      } catch (e) {
+        error = (error ?? "") + ` espn ${d}: ${(e as Error).message}`;
       }
     }
+    if (fixtures.some((f) => f.provider === "espn") && source === "api-football") source = "api-football+espn";
 
     // c) Clôture des matchs finis trouvés
     let settledCount = 0;
