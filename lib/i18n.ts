@@ -74,7 +74,7 @@ const fr = {
   "features.f3g": "10 min",
   "features.f4t": "Lecteur de musique",
   "features.f4d":
-    "Playlist intégrée avec lecture aléatoire, répétition et barre de progression. La musique continue pendant que tu navigues !",
+    "Une playlist intégrée au site — la musique continue pendant que tu navigues !",
   "features.f4g": "global",
   "features.f5t": "Assistant IA",
   "features.f5d":
@@ -174,7 +174,7 @@ const en: Dict = {
   "features.f3g": "10 min",
   "features.f4t": "Music player",
   "features.f4d":
-    "Built-in playlist with shuffle, repeat and a progress bar. The music keeps playing while you browse!",
+    "A playlist built into the site — the music keeps playing while you browse!",
   "features.f4g": "global",
   "features.f5t": "AI assistant",
   "features.f5d":
@@ -269,7 +269,7 @@ const de: Dict = {
   "features.f3g": "10 Min",
   "features.f4t": "Musikplayer",
   "features.f4d":
-    "Integrierte Playlist mit Zufallswiedergabe, Wiederholung und Fortschrittsbalken. Die Musik läuft weiter, während du surfst!",
+    "Eine Playlist direkt auf der Seite — die Musik läuft weiter, während du surfst!",
   "features.f4g": "global",
   "features.f5t": "KI-Assistent",
   "features.f5d":
