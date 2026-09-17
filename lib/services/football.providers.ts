@@ -230,7 +230,7 @@ async function providerApiFootball(): Promise<ProviderResult> {
 // FOURNISSEUR 2 : FOOTBALL-DATA.ORG (gratuit à vie, 10 req/min)
 // ---------------------------------------------------------------
 
-const FD_COMPETITIONS: Record<string, LeagueCode> = {
+export const FD_COMPETITIONS: Record<string, LeagueCode> = {
   PL: "premier",
   CL: "champions",
   PD: "laliga",

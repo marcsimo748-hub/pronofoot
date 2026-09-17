@@ -23,6 +23,8 @@ import {
   apiTeamToOurs,
   ourLeague,
   espnFixturesForDate,
+  getFootballDataKey,
+  FD_COMPETITIONS,
   type NormalizedFixture,
 } from "./football.providers";
 
@@ -417,8 +419,76 @@ export async function importFixtures(): Promise<{
 export async function syncStandings(): Promise<{ updated: number; skipped?: string }> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return { updated: 0, skipped: "no_supabase" };
-  if (!(await getApiSportsKey())) return { updated: 0, skipped: "no_api_key" };
 
+  // ⚠️ Le plan gratuit API-Football interdit la saison en cours : les
+  // classements viennent de FOOTBALL-DATA.ORG (clé gratuite, 10 req/min,
+  // exactement nos 6 compétitions). API-Football reste en repli si un jour
+  // le plan est débloqué.
+  const fdKey = await getFootballDataKey();
+  if (fdKey) return syncStandingsFootballData(fdKey);
+  if (!(await getApiSportsKey())) return { updated: 0, skipped: "no_key" };
+  return syncStandingsApiFootball();
+}
+
+/** Classements via football-data.org (source principale) */
+async function syncStandingsFootballData(key: string): Promise<{ updated: number }> {
+  const leagues: Partial<Record<LeagueCode, StandingEntry[]>> = {};
+
+  for (const [fdCode, leagueCode] of Object.entries(FD_COMPETITIONS)) {
+    try {
+      const res = await fetch(`https://api.football-data.org/v4/competitions/${fdCode}/standings`, {
+        headers: { "X-Auth-Token": key },
+        cache: "no-store",
+      });
+      if (!res.ok) continue; // 403/429 → on garde les autres championnats
+      const json = (await res.json()) as {
+        standings?: {
+          type: string;
+          table?: {
+            position: number;
+            team: { name: string };
+            playedGames: number;
+            won: number;
+            draw: number;
+            lost: number;
+            goalsFor: number;
+            goalsAgainst: number;
+            points: number;
+            form?: string;
+          }[];
+        }[];
+      };
+      // Table générale (TOTAL) — la LDC a aussi des groupes/dom/dext
+      const rows = json.standings?.find((st) => st.type === "TOTAL")?.table ?? [];
+      if (rows.length) {
+        leagues[leagueCode] = rows.slice(0, 24).map((r) => ({
+          rank: r.position,
+          team: apiTeamToOurs(r.team.name),
+          played: r.playedGames,
+          win: r.won,
+          draw: r.draw,
+          lose: r.lost,
+          goals_for: r.goalsFor,
+          goals_against: r.goalsAgainst,
+          points: r.points,
+          form: r.form?.slice(0, 10),
+        }));
+      }
+    } catch {
+      /* championnat suivant */
+    }
+  }
+
+  await updateSetting("standings_cache", {
+    updated_at: new Date().toISOString(),
+    leagues,
+  }).catch(() => {});
+  await updateSetting("sync_state", { last_standings_sync: Date.now() }).catch(() => {});
+  return { updated: Object.keys(leagues).length };
+}
+
+/** Classements via API-Football (repli — saison bloquée en plan gratuit) */
+async function syncStandingsApiFootball(): Promise<{ updated: number }> {
   const season = LEAGUES.premier.season;
   const leagues: Partial<Record<LeagueCode, StandingEntry[]>> = {};
 

@@ -109,7 +109,9 @@ async function handle(req: Request) {
     const fixturesDue = now - settings.sync_state.last_fixtures_import > 6 * 3600_000;
     const fixtures = fixturesDue ? await importFixtures() : null;
 
-    const standingsDue = now - settings.sync_state.last_standings_sync > 3600_000;
+    const standingsDue =
+      now - settings.sync_state.last_standings_sync > 3600_000 ||
+      Object.keys(settings.standings_cache.leagues).length === 0; // cache vide → on force
     const standings = standingsDue ? await syncStandings() : null;
 
     // 🔍 DIAGNOSTIC : on journalise le résultat complet de la vraie synchro
