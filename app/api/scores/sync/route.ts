@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { syncLiveScores, importFixtures, syncStandings, cleanupPassedMatches, syncMatchEvents, backfillMissedResults, lastApiMeta, LIVE_API_STATUSES } from "@/lib/services/football.service";
 import { getSettings, updateSetting } from "@/lib/services/settings.service";
+import { syncJobs } from "@/lib/services/pronojob.service";
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -114,6 +115,16 @@ async function handle(req: Request) {
       Object.keys(settings.standings_cache.leagues).length === 0; // cache vide → on force
     const standings = standingsDue ? await syncStandings() : null;
 
+    // OFFRES D'EMPLOI (module PronoJob) — rafraîchies toutes les 6 h par le
+    // même réveil (cron-job.org). Le cron dédié /api/cron/jobs exige un secret
+    // que rien n'envoie : on le remplace par ce passage ici, sans secret.
+    const jobsDue = now - (settings.sync_state.last_jobs_sync ?? 0) > 6 * 3600_000;
+    let jobs: Awaited<ReturnType<typeof syncJobs>> | null = null;
+    if (jobsDue) {
+      jobs = await syncJobs().catch((e) => ({ ok: false, fetched: 0, upserted: 0, sources: [], error: String(e) }));
+      await updateSetting("sync_state", { last_jobs_sync: now }).catch(() => {});
+    }
+
     // 🔍 DIAGNOSTIC : on journalise le résultat complet de la vraie synchro
     // dans site_settings (lisible par l'admin et le support — observabilité).
     const debug = {
@@ -126,6 +137,7 @@ async function handle(req: Request) {
       backfillDiag: backfill?.diag ?? null,
       fixturesDiag: fixtures?.diag ?? (fixturesDue ? [] : null),
       standingsUpdated: standings?.updated ?? 0,
+      jobsSynced: jobs ? { ok: jobs.ok, fetched: jobs.fetched, upserted: jobs.upserted, error: jobs.error ?? null } : null,
     };
     // ⚠️ Bandeau d'erreur : uniquement si TOUTE la chaîne a échoué.
     //    Un fournisseur en panne avec bascule réussie ≠ site en erreur.
@@ -137,7 +149,7 @@ async function handle(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      data: { ...result, eventsSynced: events.events, fixturesImported: fixtures?.imported ?? 0, standingsUpdated: standings?.updated ?? 0 },
+      data: { ...result, eventsSynced: events.events, fixturesImported: fixtures?.imported ?? 0, standingsUpdated: standings?.updated ?? 0, jobsUpserted: jobs?.upserted ?? 0 },
       cleaned: cleanupDue,
       cron: Boolean(hasCronSecret),
     });

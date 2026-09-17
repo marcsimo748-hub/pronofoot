@@ -155,6 +155,7 @@ export interface SiteSettings {
     last_standings_sync: number;
     last_fixtures_import: number;
     last_events_sync: number;
+    last_jobs_sync?: number;
     /** Diagnostic : résultat JSON de la dernière vraie synchro (debug) */
     last_scores_result?: string | null;
     /** Erreur du fournisseur API-Football (ex : compte suspendu) — affichée à l'admin */
