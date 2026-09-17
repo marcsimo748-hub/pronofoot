@@ -159,8 +159,14 @@ export const LIVE_API_STATUSES = ["1H", "2H", "HT", "ET", "BT", "P", "LIVE", "IN
 /** Statuts API-Sports = match terminé */
 export const FINISHED_API_STATUSES = ["FT", "AET", "PEN"];
 
+/** Recherche d'alias tolérante : les tirets et slashs deviennent des espaces
+ *  (« Saint-Germain » doit trouver l'alias « saint germain »). */
+function aliasLookup(name: string): string {
+  return TEAM_ALIASES[normalizeTeam(name.replace(/[-/&.]/g, " "))] ?? name;
+}
+
 function toOurName(name: string): string {
-  return TEAM_ALIASES[normalizeTeam(name)] ?? name;
+  return aliasLookup(name);
 }
 
 function stableId(date: string, home: string, away: string): string {
@@ -432,5 +438,5 @@ export type { ApiFixture };
 
 /** Traduit un nom d'équipe API vers notre nom FR en base */
 function apiTeamToOurs(name: string): string {
-  return TEAM_ALIASES[normalizeTeam(name)] ?? name;
+  return aliasLookup(name);
 }
