@@ -5,6 +5,7 @@ import {
   getFootballDataKey,
   invalidateProviderKeyCaches,
 } from "@/lib/services/football.providers";
+import { getRapidApiKey } from "@/lib/services/pronojob.service";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +17,12 @@ export const dynamic = "force-dynamic";
  * ESPN ne nécessite aucune clé (test toujours disponible).
  */
 
-type ProviderId = "api_sports" | "football_data" | "espn";
+type ProviderId = "api_sports" | "football_data" | "espn" | "rapidapi";
 
-const SECRETS: Record<"api_sports" | "football_data", { secretKey: string; envVar: string; label: string }> = {
+const SECRETS: Record<"api_sports" | "football_data" | "rapidapi", { secretKey: string; envVar: string; label: string }> = {
   api_sports: { secretKey: "api_sports_key", envVar: "API_SPORTS_KEY", label: "API-Football (api-sports.io)" },
   football_data: { secretKey: "football_data_key", envVar: "FOOTBALL_DATA_KEY", label: "football-data.org" },
+  rapidapi: { secretKey: "rapidapi_key", envVar: "RAPIDAPI_KEY", label: "Indeed — offres d'emploi (JSearch)" },
 };
 
 function mask(key: string): string {
@@ -75,6 +77,27 @@ async function testFootballData(key: string) {
       errors,
       quotaRemaining: res.headers.get("x-request-counter"),
     };
+  } catch (e) {
+    return { httpStatus: 0, ok: false, liveFixturesFound: 0, errors: { network: (e as Error).message }, quotaRemaining: null };
+  }
+}
+
+async function testRapidapi(key: string) {
+  try {
+    const res = await fetch(
+      `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(process.env.JSEARCH_QUERY || "jobs in germany")}&num_pages=1`,
+      { headers: { "X-RapidAPI-Key": key, "X-RapidAPI-Host": "jsearch.p.rapidapi.com" }, cache: "no-store" }
+    );
+    let count = 0;
+    let errors: Record<string, string> | null = null;
+    try {
+      const json = (await res.json()) as { data?: unknown[]; message?: string };
+      count = json.data?.length ?? 0;
+      if (!res.ok) errors = { http: json.message ?? `HTTP ${res.status}` };
+    } catch {
+      if (!res.ok) errors = { http: `HTTP ${res.status}` };
+    }
+    return { httpStatus: res.status, ok: res.ok, liveFixturesFound: count, errors, quotaRemaining: res.headers.get("x-ratelimit-requests-remaining") };
   } catch (e) {
     return { httpStatus: 0, ok: false, liveFixturesFound: 0, errors: { network: (e as Error).message }, quotaRemaining: null };
   }
@@ -139,11 +162,15 @@ export async function POST(req: Request) {
       if (body.provider === "espn") {
         return NextResponse.json({ ok: true, data: { hasKey: true, test: await testEspn() } });
       }
+      if (body.provider === "rapidapi") {
+        const key = await getRapidApiKey();
+        return NextResponse.json({ ok: true, data: { hasKey: Boolean(key), test: key ? await testRapidapi(key) : null } });
+      }
       return NextResponse.json({ ok: false, error: "Fournisseur inconnu" }, { status: 400 });
     }
 
     // Sauvegarde / suppression de clé
-    if (body.provider !== "api_sports" && body.provider !== "football_data") {
+    if (body.provider !== "api_sports" && body.provider !== "football_data" && body.provider !== "rapidapi") {
       return NextResponse.json({ ok: false, error: "Fournisseur inconnu" }, { status: 400 });
     }
     const conf = SECRETS[body.provider];
@@ -155,7 +182,12 @@ export async function POST(req: Request) {
       await db.from("prono_secrets").delete().eq("key", conf.secretKey);
     } else {
       // Test AVANT sauvegarde : une clé refusée n'est jamais enregistrée
-      const test = body.provider === "api_sports" ? await testApiFootball(newKey) : await testFootballData(newKey);
+      const test =
+        body.provider === "api_sports"
+          ? await testApiFootball(newKey)
+          : body.provider === "rapidapi"
+          ? await testRapidapi(newKey)
+          : await testFootballData(newKey);
       if (!test.ok) {
         return NextResponse.json({ ok: false, error: "Clé refusée par le fournisseur", test }, { status: 400 });
       }
@@ -170,6 +202,8 @@ export async function POST(req: Request) {
     const test = activeKey
       ? body.provider === "api_sports"
         ? await testApiFootball(activeKey)
+        : body.provider === "rapidapi"
+        ? await testRapidapi(activeKey)
         : await testFootballData(activeKey)
       : null;
     return NextResponse.json({ ok: true, data: { saved: Boolean(newKey), source: dbKey ? "admin" : process.env[conf.envVar] ? "vercel" : "none", test } });

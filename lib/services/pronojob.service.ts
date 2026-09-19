@@ -267,8 +267,28 @@ interface AdzunaJob {
 // SOURCE 4 — JSearch / RapidAPI (Indeed + LinkedIn agrégés, clé optionnelle)
 // ============================================================
 
+/** Clé RapidAPI effective : Admin (prono_secrets) > variables Vercel */
+let rapidKeyCache: { at: number; key: string | null } | null = null;
+export async function getRapidApiKey(): Promise<string | null> {
+  if (rapidKeyCache && Date.now() - rapidKeyCache.at < 60_000) return rapidKeyCache.key;
+  let key = process.env.RAPIDAPI_KEY ?? process.env.JSEARCH_API_KEY ?? null;
+  try {
+    const admin = tryGetSupabaseAdminClient();
+    if (admin) {
+      const { data } = await admin.from("prono_secrets").select("value").eq("key", "rapidapi_key").maybeSingle();
+      if (data?.value) key = String(data.value); // la clé Admin prime
+    }
+  } catch { /* env seulement */ }
+  rapidKeyCache = { at: Date.now(), key };
+  return key;
+}
+
 async function fetchJsearch(): Promise<InsertableJob[]> {
-  const key = process.env.RAPIDAPI_KEY ?? process.env.JSEARCH_API_KEY;
+  // Quota : JSearch gratuit ≈ 100 requêtes/mois → uniquement les synchros
+  // de 00 h à 12 h UTC (≈ 2 appels/jour = 60/mois). L'après-midi, les
+  // autres sources (Arbeitnow, Remotive, Adzuna) continuent de nourrir le site.
+  if (new Date().getUTCHours() >= 12) return [];
+  const key = await getRapidApiKey();
   if (!key) return []; // pas de clé → source désactivée
 
   const query = process.env.JSEARCH_QUERY || "jobs in germany";
