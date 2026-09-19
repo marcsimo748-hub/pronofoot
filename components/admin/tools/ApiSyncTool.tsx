@@ -51,7 +51,7 @@ const JOB_PROVIDER: ProviderDef = {
   id: "rapidapi",
   num: 0,
   desc: "Offres Indeed + LinkedIn agrégées (API JSearch). Le site l'appelle 2×/jour pour rester dans le quota gratuit (100 req/mois).",
-  keyHint: "rapidapi.com → chercher « JSearch » → Subscribe (plan gratuit)",
+  keyHint: "rapidapi.com → chercher « JSearch » (de letscodelimited) → Pricing → « Subscribe to Test » (Basic gratuit) → copier la valeur X-RapidAPI-Key",
 };
 
 export function ApiSyncTool({ settings }: { settings: SiteSettings }) {

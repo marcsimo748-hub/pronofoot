@@ -82,6 +82,22 @@ async function testFootballData(key: string) {
   }
 }
 
+/** Traduit les erreurs RapidAPI en conseil actionnable (affiché dans l'Admin) */
+function rapidHint(msg: string): string {
+  const m = msg.toLowerCase();
+  if (m.includes("not subscribed"))
+    return `${msg} — ℹ️ Ta clé RapidAPI est valide mais tu n'es pas abonné à JSearch : sur rapidapi.com, ouvre la page « JSearch » (de letscodelimited), onglet Pricing, bouton « Subscribe to Test » (plan Basic, gratuit).`;
+  if (m.includes("invalid api key") || m.includes("invalid key"))
+    return `${msg} — ℹ️ Clé invalide : sur la page JSearch (section Headers, à droite), copie uniquement la valeur de « X-RapidAPI-Key ».`;
+  if (m.includes("forbidden") || m.includes("403"))
+    return `${msg} — ℹ️ Accès refusé : vérifie que tu es abonné au plan gratuit de JSearch (pas d'une autre API « Indeed »).`;
+  if (m.includes("too many requests") || m.includes("rate limit") || m.includes("429"))
+    return `${msg} — ℹ️ Quota du mois épuisé : le site en fait 2/jour max ; réessaie le mois prochain ou passe au plan payant.`;
+  if (m.includes("401") || m.includes("unauthorized"))
+    return `${msg} — ℹ️ Clé absente ou mal copiée : re-copie la valeur X-RapidAPI-Key depuis rapidapi.com.`;
+  return msg;
+}
+
 async function testRapidapi(key: string) {
   try {
     const res = await fetch(
@@ -93,9 +109,9 @@ async function testRapidapi(key: string) {
     try {
       const json = (await res.json()) as { data?: unknown[]; message?: string };
       count = json.data?.length ?? 0;
-      if (!res.ok) errors = { http: json.message ?? `HTTP ${res.status}` };
+      if (!res.ok) errors = { http: rapidHint(json.message ?? `HTTP ${res.status}`) };
     } catch {
-      if (!res.ok) errors = { http: `HTTP ${res.status}` };
+      if (!res.ok) errors = { http: rapidHint(`HTTP ${res.status}`) };
     }
     return { httpStatus: res.status, ok: res.ok, liveFixturesFound: count, errors, quotaRemaining: res.headers.get("x-ratelimit-requests-remaining") };
   } catch (e) {
