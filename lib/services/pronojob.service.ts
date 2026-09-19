@@ -292,18 +292,20 @@ async function fetchJsearch(): Promise<InsertableJob[]> {
   if (!key) return []; // pas de clé → source désactivée
 
   const query = process.env.JSEARCH_QUERY || "jobs in germany";
-  const json = await fetchJson<{ data?: JsearchJob[] }>(
-    `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&num_pages=1`,
+  const country = process.env.JSEARCH_COUNTRY || "de"; // offres affichées depuis l'Allemagne
+  // JSearch v2 (LetScrape/OpenWeb Ninja) : endpoint /search-v2, réponse data.jobs[]
+  const json = await fetchJson<{ data?: { jobs?: JsearchJob[] } }>(
+    `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(query)}&num_pages=1&country=${country}`,
     { headers: { "X-RapidAPI-Key": key, "X-RapidAPI-Host": "jsearch.p.rapidapi.com" } }
   );
 
-  return (json.data ?? []).map((j) => ({
+  return (json.data?.jobs ?? []).map((j) => ({
     source: "jsearch",
     source_id: String(j.job_id ?? j.job_apply_link),
     title: j.job_title ?? "Offre",
     company: j.employer_name ?? "",
     city: j.job_city ?? null,
-    country: j.job_country === "Germany" ? "Allemagne" : (j.job_country ?? null),
+    country: /^(Germany|Deutschland)$/i.test(j.job_country ?? "") ? "Allemagne" : (j.job_country ?? null),
     contract_type: normalizeContract(j.job_employment_type),
     remote: /remote|hybrid/i.test(`${j.job_title ?? ""} ${j.job_description ?? ""}`),
     description_short: htmlToExcerpt(j.job_description),
@@ -316,6 +318,7 @@ async function fetchJsearch(): Promise<InsertableJob[]> {
 
 interface JsearchJob {
   job_id?: string;
+  job_employment_types?: string[]; // enum anglais (FULLTIME, PARTTIME…) — plus fiable que le texte localisé
   employer_name?: string;
   job_title?: string;
   job_apply_link?: string;

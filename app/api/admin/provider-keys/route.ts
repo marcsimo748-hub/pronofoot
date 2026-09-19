@@ -101,14 +101,14 @@ function rapidHint(msg: string): string {
 async function testRapidapi(key: string) {
   try {
     const res = await fetch(
-      `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(process.env.JSEARCH_QUERY || "jobs in germany")}&num_pages=1`,
+      `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(process.env.JSEARCH_QUERY || "jobs in germany")}&num_pages=1&country=${process.env.JSEARCH_COUNTRY || "de"}`,
       { headers: { "X-RapidAPI-Key": key, "X-RapidAPI-Host": "jsearch.p.rapidapi.com" }, cache: "no-store" }
     );
     let count = 0;
     let errors: Record<string, string> | null = null;
     try {
-      const json = (await res.json()) as { data?: unknown[]; message?: string };
-      count = json.data?.length ?? 0;
+      const json = (await res.json()) as { data?: { jobs?: unknown[] }; message?: string };
+      count = json.data?.jobs?.length ?? 0;
       if (!res.ok) errors = { http: rapidHint(json.message ?? `HTTP ${res.status}`) };
     } catch {
       if (!res.ok) errors = { http: rapidHint(`HTTP ${res.status}`) };
