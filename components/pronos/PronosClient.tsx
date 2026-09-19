@@ -32,6 +32,8 @@ type Tab = LeagueCode | "all" | "live" | "bonus";
 
 export function PronosClient({ matches, predictions, settings, startedMatches, adminPeek, participants }: Props) {
   const [tab, setTab] = useState<Tab>("all");
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "tomorrow" | "week">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "locked">("all");
 
   // CORRECTIF FILTRE : les pronos restent en mémoire quand on change
   // d'onglet championnat — plus jamais de « re-pronostiquer » un match déjà joué.
@@ -63,16 +65,35 @@ export function PronosClient({ matches, predictions, settings, startedMatches, a
     [tab, matches]
   );
 
+  // 🔎 Filtres date (aujourd'hui / demain / 7 jours) et statut (ouvert au prono / verrouillé)
+  const filtered2 = useMemo(() => {
+    let out = filtered;
+    if (statusFilter === "open") out = out.filter((m) => m.status === "scheduled");
+    if (statusFilter === "locked") out = out.filter((m) => m.status !== "scheduled");
+    if (dateFilter !== "all") {
+      const DAY = 86_400_000;
+      const start = new Date(); start.setHours(0, 0, 0, 0);
+      const t0 = start.getTime();
+      out = out.filter((m) => {
+        const t = new Date(m.match_date).getTime();
+        if (dateFilter === "today") return t >= t0 && t < t0 + DAY;
+        if (dateFilter === "tomorrow") return t >= t0 + DAY && t < t0 + 2 * DAY;
+        return t >= t0 && t < t0 + 7 * DAY; // semaine
+      });
+    }
+    return out;
+  }, [filtered, dateFilter, statusFilter]);
+
   // Groupement par jour
   const byDay = useMemo(() => {
     const groups = new Map<string, Match[]>();
-    for (const m of filtered) {
+    for (const m of filtered2) {
       const day = new Date(m.match_date).toDateString();
       if (!groups.has(day)) groups.set(day, []);
       groups.get(day)!.push(m);
     }
     return [...groups.entries()];
-  }, [filtered]);
+  }, [filtered2]);
 
   const leagueVisual = tab !== "all" && tab !== "bonus" && tab !== "live" ? settings.leagues[tab] : null;
 
@@ -122,6 +143,59 @@ export function PronosClient({ matches, predictions, settings, startedMatches, a
           </button>
         ))}
       </div>
+
+      {/* 🔎 Filtres date + statut (sauf onglets live/bonus) */}
+      {tab !== "live" && tab !== "bonus" && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">📅 Date</span>
+          {([
+            { k: "all", l: "Toutes" },
+            { k: "today", l: "Aujourd'hui" },
+            { k: "tomorrow", l: "Demain" },
+            { k: "week", l: "7 jours" },
+          ] as const).map((d) => (
+            <button
+              key={d.k}
+              onClick={() => setDateFilter(d.k)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-semibold transition-all",
+                dateFilter === d.k
+                  ? "border-primary/60 bg-primary/15 text-primary"
+                  : "border-white/10 text-muted-foreground hover:border-white/25 hover:text-foreground"
+              )}
+            >
+              {d.l}
+            </button>
+          ))}
+          <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statut</span>
+          {([
+            { k: "all", l: "Tous" },
+            { k: "open", l: "🔓 Ouverts au prono" },
+            { k: "locked", l: "🔒 Verrouillés" },
+          ] as const).map((d) => (
+            <button
+              key={d.k}
+              onClick={() => setStatusFilter(d.k)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-semibold transition-all",
+                statusFilter === d.k
+                  ? "border-primary/60 bg-primary/15 text-primary"
+                  : "border-white/10 text-muted-foreground hover:border-white/25 hover:text-foreground"
+              )}
+            >
+              {d.l}
+            </button>
+          ))}
+          {(dateFilter !== "all" || statusFilter !== "all") && (
+            <button
+              onClick={() => { setDateFilter("all"); setStatusFilter("all"); }}
+              className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
+            >
+              ✕ Réinitialiser
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Contenu */}
       {tab === "live" ? (

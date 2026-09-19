@@ -26,6 +26,7 @@ export const LANGS: { code: Lang; label: string }[] = [
 const fr = {
   // --- Navigation (Header) ---
   "nav.pronos": "Pronos",
+  "nav.tarifs": "Tarifs",
   "nav.scores": "Scores",
   "nav.news": "News",
   "nav.music": "Musique",
@@ -128,6 +129,7 @@ export type Dict = { [K in keyof typeof fr]: string };
 
 const en: Dict = {
   "nav.pronos": "Predictions",
+  "nav.tarifs": "Pricing",
   "nav.scores": "Scores",
   "nav.news": "News",
   "nav.music": "Music",
@@ -223,6 +225,7 @@ const en: Dict = {
 
 const de: Dict = {
   "nav.pronos": "Tipps",
+  "nav.tarifs": "Preise",
   "nav.scores": "Scores",
   "nav.news": "News",
   "nav.music": "Musik",

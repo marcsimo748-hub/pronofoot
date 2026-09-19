@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GroupsPanel } from "@/components/classement/GroupsPanel";
 import { PronoJobApplications } from "@/components/dashboard/PronoJobApplications";
 import { PronoProfileCard } from "@/components/dashboard/PronoProfileCard";
+import { StatsCharts } from "@/components/dashboard/StatsCharts";
 import { StartedMatchCard } from "@/components/pronos/StartedMatchCard";
 import type { StartedMatch } from "@/lib/services/predictions.service";
 import { cn, formatMatchDate } from "@/lib/utils";
@@ -143,6 +144,9 @@ export function DashboardClient({
           </motion.div>
         ))}
       </div>
+
+      {/* 📈 Graphiques Recharts : progression + réussite par championnat */}
+      <StatsCharts predictions={data.predictions} />
 
       {/* Détail */}
       <Tabs defaultValue="upcoming">

@@ -12,7 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Radio, Newspaper, Music4, BarChart3, LayoutDashboard, Settings, LogOut,
-  Menu, X, User2, Zap, Briefcase, UserRound, ShieldCheck, Home, Megaphone, ChevronDown, Plane, MessageCircle } from "lucide-react";
+  Menu, X, User2, Zap, Briefcase, CreditCard, UserRound, ShieldCheck, Home, Megaphone, ChevronDown, Plane, MessageCircle } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications/NotificationsBell";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import type { SessionUser } from "@/lib/types";
 
 const NAV_LINKS = [
   { href: "/pronos", tKey: "nav.pronos", icon: Trophy },
+  { href: "/tarifs", tKey: "nav.tarifs", icon: CreditCard },
   { href: "/scores", tKey: "nav.scores", icon: Radio },
   { href: "/news", tKey: "nav.news", icon: Newspaper },
   { href: "/music", tKey: "nav.music", icon: Music4 },

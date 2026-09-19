@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Trophy, Radio, Newspaper, Music4, BarChart3, Settings, Briefcase } from "lucide-react";
+import { Trophy, Radio, Newspaper, Music4, BarChart3, Settings, Briefcase, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/lib/store/uiStore";
 import type { SessionUser } from "@/lib/types";
@@ -20,6 +20,7 @@ export function MobileNav({ user }: { user: SessionUser | null }) {
   const items = [
     { href: "/", label: "Accueil", icon: BarChart3 },
     { href: "/pronos", label: "Pronos", icon: Trophy },
+    { href: "/tarifs", label: "Tarifs", icon: CreditCard },
     { href: "/scores", label: "Scores", icon: Radio },
     { href: "/news", label: "News", icon: Newspaper },
     { href: "/music", label: "Musique", icon: Music4 },
