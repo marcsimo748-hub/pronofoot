@@ -269,7 +269,7 @@ export function PronoJobClient({
           >
             <option value="">Tous les pays</option>
             {COUNTRIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c} value={c}>{c === "Télétravail" ? "🌍 Télétravail (partout)" : c}</option>
             ))}
           </select>
           <select
@@ -300,6 +300,20 @@ export function PronoJobClient({
             />
           </label>
         </div>
+
+        {/* Pastille de réinitialisation : visible dès qu'un filtre est actif */}
+        {(filters.q || filters.city || filters.country || filters.contract || filters.source || filters.remote) && (
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>Filtres actifs — la liste est réduite</span>
+            <button
+              type="button"
+              onClick={() => setFilters({ q: "", city: "", country: "", contract: "", remote: false, source: "" })}
+              className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 font-semibold text-primary transition-colors hover:bg-primary/20"
+            >
+              ✕ Réinitialiser les filtres
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ===== Résultats ===== */}
