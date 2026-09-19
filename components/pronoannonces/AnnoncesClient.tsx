@@ -32,6 +32,10 @@ interface Props {
   loggedIn: boolean;
   userId?: string;
   prefill?: { city?: string; country?: string; email?: string };
+  /** ?cat=logement : catégorie présélectionnée dans le filtre et le formulaire */
+  initialCategory?: string;
+  /** ?publier=1 : ouvrir directement le formulaire de publication */
+  openFormInitially?: boolean;
   /** Deep link après connexion (?annonce=id) : rouvrir cette annonce */
   deeplinkAnnonce?: string;
   /** ?discuter=1 : démarrer directement le chat privé sur l'annonce du deep link */
@@ -43,16 +47,16 @@ const PLACEHOLDER = [
   "Rien dans cette catégorie… reviens bientôt !",
 ];
 
-export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, deeplinkAnnonce, deeplinkChat }: Props) {
+export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, deeplinkAnnonce, deeplinkChat, initialCategory, openFormInitially }: Props) {
   const [annonces, setAnnonces] = useState<PronoAnnonce[]>(initialAnnonces);
   const [myAnnonces, setMyAnnonces] = useState<PronoAnnonce[]>([]);
   const [tab, setTab] = useState<"all" | "mine">("all");
-  const [category, setCategory] = useState<string>("");
+  const [category, setCategory] = useState<string>(initialCategory ?? "");
   const [q, setQ] = useState("");
   const [cityFilter, setCityFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<PronoAnnonce | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(Boolean(openFormInitially));
   const [reloadKey, setReloadKey] = useState(0);
   const [authOpen, setAuthOpen] = useState(false);
   const [chatStarting, setChatStarting] = useState<string | null>(null);
@@ -366,7 +370,7 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, dee
               inappropriées sont masquées après 3 signalements.
             </DialogDescription>
           </DialogHeader>
-          <AnnonceForm prefill={prefill} onCreated={onCreated} onCancel={() => setFormOpen(false)} />
+          <AnnonceForm prefill={prefill} defaultCategory={initialCategory} onCreated={onCreated} onCancel={() => setFormOpen(false)} />
         </DialogContent>
       </Dialog>
     </div>

@@ -3,6 +3,7 @@ import { BannerRotator } from "@/components/shared/BannerRotator";
 import { getSessionUser } from "@/lib/supabase/server";
 import { getHousingLetter, getHousingPrefill } from "@/lib/services/pronohousing.service";
 import { HousingClient } from "@/components/pronohousing/HousingClient";
+import { HousingOffers } from "@/components/pronohousing/HousingOffers";
 import { AnschreibenGenerator } from "@/components/pronohousing/AnschreibenGenerator";
 import { HousingGuides } from "@/components/pronohousing/HousingGuides";
 import { HOUSING_LEGAL_NOTE } from "@/components/pronohousing/housing-data";
@@ -37,6 +38,9 @@ export default async function PronoHousingPage() {
         title="Trouver toit à Berlin"
         subtitle="WG-Gesucht, ImmoScout24, Immowelt, Kleinanzeigen — tes filtres, la lettre de motivation en allemand, 100% légal."
       />
+
+      {/* Offres de logement de la communauté */}
+      <HousingOffers />
       {/* ===== En-tête ===== */}
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">

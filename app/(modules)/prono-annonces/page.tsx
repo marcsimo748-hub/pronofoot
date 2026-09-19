@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default async function PronoAnnoncesPage({
   searchParams,
 }: {
-  searchParams?: { annonce?: string; discuter?: string };
+  searchParams?: { annonce?: string; discuter?: string; cat?: string; publier?: string };
 }) {
   const user = await getSessionUser();
 
@@ -77,6 +77,8 @@ export default async function PronoAnnoncesPage({
         prefill={prefill}
         deeplinkAnnonce={searchParams?.annonce}
         deeplinkChat={searchParams?.discuter === "1"}
+        initialCategory={searchParams?.cat}
+        openFormInitially={searchParams?.publier === "1"}
       />
 
       {/* ===== Sécurité ===== */}

@@ -17,6 +17,8 @@ import type { PronoAnnonce } from "@/lib/types";
 
 interface Props {
   prefill?: { city?: string; country?: string; email?: string };
+  /** Catégorie présélectionnée (ex. logement depuis la page Logement) */
+  defaultCategory?: string;
   onCreated: (annonce: PronoAnnonce) => void;
   onCancel: () => void;
 }
@@ -43,8 +45,8 @@ async function resizeToJpeg(file: File, max = 1200, quality = 0.82): Promise<Blo
   });
 }
 
-export function AnnonceForm({ prefill, onCreated, onCancel }: Props) {
-  const [category, setCategory] = useState("ami");
+export function AnnonceForm({ prefill, defaultCategory, onCreated, onCancel }: Props) {
+  const [category, setCategory] = useState(defaultCategory ?? "ami");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [city, setCity] = useState(prefill?.city ?? "");
