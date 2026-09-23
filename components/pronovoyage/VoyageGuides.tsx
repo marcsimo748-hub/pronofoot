@@ -3,35 +3,42 @@
 /**
  * Guides formalités voyage (MODULE 6) — accordéon simple et lisible.
  * Infos indicatives, renvoi systématique vers les autorités officielles.
+ * Trilingue : FR/EN/DE via useT().
  */
 
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { VOYAGE_GUIDES } from "./voyage-data";
+import { useT, type Lang } from "@/lib/i18n";
+import { getVoyageGuides, VOYAGE_LEGAL_NOTE_BY_LANG } from "./voyage-data";
 
 export function VoyageGuides() {
+  const { t, lang } = useT();
+  const L = (lang || "fr") as Lang;
   const [open, setOpen] = useState<number | null>(0);
+
+  const guides = getVoyageGuides(L);
+  const legalNote = VOYAGE_LEGAL_NOTE_BY_LANG[L] ?? VOYAGE_LEGAL_NOTE_BY_LANG.fr;
 
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
-          <p className="text-2xl font-black text-primary">6 mois</p>
-          <p className="mt-1 text-xs text-muted-foreground">Validité de passeport minimum conseillée</p>
+          <p className="text-2xl font-black text-primary">{t("voy.gStat1")}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("voy.gStat1D")}</p>
         </div>
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
-          <p className="text-2xl font-black text-primary">10 000 €</p>
-          <p className="mt-1 text-xs text-muted-foreground">Montant de liquide au-delà duquel déclarer en douane</p>
+          <p className="text-2xl font-black text-primary">{t("voy.gStat2")}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("voy.gStat2D")}</p>
         </div>
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
-          <p className="text-2xl font-black text-primary">10 jours</p>
-          <p className="mt-1 text-xs text-muted-foreground">Délai minimum pour le vaccin fièvre jaune</p>
+          <p className="text-2xl font-black text-primary">{t("voy.gStat3")}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("voy.gStat3D")}</p>
         </div>
       </div>
 
-      {VOYAGE_GUIDES.map((g, i) => (
-        <div key={g.title} className="overflow-hidden rounded-xl border border-white/10 bg-card/60">
+      {guides.map((g, i) => (
+        <div key={g.title + i} className="overflow-hidden rounded-xl border border-white/10 bg-card/60">
           <button
             type="button"
             onClick={() => setOpen(open === i ? null : i)}
@@ -57,10 +64,9 @@ export function VoyageGuides() {
       ))}
 
       <p className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-xs leading-relaxed text-muted-foreground">
-        ⚠️ Ces guides sont indicatifs et ne remplacent pas les sources officielles :
-        vérifie toujours les règles en vigueur auprès de ton ambassade ou consulat,
-        de la douane et de ta compagnie de transport avant de voyager.
+        {t("voy.gAlert")}
       </p>
+      <p className="sr-only">{legalNote}</p>
     </div>
   );
 }

@@ -30,6 +30,17 @@ export const ANNONCE_CATEGORIES = [
   { value: "ami", label: "🤝 Ami / Amie" },
   { value: "logement", label: "🏠 Logement" },
   { value: "service", label: "🛠️ Service" },
+  { value: "voitures", label: "🚗 Voitures" },
+  { value: "transport", label: "🚢 Envoi vers l'Afrique" },
+  { value: "electronique", label: "📱 Électronique" },
+  { value: "mode", label: "👗 Mode & beauté" },
+  { value: "maison", label: "🏡 Maison" },
+  { value: "objets", label: "📦 Objets divers" },
+  { value: "coiffure", label: "💈 Coiffure & esthétique" },
+  { value: "demenagement", label: "🚚 Déménagement (Umzug)" },
+  { value: "dj", label: "🎧 DJ & animation" },
+  { value: "chauffeur", label: "🚕 Chauffeur & courses" },
+  { value: "gardenfant", label: "🧸 Garde d'enfants" },
 ] as const;
 
 export const REPORT_REASONS = [
@@ -58,11 +69,14 @@ export async function listAnnonces(
       if (filters.id) query = query.eq("id", filters.id);
       if (opts.mine && opts.userId) query = query.eq("user_id", opts.userId);
       if (filters.category) query = query.eq("category", filters.category);
-      if (filters.city) query = query.ilike("city", `%${filters.city.replace(/[%(),]/g, " ")}%`);
-      if (filters.q) {
-        const q = filters.q.replace(/[%(),]/g, " ").trim();
-        if (q) query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
-      }
+      // Recherche & localisation en une condition (une seule clause or en PostgREST) :
+      // le champ « ville » cherche aussi quartier et code postal (PLZ).
+      const conds: string[] = [];
+      const c = filters.city ? filters.city.replace(/[%(),]/g, " ").trim() : "";
+      if (c) conds.push(`city.ilike.%${c}%,quartier.ilike.%${c}%,postal.ilike.%${c}%`);
+      const q = filters.q ? filters.q.replace(/[%(),]/g, " ").trim() : "";
+      if (q) conds.push(`title.ilike.%${q}%,description.ilike.%${q}%`);
+      if (conds.length) query = query.or(conds.join(","));
       return query;
     };
 
@@ -98,10 +112,27 @@ export async function createAnnonce(
   const contactValue = clean(body.contact_value, 150);
   if (!contactValue) return { ok: false, code: "contact_manquant" };
 
+  let priceEur: number | null = null;
+  if (body.price_eur !== undefined && body.price_eur !== null && String(body.price_eur).trim() !== "") {
+    const n = Number(body.price_eur);
+    if (Number.isFinite(n) && n >= 0 && n <= 10_000_000) priceEur = Math.round(n * 100) / 100;
+  }
+  const shipping: "non" | "aide" = ["non", "aide"].includes(String(body.shipping))
+    ? (String(body.shipping) as "non" | "aide")
+    : "non";
+  const customs: "aucun" | "vendeur" | "acheteur" = ["aucun", "vendeur", "acheteur"].includes(String(body.customs))
+    ? (String(body.customs) as "aucun" | "vendeur" | "acheteur")
+    : "aucun";
+
   const row = {
     user_id: userId,
     category,
     title,
+    quartier: clean(body.quartier, 70),
+    postal: clean(body.postal, 12).replace(/[^0-9A-Za-z -]/g, ""),
+    price_eur: priceEur,
+    shipping,
+    customs,
     description: clean(body.description, 2000),
     city: clean(body.city, 70),
     country: clean(body.country, 70),

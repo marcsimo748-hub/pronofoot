@@ -14,12 +14,12 @@ export function WallpapersTool({ settings }: { settings: SiteSettings }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <WallpaperField
-        label="🖼️ Fond d'écran — Page de connexion"
+        label="🖼️ Fond d'écran · Page de connexion"
         value={settings.wallpapers.login}
         onSave={(url) => saveSetting("wallpapers", { login: url })}
       />
       <WallpaperField
-        label="🏠 Fond d'écran — Accueil (hero)"
+        label="🏠 Fond d'écran · Accueil (hero)"
         value={settings.wallpapers.home}
         onSave={(url) => saveSetting("wallpapers", { home: url })}
       />

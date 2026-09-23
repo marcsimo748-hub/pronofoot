@@ -1,11 +1,10 @@
 "use client";
 
 /**
- * Covoiturage de la communauté (MODULE 6).
+ * Covoiturage de la communauté (MODULE 6) — FR/EN/DE.
  * Publie ton trajet (ville ↔ ville, date, places, prix), cherche un covoiturage,
  * discute d'abord via le chat privé : les coordonnées ne sont révélées qu'après
  * l'accord du propriétaire. Modération : 3 signalements = trajet masqué.
- * Connecté requis pour publier, contacter et signaler (modale + retour au trajet exact).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -34,7 +33,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { setRedirectAfterLogin } from "@/lib/auth-redirect";
 import { toast } from "sonner";
-import { humanDateFr, TRIP_REPORT_REASONS_CLIENT } from "./voyage-data";
+import { humanDate, TRIP_REPORT_REASONS } from "./voyage-data";
+import { useT, type Lang } from "@/lib/i18n";
 import type { PronoVoyageTrip } from "@/lib/types";
 
 interface Props {
@@ -42,17 +42,22 @@ interface Props {
   userId?: string;
   initialTrips: PronoVoyageTrip[];
   deeplinkTrip?: string;
-  /** ?discuter=1 : démarrer directement le chat privé sur le trajet du deep link */
   deeplinkChat?: boolean;
-  /** Retour après connexion via le bouton Publier : rouvrir le formulaire */
   autoPublish?: boolean;
 }
 
-function seatsLabel(n: number): string {
-  return n <= 0 ? "complet" : `${n} place${n > 1 ? "s" : ""}`;
+function seatsLabel(n: number, lang: Lang): string {
+  if (n <= 0) return lang === "en" ? "full" : lang === "de" ? "voll" : "complet";
+  const unit = lang === "en" ? "seat" : lang === "de" ? "Platz" : "place";
+  const plural = n > 1 ? "s" : "";
+  return `${n} ${unit}${plural}`;
 }
 
 export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, deeplinkChat, autoPublish }: Props) {
+  const { t, lang } = useT();
+  const L = (lang || "fr") as Lang;
+  const reasons = TRIP_REPORT_REASONS[L] ?? TRIP_REPORT_REASONS.fr;
+
   const [trips, setTrips] = useState<PronoVoyageTrip[]>(initialTrips);
   const [myTrips, setMyTrips] = useState<PronoVoyageTrip[]>([]);
   const [tab, setTab] = useState<"all" | "mine">("all");
@@ -81,7 +86,7 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
 
   // Signalement
   const [reporting, setReporting] = useState(false);
-  const [reason, setReason] = useState(TRIP_REPORT_REASONS_CLIENT[0]);
+  const [reason, setReason] = useState(reasons[0]);
   const [reportMsg, setReportMsg] = useState("");
   const [sendingReport, setSendingReport] = useState(false);
 
@@ -125,7 +130,6 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
     void loadMine();
   }, [loadMine, reloadKey]);
 
-  // Retour après connexion via Publier : rouvrir le formulaire automatiquement
   useEffect(() => {
     if (autoPublish && loggedIn) setFormOpen(true);
   }, [autoPublish, loggedIn]);
@@ -150,7 +154,7 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
         }
         const json = await res.json().catch(() => ({}));
         if (json.error === "annonce_a_soi") {
-          toast.info("C'est ton trajet 😊", { description: "Tu ne peux pas te contacter toi-même." });
+          toast.info(t("voy.sToastPub"), { description: L === "en" ? "You can't contact yourself." : L === "de" ? "Du kannst dich nicht selbst kontaktieren." : "Tu ne peux pas te contacter toi-même." });
         } else if (json.error === "no_contact_table") {
           toast.error("Chat indisponible", { description: "Configuration en cours, réessaie dans un instant." });
         } else {
@@ -162,21 +166,19 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
         setChatStarting(null);
       }
     },
-    [chatStarting, router],
+    [chatStarting, router, t, L]
   );
 
-  // Deep link après connexion : rouvrir le trajet exact cliqué.
-  // Avec ?discuter=1 : ouvrir directement le chat privé.
   useEffect(() => {
     if (!deeplinkTrip) return;
-    const open = (t: PronoVoyageTrip) => {
+    const open = (trip: PronoVoyageTrip) => {
       if (deeplinkChat && loggedIn) {
-        if (t.user_id !== userId) void startChat(t.id);
+        if (trip.user_id !== userId) void startChat(trip.id);
         return;
       }
-      setSelected(t);
+      setSelected(trip);
     };
-    const found = trips.find((t) => t.id === deeplinkTrip);
+    const found = trips.find((tr) => tr.id === deeplinkTrip);
     if (found) {
       open(found);
       return;
@@ -186,11 +188,11 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
         const res = await fetch(`/api/prono-voyage?id=${deeplinkTrip}`);
         if (res.ok) {
           const json = await res.json();
-          const t = json.trips?.[0];
-          if (t) open(t as PronoVoyageTrip);
+          const tr = json.trips?.[0];
+          if (tr) open(tr as PronoVoyageTrip);
         }
       } catch {
-        /* introuvable, on reste sur la liste */
+        /* introuvable */
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -198,7 +200,7 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
 
   const list = tab === "mine" ? myTrips : trips;
   const nextTripsCount = useMemo(
-    () => trips.filter((t) => t.trip_date >= new Date().toISOString().slice(0, 10)).length,
+    () => trips.filter((tr) => tr.trip_date >= new Date().toISOString().slice(0, 10)).length,
     [trips]
   );
 
@@ -216,19 +218,18 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
     setFormOpen(true);
   };
 
-  // ---- Publication ----
   const submitTrip = async () => {
     setFormError("");
     if (fOrigin.trim().length < 2 || fDest.trim().length < 2) {
-      setFormError("Indique la ville de départ et la destination.");
+      setFormError(t("voy.sErrorEmpty"));
       return;
     }
     if (!fDate) {
-      setFormError("Choisis la date du trajet.");
+      setFormError(t("voy.sErrorDate"));
       return;
     }
     if (!fContactValue.trim()) {
-      setFormError("Indique un moyen de contact (WhatsApp ou email).");
+      setFormError(t("voy.sErrorContact"));
       return;
     }
     setSaving(true);
@@ -248,7 +249,7 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
         }),
       });
       if (!res.ok) {
-        setFormError("Publication momentanément indisponible, réessaie dans un instant.");
+        setFormError(t("voy.sErrorGeneric"));
         return;
       }
       const json = await res.json();
@@ -263,9 +264,9 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
       setFNote("");
       setFContactValue("");
       setReloadKey((k) => k + 1);
-      toast.success("Trajet publié 🎉", { description: "Les membres peuvent maintenant te contacter." });
+      toast.success(t("voy.sToastPub"), { description: t("voy.sToastPubDesc") });
     } catch {
-      setFormError("Erreur réseau, réessaie.");
+      setFormError(t("voy.sErrorNet"));
     } finally {
       setSaving(false);
     }
@@ -279,21 +280,19 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
       body: JSON.stringify({ id: trip.id, status: next }),
     });
     if (res.ok) {
-      setMyTrips((l) => l.map((t) => (t.id === trip.id ? { ...t, status: next } : t)));
-      setTrips((l) =>
-        next === "hidden" ? l.filter((t) => t.id !== trip.id) : [trip, ...l.filter((t) => t.id !== trip.id)]
-      );
-      toast[next === "hidden" ? "warning" : "success"](next === "hidden" ? "Trajet masqué" : "Trajet réaffiché");
+      setMyTrips((l) => l.map((tr) => (tr.id === trip.id ? { ...tr, status: next } : tr)));
+      setTrips((l) => (next === "hidden" ? l.filter((tr) => tr.id !== trip.id) : [trip, ...l.filter((tr) => tr.id !== trip.id)]));
+      toast[next === "hidden" ? "warning" : "success"](next === "hidden" ? t("voy.sToastHide") : t("voy.sToastShow"));
     }
   };
 
   const onDelete = async (trip: PronoVoyageTrip) => {
-    if (!window.confirm(`Supprimer le trajet ${trip.origin_city} → ${trip.dest_city} ?`)) return;
+    if (!window.confirm(t("voy.sDeleteTitle", { from: trip.origin_city, to: trip.dest_city }))) return;
     const res = await fetch(`/api/prono-voyage?id=${trip.id}`, { method: "DELETE" });
     if (res.ok) {
-      setMyTrips((l) => l.filter((t) => t.id !== trip.id));
-      setTrips((l) => l.filter((t) => t.id !== trip.id));
-      toast.success("Trajet supprimé");
+      setMyTrips((l) => l.filter((tr) => tr.id !== trip.id));
+      setTrips((l) => l.filter((tr) => tr.id !== trip.id));
+      toast.success(t("voy.sToastDel"));
     }
   };
 
@@ -308,20 +307,16 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
         body: JSON.stringify({ id: selected.id, reason }),
       });
       if (res.status === 409) {
-        setReportMsg("Tu as déjà signalé ce trajet ✅");
+        setReportMsg(t("voy.sReportDone"));
       } else if (res.ok) {
         const json = await res.json();
-        setReportMsg(
-          json.hidden
-            ? "Merci ! Signalement enregistré, le trajet a été masqué automatiquement (3 signalements)."
-            : "Merci ! L'équipe va examiner ce trajet."
-        );
-        if (json.hidden) setTrips((l) => l.filter((t) => t.id !== selected.id));
+        setReportMsg(json.hidden ? t("voy.sReportHidden") : t("voy.sReportTeam"));
+        if (json.hidden) setTrips((l) => l.filter((tr) => tr.id !== selected.id));
       } else {
-        setReportMsg("Signalement impossible pour le moment.");
+        setReportMsg(t("voy.sReportFail"));
       }
     } catch {
-      setReportMsg("Erreur réseau, réessaie.");
+      setReportMsg(t("voy.sErrorNet"));
     } finally {
       setSendingReport(false);
     }
@@ -331,109 +326,70 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
 
   return (
     <div className="space-y-5">
-      {/* Barre d'actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-col gap-2 sm:flex-row">
-          <Input
-            value={originFilter}
-            onChange={(e) => setOriginFilter(e.target.value)}
-            placeholder="🛫 Ville de départ"
-            className="sm:max-w-[200px]"
-            maxLength={40}
-          />
-          <Input
-            value={destFilter}
-            onChange={(e) => setDestFilter(e.target.value)}
-            placeholder="🛬 Destination"
-            className="sm:max-w-[200px]"
-            maxLength={40}
-          />
+          <Input value={originFilter} onChange={(e) => setOriginFilter(e.target.value)} placeholder={t("voy.sFilterFrom")} className="sm:max-w-[200px]" maxLength={40} />
+          <Input value={destFilter} onChange={(e) => setDestFilter(e.target.value)} placeholder={t("voy.sFilterTo")} className="sm:max-w-[200px]" maxLength={40} />
         </div>
         <Button variant="glow" className="gap-2" onClick={openPublish}>
-          ➕ Proposer un trajet
+          {t("voy.sPropose")}
         </Button>
       </div>
 
       <div className="flex items-center justify-between gap-3">
         <Tabs value={tab} onValueChange={(v) => setTab(v as "all" | "mine")}>
           <TabsList>
-            <TabsTrigger value="all">🚗 Trajets ({nextTripsCount})</TabsTrigger>
-            {loggedIn && <TabsTrigger value="mine">👤 Mes trajets ({myTrips.length})</TabsTrigger>}
+            <TabsTrigger value="all">{t("voy.sAllTab", { n: String(nextTripsCount) })}</TabsTrigger>
+            {loggedIn && <TabsTrigger value="mine">{t("voy.sMineTab", { n: String(myTrips.length) })}</TabsTrigger>}
           </TabsList>
         </Tabs>
-        {loading && <span className="text-xs text-muted-foreground">Actualisation…</span>}
+        {loading && <span className="text-xs text-muted-foreground">{t("voy.sRefreshing")}</span>}
       </div>
 
-      {/* Liste */}
       {list.length === 0 ? (
         <div className="rounded-xl border border-dashed border-white/10 p-10 text-center text-sm text-muted-foreground">
-          {tab === "mine"
-            ? "Tu n'as pas encore proposé de trajet. Propose ton premier covoiturage !"
-            : "Aucun trajet pour l'instant. Propose le premier covoiturage de la communauté ! 🚗"}
+          {tab === "mine" ? t("voy.sEmptyMine") : t("voy.sEmptyAll")}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {list.map((t) => (
-            <div
-              key={t.id}
-              className="flex flex-col rounded-xl border border-white/10 bg-card/70 p-4 transition-all hover:border-primary/40 hover:shadow-lg"
-            >
+          {list.map((tr) => (
+            <div key={tr.id} className="flex flex-col rounded-xl border border-white/10 bg-card/70 p-4 transition-all hover:border-primary/40 hover:shadow-lg">
               <div className="mb-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-                <Badge variant="secondary" className="text-[10px]">🚗 Covoiturage</Badge>
-                {t.status === "hidden" && (
-                  <Badge className="bg-amber-500/90 text-[10px] text-amber-950">Masqué</Badge>
-                )}
+                <Badge variant="secondary" className="text-[10px]">{t("voy.sCars")}</Badge>
+                {tr.status === "hidden" && <Badge className="bg-amber-500/90 text-[10px] text-amber-950">{t("voy.sHidden")}</Badge>}
               </div>
               <p className="font-bold leading-snug">
-                {t.origin_city} <span className="text-primary">→</span> {t.dest_city}
+                {tr.origin_city} <span className="text-primary">→</span> {tr.dest_city}
               </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                📅 {humanDateFr(t.trip_date)}
-              </p>
-              <p className="mt-1 text-sm">
-                💺 {seatsLabel(t.seats)} · 💶 {t.price_eur > 0 ? `${t.price_eur} €` : "gratuit"}
-              </p>
-              {t.note && <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{t.note}</p>}
+              <p className="mt-1 text-sm text-muted-foreground">📅 {humanDate(tr.trip_date, L)}</p>
+              <p className="mt-1 text-sm">💺 {seatsLabel(tr.seats, L)} · 💶 {tr.price_eur > 0 ? `${tr.price_eur} €` : t("voy.sFree")}</p>
+              {tr.note && <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{tr.note}</p>}
               <div className="mt-3 flex items-center gap-2 border-t border-white/5 pt-3 text-xs text-muted-foreground">
                 <Avatar className="h-5 w-5">
-                  <AvatarImage src={t.author?.avatar_url ?? undefined} alt="" />
-                  <AvatarFallback className="text-[9px]">
-                    {(t.author?.username ?? "?").slice(0, 1).toUpperCase()}
-                  </AvatarFallback>
+                  <AvatarImage src={tr.author?.avatar_url ?? undefined} alt="" />
+                  <AvatarFallback className="text-[9px]">{(tr.author?.username ?? "?").slice(0, 1).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <span className="truncate">{t.author?.username ?? "Anonyme"}</span>
-                {t.author?.email_verified && (
-                  <span className="shrink-0 text-emerald-400" title="Email vérifié">✓</span>
-                )}
+                <span className="truncate">{tr.author?.username ?? t("voy.sAnon")}</span>
+                {tr.author?.email_verified && <span className="shrink-0 text-emerald-400" title={t("voy.sVerify")}>✓</span>}
               </div>
               <div className="mt-3">
-                {isOwnerOf(t, userId) ? (
+                {isOwnerOf(tr, userId) ? (
                   <div className="flex gap-2">
-                    {t.status === "hidden" ? (
-                      <Button size="sm" variant="outline" className="flex-1" onClick={() => void onHide(t)}>
-                        👁️ Afficher
-                      </Button>
+                    {tr.status === "hidden" ? (
+                      <Button size="sm" variant="outline" className="flex-1" onClick={() => void onHide(tr)}>{t("voy.sShow")}</Button>
                     ) : (
-                      <Button size="sm" variant="outline" className="flex-1" onClick={() => void onHide(t)}>
-                        🚫 Masquer
-                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1" onClick={() => void onHide(tr)}>{t("voy.sHide")}</Button>
                     )}
-                    <Button size="sm" variant="destructive" onClick={() => void onDelete(t)}>
-                      🗑️
-                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => void onDelete(tr)}>🗑️</Button>
                   </div>
                 ) : (
                   <Button
                     size="sm"
                     variant="glow"
                     className="w-full gap-2"
-                    onClick={() => {
-                      setSelected(t);
-                      setReporting(false);
-                      setReportMsg("");
-                    }}
+                    onClick={() => { setSelected(tr); setReporting(false); setReportMsg(""); }}
                   >
-                    💬 Voir le trajet
+                    {t("voy.sView")}
                   </Button>
                 )}
               </div>
@@ -442,37 +398,29 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
         </div>
       )}
 
-      {/* Modale détail trajet */}
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="sm:max-w-lg">
           {selected && (
             <>
               <DialogHeader>
                 <DialogTitle className="text-left">
-                  🚗 {selected.origin_city} <span className="text-primary">→</span> {selected.dest_city}
+                  {t("voy.sDetailTitle", { from: selected.origin_city, to: selected.dest_city })}
                 </DialogTitle>
                 <DialogDescription className="text-left">
-                  📅 {humanDateFr(selected.trip_date)} · 💺 {seatsLabel(selected.seats)} · 💶{" "}
-                  {selected.price_eur > 0 ? `${selected.price_eur} €` : "gratuit"} · par{" "}
-                  {selected.author?.username ?? "Anonyme"}
-                  {selected.author?.email_verified && (
-                    <span className="text-emerald-400" title="Email vérifié">✓</span>
-                  )}
+                  {t("voy.sDetailMeta", {
+                    date: humanDate(selected.trip_date, L),
+                    seats: seatsLabel(selected.seats, L),
+                    price: selected.price_eur > 0 ? `${selected.price_eur} €` : t("voy.sFree"),
+                    author: selected.author?.username ?? t("voy.sAnon"),
+                  })}
+                  {selected.author?.email_verified && <span className="text-emerald-400" title={t("voy.sVerify")}> ✓</span>}
                 </DialogDescription>
               </DialogHeader>
 
-              {selected.note && (
-                <p className="whitespace-pre-wrap rounded-lg bg-secondary/40 p-3 text-sm leading-relaxed">
-                  {selected.note}
-                </p>
-              )}
+              {selected.note && <p className="whitespace-pre-wrap rounded-lg bg-secondary/40 p-3 text-sm leading-relaxed">{selected.note}</p>}
 
-              {/* Contact : tout passe par le chat privé, coordonnées protégées */}
               {isOwner ? (
-                <p className="rounded-lg bg-primary/10 p-3 text-sm text-primary">
-                  🔒 Ton contact reste privé. Les membres te contactent par le chat PRONO
-                  et tu choisis quand révéler tes coordonnées.
-                </p>
+                <p className="rounded-lg bg-primary/10 p-3 text-sm text-primary">{t("voy.sPrivate")}</p>
               ) : (
                 <Button
                   className="w-full gap-2"
@@ -480,48 +428,34 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
                   disabled={chatStarting === selected.id}
                   onClick={() => (loggedIn ? void startChat(selected.id) : requireAuthFor(selected.id))}
                 >
-                  {chatStarting === selected.id ? "Ouverture…" : "💬 Discuter"} avec{" "}
-                  {selected.author?.username ?? "l'auteur"}
+                  {chatStarting === selected.id ? t("voy.sOpening") : t("voy.sChatWith", { user: selected.author?.username ?? t("voy.sAnon") })}
                 </Button>
               )}
 
-              {/* Signalement */}
               {!isOwner && (
                 <div className="border-t border-white/10 pt-3">
                   {!reporting ? (
-                    <button
-                      type="button"
-                      onClick={() => (loggedIn ? setReporting(true) : requireAuthFor(selected.id))}
-                      className="text-xs text-muted-foreground hover:text-red-400"
-                    >
-                      🚩 Signaler ce trajet
+                    <button type="button" onClick={() => (loggedIn ? setReporting(true) : requireAuthFor(selected.id))} className="text-xs text-muted-foreground hover:text-red-400">
+                      {t("voy.sReport")}
                     </button>
                   ) : (
                     <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Pourquoi signales-tu ce trajet ?</p>
+                      <p className="text-xs font-medium text-muted-foreground">{t("voy.sReportWhy")}</p>
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <Select value={reason} onValueChange={setReason}>
-                          <SelectTrigger className="flex-1">
-                            <SelectValue />
-                          </SelectTrigger>
+                          <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            {TRIP_REPORT_REASONS_CLIENT.map((r) => (
-                              <SelectItem key={r} value={r}>
-                                {r}
-                              </SelectItem>
-                            ))}
+                            {reasons.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                           </SelectContent>
                         </Select>
                         <Button size="sm" variant="destructive" onClick={() => void sendReport()} disabled={sendingReport}>
-                          {sendingReport ? "…" : "Envoyer"}
+                          {sendingReport ? t("voy.sReportSending") : t("voy.sReportSend")}
                         </Button>
                       </div>
                     </div>
                   )}
                   {reportMsg && <p className="mt-2 text-xs text-muted-foreground">{reportMsg}</p>}
-                  <p className="mt-1 text-[10px] text-muted-foreground/60">
-                    3 signalements différents = masquage automatique du trajet.
-                  </p>
+                  <p className="mt-1 text-[10px] text-muted-foreground/60">{t("voy.sReportNote")}</p>
                 </div>
               )}
             </>
@@ -529,109 +463,91 @@ export function TripsSection({ loggedIn, userId, initialTrips, deeplinkTrip, dee
         </DialogContent>
       </Dialog>
 
-      {/* Modale publication */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>🚗 Proposer un trajet</DialogTitle>
-            <DialogDescription>
-              Partage tes places libres avec la communauté. Reste clair sur la date,
-              le départ et le prix.
-            </DialogDescription>
+            <DialogTitle>{t("voy.sPublish")}</DialogTitle>
+            <DialogDescription>{t("voy.sPublishDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Ville de départ *</Label>
-                <Input value={fOrigin} onChange={(e) => setFOrigin(e.target.value)} maxLength={70} placeholder="Berlin" />
+                <Label>{t("voy.sCityFrom")}</Label>
+                <Input value={fOrigin} onChange={(e) => setFOrigin(e.target.value)} maxLength={70} placeholder={t("voy.sCityPh")} />
               </div>
               <div className="space-y-1.5">
-                <Label>Destination *</Label>
-                <Input value={fDest} onChange={(e) => setFDest(e.target.value)} maxLength={70} placeholder="Paris" />
+                <Label>{t("voy.sCityTo")}</Label>
+                <Input value={fDest} onChange={(e) => setFDest(e.target.value)} maxLength={70} placeholder={t("voy.sCityPh")} />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-1.5">
-                <Label>Date *</Label>
+                <Label>{t("voy.sDate")}</Label>
                 <Input type="date" value={fDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setFDate(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Places</Label>
+                <Label>{t("voy.sSeats")}</Label>
                 <Select value={fSeats} onValueChange={setFSeats}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                      <SelectItem key={n} value={String(n)}>
-                        {n} place{n > 1 ? "s" : ""}
-                      </SelectItem>
+                      <SelectItem key={n} value={String(n)}>{seatsLabel(n, L)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Prix (€)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={999}
-                  value={fPrice}
-                  onChange={(e) => setFPrice(e.target.value)}
-                  placeholder="0 = gratuit"
-                />
+                <Label>{t("voy.sPrice")}</Label>
+                <Input type="number" min={0} max={999} value={fPrice} onChange={(e) => setFPrice(e.target.value)} placeholder={t("voy.sPricePh")} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Note (itinéraire, bagages, horaires de départ…)</Label>
+              <Label>{t("voy.sNote")}</Label>
               <Textarea value={fNote} onChange={(e) => setFNote(e.target.value)} rows={3} maxLength={500} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5 sm:col-span-2 rounded-lg bg-secondary/40 p-2.5 text-xs text-muted-foreground">
-                🔒 Ton contact reste privé : il n&apos;apparaît jamais dans le trajet.
-                Les membres discutent avec toi par le chat PRONO, et tu choisis quand leur
-                révéler tes coordonnées.
+                {t("voy.sPrivate")}
               </div>
               <div className="space-y-1.5">
-                <Label>Contact *</Label>
+                <Label>{t("voy.sContactLabel")}</Label>
                 <Select value={fContactPref} onValueChange={setFContactPref}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="whatsapp">💬 WhatsApp</SelectItem>
-                    <SelectItem value="email">✉️ Email</SelectItem>
+                    <SelectItem value="whatsapp">{t("voy.sContactPrefW")}</SelectItem>
+                    <SelectItem value="email">{t("voy.sContactPrefE")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>{fContactPref === "whatsapp" ? "Numéro WhatsApp *" : "Adresse email *"}</Label>
+                <Label>
+                  {fContactPref === "whatsapp"
+                    ? (L === "en" ? "WhatsApp number *" : L === "de" ? "WhatsApp-Nummer *" : "Numéro WhatsApp *")
+                    : t("voy.sContactLabel")}
+                </Label>
                 <Input
                   value={fContactValue}
                   onChange={(e) => setFContactValue(e.target.value)}
                   maxLength={150}
-                  placeholder={fContactPref === "whatsapp" ? "+49 170 1234567" : "toi@email.com"}
+                  placeholder={fContactPref === "whatsapp" ? t("voy.sContactPhW") : t("voy.sContactPhE")}
                 />
               </div>
             </div>
             {formError && <p className="text-sm text-red-400">{formError}</p>}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button variant="ghost" onClick={() => setFormOpen(false)} disabled={saving}>
-                Annuler
-              </Button>
+              <Button variant="ghost" onClick={() => setFormOpen(false)} disabled={saving}>{t("voy.sCancel")}</Button>
               <Button onClick={() => void submitTrip()} disabled={saving}>
-                {saving ? "Publication…" : "🚗 Publier mon trajet"}
+                {saving ? t("voy.sSubmitting") : t("voy.sPublier")}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Modale connexion */}
       <AuthModal
         open={authOpen}
         onOpenChange={setAuthOpen}
-        message="Connecte-toi ou crée ton compte gratuit, tu reviendras directement sur ce trajet."
+        message={t("voy.sAuthMsg")}
       />
     </div>
   );

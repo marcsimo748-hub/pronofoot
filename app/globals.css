@@ -69,21 +69,30 @@
      une grande). Le Header / Footer principaux restent
      neutres, ils sont hors du wrapper de page.
      ============================================ */
+  /* Jaune Carton #FFE600 — texte sur fond jaune = NOIR (lisible) */
   .theme-foot {
-    --primary: 142 71% 36%;
-    --ring: 142 71% 36%;
+    --primary: 55 100% 50%;
+    --ring: 55 100% 50%;
+    --primary-foreground: 240 10% 4%;
   }
+  /* Bleu Chantier #0047FF */
   .theme-job {
-    --primary: 221 83% 53%;
-    --ring: 221 83% 53%;
+    --primary: 223 100% 50%;
+    --ring: 223 100% 50%;
   }
   .theme-visa {
     --primary: 263 84% 58%;
     --ring: 263 84% 58%;
   }
+  /* Vert Expulsion... non, vert match #00C950 */
   .theme-housing {
-    --primary: 21 90% 48%;
-    --ring: 21 90% 48%;
+    --primary: 146 100% 40%;
+    --ring: 146 100% 40%;
+  }
+  /* Rouge Tampon #FF2E2E — Profil & CV */
+  .theme-profil {
+    --primary: 0 100% 59%;
+    --ring: 0 100% 59%;
   }
   .theme-annonces {
     --primary: 347 77% 50%;
@@ -92,6 +101,10 @@
   .theme-voyage {
     --primary: 189 94% 37%;
     --ring: 189 94% 37%;
+  }
+  .theme-transferts {
+    --primary: 160 84% 39%;
+    --ring: 160 84% 39%;
   }
 
 @layer components {

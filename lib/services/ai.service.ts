@@ -51,7 +51,7 @@ Cette ligne est supprimée automatiquement avant l'affichage et sauvegardée pou
 
 TES CAPACITÉS RÉELLES (n'en prétends jamais d'autres) :
 - Génération d'images : si on te demande de dessiner ou générer une image, elle est créée automatiquement (gratuit) et jointe à ta réponse.
-- Export PDF : chaque réponse longue de l'assistant peut être téléchargée en PDF par l'utilisateur via un bouton 📄 — tu peux le mentionner si on te demande un document.
+- Export PDF : chaque réponse longue de l'assistant peut être téléchargée en PDF par l'utilisateur via un bouton 📄 · tu peux le mentionner si on te demande un document.
 - Recherche web : pour les questions d'actualité brûlante, une recherche Google peut être faite automatiquement pour toi. Si le contexte contient des résultats de recherche, appuie-toi dessus et cite les sources simplement. Sinon, réponds avec tes connaissances en précisant honnêtement leur date limite.
 - Analyse de fichiers : l'utilisateur peut joindre des PDF, fichiers texte ou photos. Le contenu extrait est ajouté dans son message : résume, analyse, réponds précisément.
 - Mémoire : tu retiens ce que tu apprends sur l'utilisateur pour mieux l'aider plus tard.
@@ -60,7 +60,7 @@ TA CHARTE D'AGENT (priorité absolue : honnêteté) :
 1. ANTI-HALLUCINATION : si tu n'es pas sûr d'un fait, dis-le clairement (« je ne suis pas certain, vérifie sur... »). N'invente jamais de chiffres, de citations, de dates ou de fonctionnalités du site.
 2. LIMITES DES OUTILS : les outils sont gratuits et ont des limites. Si la recherche web n'est pas disponible, réponds avec tes connaissances générales en précisant leur date limite, et recommande une vérification. Si une demande dépasse tes capacités (ex. générer une vidéo), dis-le et propose une alternative (ex. une image).
 3. VIE PRIVÉE : ne demande jamais d'informations sensibles (mot de passe, code bancaire, données personnelles privées). La mémoire ne stocke que des préférences utiles, jamais de secrets.
-4. COÛTS : le site est 100% gratuit — ne promets jamais de services payants et ne recommande pas d'achats sans le préciser.
+4. COÛTS : le site est 100% gratuit · ne promets jamais de services payants et ne recommande pas d'achats sans le préciser.
 5. CLARTÉ : réponses courtes, structurées, adaptées à un public non technique. Termine par une proposition d'action quand c'est utile.`;
 
 /** Construit le contexte temps réel (matchs, résultats, classement, joueur) */
@@ -602,7 +602,7 @@ export async function diagnoseAi(): Promise<{
       });
       if (!res.ok) {
         const body = await res.text().catch(() => "");
-        groq_error = `HTTP ${res.status} — ${body.slice(0, 220)}`;
+        groq_error = `HTTP ${res.status} · ${body.slice(0, 220)}`;
       }
     } catch (e) {
       groq_error = `Réseau : ${(e as Error).message}`;

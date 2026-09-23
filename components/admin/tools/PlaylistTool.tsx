@@ -91,7 +91,7 @@ export function PlaylistTool() {
       <div className="space-y-2">
         {songs.length === 0 && (
           <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-            Playlist vide — ajoute ton premier MP3 ci-dessus.
+            Playlist vide · ajoute ton premier MP3 ci-dessus.
           </p>
         )}
         {songs.map((s) => (
@@ -99,7 +99,7 @@ export function PlaylistTool() {
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md cover-fallback text-sm">🎵</span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{s.title}</p>
-              <p className="truncate text-xs text-muted-foreground">{s.artist ?? "—"}</p>
+              <p className="truncate text-xs text-muted-foreground">{s.artist ?? "-"}</p>
             </div>
             <Button size="sm" variant="destructive" onClick={() => removeSong(s)} aria-label="Supprimer">
               <Trash2 className="h-3.5 w-3.5" />

@@ -15,6 +15,7 @@ import { useUiStore } from "@/lib/store/uiStore";
 import { ChatMessage, TypingIndicator } from "./ChatMessage";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { FAQ, normTxt } from "@/components/assistant/assistant-faq";
 import type { ChatMsg } from "@/lib/types";
 
 type PdfPage = {
@@ -118,6 +119,7 @@ const SUGGESTIONS = [
 ];
 
 export function AiAssistantWidget() {
+  const lang = useUiStore((s) => s.lang) as "fr" | "en" | "de";
   const { isOpen, toggle, open, close } = useAiStore();
   const isTyping = useAiStore((s) => s.isTyping);
   const setTyping = useAiStore((s) => s.setTyping);
@@ -224,6 +226,34 @@ export function AiAssistantWidget() {
 
     const hasFile = !!pendingFile;
     const hasImage = !!pendingImage;
+
+    // Réponse instantanée (FAQ locale, gratuite, trilingue) pour les questions courantes
+    if (!hasFile && !hasImage) {
+      const q = normTxt(content);
+      const words = q.split(/\s+/).filter(Boolean);
+      let best: (typeof FAQ)[number] | null = null;
+      let bestScore = 0;
+      for (const entry of FAQ) {
+        const score = entry.kw.reduce((n, k) => (q.includes(normTxt(k)) ? n + 1 : n), 0);
+        if (score > bestScore) {
+          bestScore = score;
+          best = entry;
+        }
+      }
+      const seuil = words.length <= 4 ? 1 : 2;
+      if (best && bestScore >= seuil) {
+        const answer = best.a[lang] ?? best.a.fr;
+        const link = best.link ? `\n👉 ${best.link.label[lang] ?? best.link.label.fr} : ${best.link.href}` : "";
+        addMessage({ role: "user", content });
+        setInput("");
+        setTyping(true);
+        setTimeout(() => {
+          addMessage({ role: "assistant", content: answer + link });
+          setTyping(false);
+        }, 350);
+        return;
+      }
+    }
     // Le message affiche reste court ; le contenu complet (fichier) va au serveur
     const display = content + (hasFile ? `\n📎 ${pendingFile!.name}` : "") + (hasImage ? " 📷" : "");
     const fullContent = hasFile

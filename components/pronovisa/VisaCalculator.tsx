@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * VisaCalculator — « Calcule tes chances de visa Allemagne » (MODULE 3).
+ * VisaCalculator — « Calcule tes chances de visa Allemagne » (MODULE 3) FR/EN/DE.
  * Wizard 8 questions → score % + niveau + checklist personnalisée + conseils.
  * ⚖️ Toujours accompagné du disclaimer : estimation, pas un conseil juridique.
  */
@@ -12,13 +12,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import {
-  VISA_QUESTIONS,
   DEFAULT_ANSWERS,
   computeVisaScore,
-  VISA_CHECKLISTS,
-  VISA_TYPE_LABELS,
-  VISA_DISCLAIMER,
+  pickQuestions,
+  getChecklist,
+  getVisaTypeLabel,
+  getArticles,
+  VISA_DISCLAIMER_BY_LANG,
   type VisaAnswers,
 } from "./visa-data";
 
@@ -38,20 +40,22 @@ export function VisaCalculator({
   prefill: Partial<VisaAnswers>;
   history: VisaCheck[];
 }) {
+  const { lang, t } = useT();
+  const QUESTIONS = useMemo(() => pickQuestions(lang), [lang]);
+  const total = QUESTIONS.length;
   const [answers, setAnswers] = useState<VisaAnswers>({ ...DEFAULT_ANSWERS });
   const [step, setStep] = useState(0); // 0 = intro, 1..N questions, N+1 = résultat
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [checks, setChecks] = useState<VisaCheck[]>(history);
 
-  const total = VISA_QUESTIONS.length;
   const done = useMemo(
-    () => VISA_QUESTIONS.every((q) => answers[q.key]),
-    [answers]
+    () => QUESTIONS.every((q) => answers[q.key]),
+    [QUESTIONS, answers]
   );
   const result = useMemo(
-    () => (done ? computeVisaScore(answers) : null),
-    [done, answers]
+    () => (done ? computeVisaScore(answers, lang) : null),
+    [done, answers, lang]
   );
 
   function applyPrefill() {
@@ -61,7 +65,6 @@ export function VisaCalculator({
 
   function choose(key: keyof VisaAnswers, value: string) {
     setAnswers((a) => ({ ...a, [key]: value }));
-    // petite pause pour voir la sélection, puis étape suivante
     setTimeout(() => setStep((s) => Math.min(s + 1, total + 1)), 220);
   }
 
@@ -77,14 +80,14 @@ export function VisaCalculator({
       const json = await res.json();
       if (json.ok) {
         setChecks((c) => [json.data, ...c].slice(0, 5));
-        setSavedMsg("✅ Simulation enregistrée dans ton compte !");
+        setSavedMsg(t("visa.saved"));
       } else if (json.code === "no_table") {
-        setSavedMsg("⚠️ Exécute 006_prono_visa.sql dans Supabase pour activer l'historique.");
+        setSavedMsg(t("visa.noTable"));
       } else {
-        setSavedMsg("⚠️ Impossible d'enregistrer — le résultat reste affiché.");
+        setSavedMsg(t("visa.saveErr"));
       }
     } catch {
-      setSavedMsg("⚠️ Réseau indisponible — le résultat reste affiché.");
+      setSavedMsg(t("visa.netErr"));
     } finally {
       setSaving(false);
     }
@@ -96,7 +99,7 @@ export function VisaCalculator({
     setSavedMsg(null);
   }
 
-  const q = step >= 1 && step <= total ? VISA_QUESTIONS[step - 1] : null;
+  const q = step >= 1 && step <= total ? QUESTIONS[step - 1] : null;
   const progress = Math.round((Math.min(step, total) / total) * 100);
 
   return (
@@ -105,24 +108,20 @@ export function VisaCalculator({
       {step === 0 && (
         <div className="text-center">
           <p className="text-5xl">🧮</p>
-          <h2 className="mt-3 text-2xl font-black">Calcule tes chances</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-            8 questions rapides (âge, diplôme, allemand, projet, financement…) → un score
-            d&apos;estimation, la checklist des documents et des conseils personnalisés pour ton
-            dossier de visa Allemagne.
-          </p>
+          <h2 className="mt-3 text-2xl font-black">{t("visa.calcTitle")}</h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">{t("visa.calcIntro")}</p>
           <div className="mt-5 flex flex-wrap justify-center gap-2 text-xs">
-            <Badge variant="secondary">⏱️ 2 minutes</Badge>
-            <Badge variant="secondary">🔒 Réponses privées</Badge>
-            <Badge variant="secondary">🇩🇪 Ausbildung · Studium · Chancenkarte</Badge>
+            <Badge variant="secondary">⏱️ {t("visa.b2min")}</Badge>
+            <Badge variant="secondary">🔒 {t("visa.bPriv")}</Badge>
+            <Badge variant="secondary">{t("visa.bTypes")}</Badge>
           </div>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Button onClick={() => setStep(1)} size="lg" variant="glow">
-              🚀 Commencer le calcul
+              {t("visa.start")}
             </Button>
             {Object.keys(prefill).length > 0 && (
               <Button onClick={applyPrefill} size="lg" variant="outline">
-                ⚡ Utiliser mon profil visa
+                {t("visa.useProfile")}
               </Button>
             )}
           </div>
@@ -130,9 +129,9 @@ export function VisaCalculator({
             <p className="mt-4 text-xs text-muted-foreground">
               💡{" "}
               <Link href="/login?next=/prono-visa" className="text-primary hover:underline">
-                Connecte-toi
+                {t("visa.loginA")}
               </Link>{" "}
-              pour sauvegarder tes simulations et comparer tes progrès.
+              {t("visa.loginB")}
             </p>
           )}
         </div>
@@ -143,9 +142,7 @@ export function VisaCalculator({
         <div>
           <div className="mb-4">
             <div className="mb-1.5 flex items-center justify-between text-xs text-muted-foreground">
-              <span>
-                Question {step}/{total}
-              </span>
+              <span>{t("visa.qOf")} {step}/{total}</span>
               <span>{progress}%</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
@@ -192,11 +189,11 @@ export function VisaCalculator({
 
           <div className="mt-5 flex justify-between">
             <Button variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))}>
-              ← Retour
+              {t("visa.back")}
             </Button>
             {answers[q.key] && (
               <Button variant="outline" onClick={() => setStep((s) => Math.min(total + 1, s + 1))}>
-                Suivant →
+                {t("visa.next")}
               </Button>
             )}
           </div>
@@ -211,13 +208,13 @@ export function VisaCalculator({
             <h2 className="text-2xl font-black">{result.levelLabel}</h2>
             <p className="max-w-xl text-sm text-muted-foreground">{result.summary}</p>
             <Badge variant="outline">
-              Projet : {VISA_TYPE_LABELS[answers.visaType] ?? answers.visaType}
+              {t("visa.project")}{getVisaTypeLabel(lang, answers.visaType) ?? answers.visaType}
             </Badge>
           </div>
 
           {/* Conseils personnalisés */}
           <div>
-            <h3 className="mb-2 font-semibold">🧭 Tes conseils personnalisés</h3>
+            <h3 className="mb-2 font-semibold">{t("visa.advices")}</h3>
             <ul className="space-y-2">
               {result.advices.map((adv, i) => (
                 <li key={i} className="rounded-lg border border-white/5 bg-background/40 p-3 text-sm">
@@ -230,11 +227,13 @@ export function VisaCalculator({
           {/* Checklist */}
           <div>
             <h3 className="mb-2 font-semibold">
-              {VISA_CHECKLISTS[answers.visaType]?.title ?? "📋 Checklist du dossier"}
+              {getChecklist(lang, answers.visaType)?.title ?? t("visa.checklist")}
             </h3>
             <ul className="grid gap-1.5 sm:grid-cols-2">
-              {(VISA_CHECKLISTS[answers.visaType]?.items ?? []).map((item, i) => {
-                const isCritical = result.critical.some((c) => item.toLowerCase().includes(c.toLowerCase().slice(0, 25)));
+              {(getChecklist(lang, answers.visaType)?.items ?? []).map((item, i) => {
+                const isCritical = result.critical.some((c) =>
+                  item.toLowerCase().includes(c.toLowerCase().slice(0, 25))
+                );
                 return (
                   <li
                     key={i}
@@ -250,7 +249,7 @@ export function VisaCalculator({
                       {item}
                       {isCritical && (
                         <span className="ml-1.5 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-400">
-                          priorité
+                          {t("visa.prio")}
                         </span>
                       )}
                     </span>
@@ -263,18 +262,18 @@ export function VisaCalculator({
           {/* Sauvegarde / actions */}
           <div className="flex flex-wrap items-center gap-3 border-t border-white/5 pt-4">
             <Button variant="outline" onClick={restart}>
-              🔄 Refaire le calcul
+              {t("visa.restart")}
             </Button>
             {loggedIn ? (
               <Button onClick={save} disabled={saving}>
-                {saving ? "Enregistrement…" : "💾 Sauvegarder ma simulation"}
+                {saving ? t("job.saving") : t("visa.save")}
               </Button>
             ) : (
               <Link
                 href="/login?next=/prono-visa"
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
               >
-                🔐 Se connecter pour sauvegarder
+                {t("visa.loginSave")}
               </Link>
             )}
             {savedMsg && <span className="text-sm text-muted-foreground">{savedMsg}</span>}
@@ -283,21 +282,24 @@ export function VisaCalculator({
           {/* Historique */}
           {checks.length > 0 && (
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-muted-foreground">📈 Mes dernières simulations</h3>
+              <h3 className="mb-2 text-sm font-semibold text-muted-foreground">{t("visa.history")}</h3>
               <div className="flex flex-wrap gap-2">
-                {checks.slice(0, 5).map((c) => (
-                  <Badge key={c.id} variant="secondary" className="gap-1">
-                    {new Date(c.created_at).toLocaleDateString("fr-FR")} ·{" "}
-                    {VISA_TYPE_LABELS[c.visa_type] ?? c.visa_type} · {c.score}%
-                  </Badge>
-                ))}
+                {checks.slice(0, 5).map((c) => {
+                  const label = getVisaTypeLabel(lang, c.visa_type);
+                  const dateLoc = lang === "de" ? "de-DE" : lang === "en" ? "en-GB" : "fr-FR";
+                  return (
+                    <Badge key={c.id} variant="secondary" className="gap-1">
+                      {new Date(c.created_at).toLocaleDateString(dateLoc)} · {label} · {c.score}%
+                    </Badge>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* Disclaimer — TOUJOURS visible */}
+          {/* Disclaimer · TOUJOURS visible */}
           <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
-            {VISA_DISCLAIMER}
+            {VISA_DISCLAIMER_BY_LANG[lang] ?? VISA_DISCLAIMER_BY_LANG.fr}
           </p>
         </motion.div>
       )}

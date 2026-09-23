@@ -133,7 +133,7 @@ export function PronoProfileClient({
             <div className="rounded-xl border border-dashed p-10 text-center">
               <p className="text-4xl">📄</p>
               <p className="mt-3 text-sm text-muted-foreground">
-                Remplis d&apos;abord ton profil <strong>Emploi</strong> — le CV se génère
+                Remplis d&apos;abord ton profil <strong>Emploi</strong> · le CV se génère
                 automatiquement à partir de tes informations.
               </p>
               <button

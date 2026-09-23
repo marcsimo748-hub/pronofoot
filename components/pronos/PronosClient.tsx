@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import { Trophy } from "lucide-react";
 import { MatchPredictionCard } from "./MatchPredictionCard";
 import { StartedMatchCard } from "./StartedMatchCard";
-import type { PublicPrediction, StartedMatch } from "@/lib/services/predictions.service";
+import type { MatchParticipants, PublicPrediction, StartedMatch } from "@/lib/services/predictions.service";
 import { BonusPanel } from "./BonusPanel";
 import { cn, formatDayLabel } from "@/lib/utils";
 import { LEAGUES, LEAGUE_CODES } from "@/lib/constants";
@@ -24,34 +24,76 @@ interface Props {
   startedMatches: StartedMatch[];
   /** Admin uniquement : pronos des joueurs sur les matchs à venir */
   adminPeek?: Record<string, PublicPrediction[]>;
+  /** Qui a déjà pronostiqué sur chaque match à venir (pseudos, jamais les scores) */
+  participants?: Record<string, MatchParticipants>;
 }
 
 type Tab = LeagueCode | "all" | "live" | "bonus";
 
-export function PronosClient({ matches, predictions, settings, startedMatches, adminPeek }: Props) {
+export function PronosClient({ matches, predictions, settings, startedMatches, adminPeek, participants }: Props) {
   const [tab, setTab] = useState<Tab>("all");
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "tomorrow" | "week">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "locked">("all");
 
+  // CORRECTIF FILTRE : les pronos restent en mémoire quand on change
+  // d'onglet championnat — plus jamais de « re-pronostiquer » un match déjà joué.
+  const [myPredictions, setMyPredictions] = useState<Prediction[]>(predictions);
   const predictionsByMatch = useMemo(() => {
     const map = new Map<string, Prediction>();
-    predictions.forEach((p) => map.set(p.match_id, p));
+    myPredictions.forEach((p) => map.set(p.match_id, p));
     return map;
-  }, [predictions]);
+  }, [myPredictions]);
+
+  // Un prono vient d'être sauvé sur une carte : on l'ajoute à l'état global
+  // pour que TOUTES les vues (Tous + championnat) le reflètent instantanément.
+  const handleSaved = (matchId: string, home: number, away: number) => {
+    setMyPredictions((prev) => {
+      const existing = prev.find((p) => p.match_id === matchId);
+      const updated: Prediction = {
+        ...(existing ?? { id: `local-${matchId}`, user_id: "", match_id: matchId, created_at: new Date().toISOString() }),
+        home_score: home,
+        away_score: away,
+        calculated: false,
+        points_earned: 0,
+      } as Prediction;
+      return [...prev.filter((p) => p.match_id !== matchId), updated];
+    });
+  };
 
   const filtered = useMemo(
     () => (tab === "all" || tab === "bonus" ? matches : matches.filter((m) => m.league === tab)),
     [tab, matches]
   );
 
+  // 🔎 Filtres date (aujourd'hui / demain / 7 jours) et statut (ouvert au prono / verrouillé)
+  const filtered2 = useMemo(() => {
+    let out = filtered;
+    if (statusFilter === "open") out = out.filter((m) => m.status === "scheduled");
+    if (statusFilter === "locked") out = out.filter((m) => m.status !== "scheduled");
+    if (dateFilter !== "all") {
+      const DAY = 86_400_000;
+      const start = new Date(); start.setHours(0, 0, 0, 0);
+      const t0 = start.getTime();
+      out = out.filter((m) => {
+        const t = new Date(m.match_date).getTime();
+        if (dateFilter === "today") return t >= t0 && t < t0 + DAY;
+        if (dateFilter === "tomorrow") return t >= t0 + DAY && t < t0 + 2 * DAY;
+        return t >= t0 && t < t0 + 7 * DAY; // semaine
+      });
+    }
+    return out;
+  }, [filtered, dateFilter, statusFilter]);
+
   // Groupement par jour
   const byDay = useMemo(() => {
     const groups = new Map<string, Match[]>();
-    for (const m of filtered) {
+    for (const m of filtered2) {
       const day = new Date(m.match_date).toDateString();
       if (!groups.has(day)) groups.set(day, []);
       groups.get(day)!.push(m);
     }
     return [...groups.entries()];
-  }, [filtered]);
+  }, [filtered2]);
 
   const leagueVisual = tab !== "all" && tab !== "bonus" && tab !== "live" ? settings.leagues[tab] : null;
 
@@ -102,6 +144,59 @@ export function PronosClient({ matches, predictions, settings, startedMatches, a
         ))}
       </div>
 
+      {/* 🔎 Filtres date + statut (sauf onglets live/bonus) */}
+      {tab !== "live" && tab !== "bonus" && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">📅 Date</span>
+          {([
+            { k: "all", l: "Toutes" },
+            { k: "today", l: "Aujourd'hui" },
+            { k: "tomorrow", l: "Demain" },
+            { k: "week", l: "7 jours" },
+          ] as const).map((d) => (
+            <button
+              key={d.k}
+              onClick={() => setDateFilter(d.k)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-semibold transition-all",
+                dateFilter === d.k
+                  ? "border-primary/60 bg-primary/15 text-primary"
+                  : "border-white/10 text-muted-foreground hover:border-white/25 hover:text-foreground"
+              )}
+            >
+              {d.l}
+            </button>
+          ))}
+          <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statut</span>
+          {([
+            { k: "all", l: "Tous" },
+            { k: "open", l: "🔓 Ouverts au prono" },
+            { k: "locked", l: "🔒 Verrouillés" },
+          ] as const).map((d) => (
+            <button
+              key={d.k}
+              onClick={() => setStatusFilter(d.k)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-semibold transition-all",
+                statusFilter === d.k
+                  ? "border-primary/60 bg-primary/15 text-primary"
+                  : "border-white/10 text-muted-foreground hover:border-white/25 hover:text-foreground"
+              )}
+            >
+              {d.l}
+            </button>
+          ))}
+          {(dateFilter !== "all" || statusFilter !== "all") && (
+            <button
+              onClick={() => { setDateFilter("all"); setStatusFilter("all"); }}
+              className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
+            >
+              ✕ Réinitialiser
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Contenu */}
       {tab === "live" ? (
         startedMatches.length === 0 ? (
@@ -132,7 +227,7 @@ export function PronosClient({ matches, predictions, settings, startedMatches, a
           <Trophy className="mx-auto h-10 w-10 text-muted-foreground/40" />
           <p className="mt-4 font-semibold">Aucun match à pronostiquer ici</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Reviens plus tard — les nouveaux matchs des 19 équipes vedettes sont ajoutés automatiquement.
+            Reviens plus tard · les nouveaux matchs des 19 équipes vedettes sont ajoutés automatiquement.
           </p>
         </div>
       ) : (
@@ -163,6 +258,8 @@ export function PronosClient({ matches, predictions, settings, startedMatches, a
                     match={m}
                     prediction={predictionsByMatch.get(m.id)}
                     adminPeek={adminPeek?.[m.id]}
+                    participants={participants?.[m.id]}
+                    onSaved={handleSaved}
                   />
                 ))}
               </motion.div>

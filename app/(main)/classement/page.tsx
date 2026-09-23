@@ -1,11 +1,27 @@
 import type { Metadata } from "next";
 import { ClassementClient } from "@/components/classement/ClassementClient";
-import { getGeneralStandings, getLeagueStandings, getMonthlyStandings } from "@/lib/services/predictions.service";
+import { getGeneralStandings, getMonthlyStandings } from "@/lib/services/predictions.service";
 import { getSessionUser } from "@/lib/supabase/server";
+import { pageMetadata } from "@/lib/seo";
 import type { StandingRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Classement" };
+export const metadata: Metadata = pageMetadata({
+  title: "Classement des pronostiqueurs PRONO · Général, championnat, mensuel",
+  description:
+    "Classement des meilleurs pronostiqueurs de la communauté PRONO : général, par championnat (Bundesliga, Premier League, Liga, Serie A, Ligue 1), mensuel et entre amis. Gagne des boosts en grimpant !",
+  path: "/classement",
+  ogImage: "/og-classement.png",
+  keywords: [
+    "classement pronostiqueurs",
+    "classement foot",
+    "Bundesliga",
+    "Premier League",
+    "Ligue 1",
+    "Serie A",
+    "Liga",
+  ],
+});
 
 /**
  * Page /classement — général, par championnat, mensuel, groupes d'amis.
@@ -25,11 +41,11 @@ export default async function ClassementPage() {
   };
 
   return (
-    <div className="container space-y-6 py-8">
+    <div className="theme-foot container space-y-6 py-8">
       <header className="space-y-1">
-        <h1 className="text-3xl font-black">🏆 Classements</h1>
+        <h1 className="font-display text-4xl font-black">🏆 Classements</h1>
         <p className="text-muted-foreground">
-          Général, par championnat, mensuel et entre amis — mis à jour automatiquement après chaque match.
+          Général, par championnat, mensuel et entre amis.
         </p>
       </header>
       <ClassementClient initial={initial} currentUserId={user?.id} loggedIn={Boolean(user)} />

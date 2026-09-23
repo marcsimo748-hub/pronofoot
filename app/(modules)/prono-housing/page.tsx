@@ -1,26 +1,30 @@
 import type { Metadata } from "next";
+import { BannerRotator } from "@/components/shared/BannerRotator";
 import { getSessionUser } from "@/lib/supabase/server";
 import { getHousingLetter, getHousingPrefill } from "@/lib/services/pronohousing.service";
 import { HousingClient } from "@/components/pronohousing/HousingClient";
+import { HousingOffers } from "@/components/pronohousing/HousingOffers";
 import { AnschreibenGenerator } from "@/components/pronohousing/AnschreibenGenerator";
 import { HousingGuides } from "@/components/pronohousing/HousingGuides";
-import { HOUSING_LEGAL_NOTE } from "@/components/pronohousing/housing-data";
+import { HOUSING_LEGAL_NOTE_BY_LANG } from "@/components/pronohousing/housing-data";
+import { useServerT, readServerLang } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "PRONO Logement, Logement en Allemagne (WG, appartements)",
+  title: "PRONO Logement · Logement en Allemagne (WG, appartements) FR/EN/DE",
   description:
-    "Recherche de logement en Allemagne : WG-Gesucht, ImmoScout24, Immowelt avec tes filtres, loyers de référence par ville, lettre de motivation (Anschreiben) générée automatiquement et guides complets. 100% légal, par PRONO.",
+    "Recherche de logement en Allemagne (FR/EN/DE) : WG-Gesucht, ImmoScout24, Immowelt avec tes filtres, loyers de référence par ville, lettre de motivation (Anschreiben) générée automatiquement et guides complets. 100% légal, par PRONO.",
 };
 
 /**
- * Page /prono-housing — MODULE 4 « Prono-Housing ».
+ * Page /prono-housing — MODULE 4 « Prono-Housing » — trilingue.
  * Page PUBLIQUE : recherche multi-plateformes légale + générateur d'Anschreiben.
  * ⚖️ Aucune annonce copiée ni scrapée : liens vers les sites originaux uniquement.
  */
 export default async function PronoHousingPage() {
   const user = await getSessionUser();
+  const t = await useServerT();
 
   const [saved, prefill] = user
     ? await Promise.all([
@@ -31,24 +35,27 @@ export default async function PronoHousingPage() {
 
   return (
     <div className="theme-housing container space-y-10 py-8">
+      <BannerRotator
+        images={["/banners/housing/01.jpg", "/banners/housing/02.jpg", "/banners/housing/03.jpg", "/banners/housing/04.jpg", "/banners/housing/05.jpg"]}
+        title={t("hou.bannerTitle")}
+        subtitle={t("hou.bannerSub")}
+      />
+
+      {/* Offres de logement de la communauté */}
+      <HousingOffers />
       {/* ===== En-tête ===== */}
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-3xl font-black tracking-tight">🏠 PRONO Logement</h1>
+          <h1 className="text-3xl font-black tracking-tight">🏠 {t("hou.h1")}</h1>
           <span className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-            Allemagne
+            {t("hou.badge")}
           </span>
         </div>
-        <p className="max-w-2xl text-muted-foreground">
-          Ton lanceur de recherche logement <strong>100% légal</strong> : WG-Gesucht, ImmoScout24,
-          Immowelt et Kleinanzeigen ouverts avec <strong>tes filtres</strong> (ville, loyer, WG ou
-          appartement) — plus une <strong>lettre de motivation allemande</strong> générée
-          automatiquement depuis ton profil.
-        </p>
+        <p className="max-w-2xl text-muted-foreground">{t("hou.intro")}</p>
         <div className="flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">⚖️ Zéro scraping, liens officiels</span>
-          <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">📊 Loyers réels constatés</span>
-          <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">✍️ Anschreiben auto</span>
+          <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">{t("hou.legal")}</span>
+          <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">{t("hou.realRents")}</span>
+          <span className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1">{t("hou.anschreiben")}</span>
         </div>
       </header>
 
@@ -67,7 +74,7 @@ export default async function PronoHousingPage() {
 
       {/* ===== Note légale ===== */}
       <footer className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-300">
-        {HOUSING_LEGAL_NOTE}
+        {HOUSING_LEGAL_NOTE_BY_LANG[readServerLang()] ?? HOUSING_LEGAL_NOTE_BY_LANG.fr}
       </footer>
     </div>
   );

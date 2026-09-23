@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     if (!body.key || !(body.key in DEFAULT_SETTINGS)) {
       return NextResponse.json({ ok: false, error: "Clé de réglage invalide" }, { status: 400 });
     }
-    const merged = await updateSetting(body.key, body.value as object);
+    const merged = await updateSetting(body.key, (body.value ?? {}) as Record<string, unknown>);
     return NextResponse.json({ ok: true, data: merged });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });

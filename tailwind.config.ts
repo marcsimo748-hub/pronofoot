@@ -70,6 +70,10 @@ const config: Config = {
           "Arial",
           "sans-serif",
         ],
+        /* Titres éditoriaux (journal de match) */
+        display: ["var(--font-display)", "Georgia", "serif"],
+        /* Tous les chiffres : scores, cotes, minutes, classements */
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       keyframes: {
         "accordion-down": {

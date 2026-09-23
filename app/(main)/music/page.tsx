@@ -19,7 +19,7 @@ export default async function MusicPage() {
       <MusicPageHero count={songs.length} />
       <Playlist />
       <p className="text-center text-xs text-muted-foreground">
-        💡 Astuce : lance un titre puis navigue partout sur le site — la musique continue dans la barre du bas !
+        💡 Astuce : lance un titre puis navigue partout sur le site · la musique continue dans la barre du bas !
       </p>
     </div>
   );

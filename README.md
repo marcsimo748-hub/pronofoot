@@ -476,3 +476,48 @@ Discussions privées liées au compte : les coordonnées ne sortent JAMAIS du si
 - Architecture retenue (tout gratuit) : Groq GPT-OSS 120B (conversation + raisonnement),
   Pollinations (images), Gemini (web + vision, clé gratuite optionnelle), pdf.js + Tesseract
   (lecture fichiers), jsPDF (export), Supabase (mémoire + historique).
+
+## Mission 14 — Vestiaire Edition : légal + design éditorial + événements 🏛️🎨⚽ (2026-09-14)
+- LÉGAL (Allemagne) : 3 pages publiques /impressum (§ 5 DDG, Marc Simo, Berlin),
+  /datenschutz (DSGVO : Vercel, Supabase, pronos à vie Art. 6 f, PronoScore Art. 22,
+  droits), /agb (jeu gratuit sans argent, pronos à vie, classement auto) + liens dans
+  le Footer (FR/EN/DE) + CookieBanner (Akzeptieren/Ablehnen, localStorage, cookies
+  techniques uniquement).
+- BUG LIVE CORRIGÉ : les matchs finis ne restent plus affichés LIVE — purge des lignes
+  périmées dans live_scores à chaque synchro (statut non-live ou > 4 h sans maj) +
+  filtre strict à la lecture (statuts live uniquement, fraîcheur 3 h) + LiveTicker filtré.
+- ÉVÉNEMENTS DE MATCH : buteurs (⚽ minute), cartons (🟨/🟥) sur les cartes de score.
+  Synchro /fixtures/events auto-throttlée (max 5 matchs, 1 fois / 20 min, seulement si
+  matchs live, quota > 15 restantes). ⚠️ MIGRATION 014 à exécuter :
+  supabase/migrations/014_prono_match_events.sql
+- DESIGN ÉVOLUTION (rien de cassé, thème sombre conservé) : fonts Instrument Serif
+  (titres .font-display) + IBM Plex Mono (tous les chiffres : scores, points, cotes) ;
+  couleurs signal par service : foot #FFE600 (texte noir dessus), job #0047FF,
+  housing #00C950, profil #FF2E2E ; BannerRotator (rotation 8 s en fondu, image
+  grayscale + voile noir 40 %, aucune image externe) sur Pronos, Emploi, Logement ;
+  15 bannières locales libre de droits dans public/banners/{foot,job,housing}/.
+- PARTAGE : bouton « Partager ↗ » (Web Share API + repli copier lien avec toast) sur
+  les cartes emplois (lien direct de l'offre), annonces et matchs dévoilés.
+- DASHBOARD : onglet « Communauté » — pronos de tous les joueurs dévoilés (RLS :
+  visibles seulement après le coup d'envoi), mêmes cartes que /pronos.
+- i18n : sélecteur FR/EN/DE désormais visible aussi sur mobile ; toutes les NOUVELLES
+  chaînes (légal, cookies) traduites dans les 3 langues.
+
+## Mission 14.1 — Communauté : pronos visibles, filtre corrigé, coupons publics 🎟️👥 (2026-09-14)
+- PRONOS DES JOUEURS EN BAS DE CHAQUE MATCH : sur les matchs à venir, la carte montre
+  qui a déjà pronostiqué (👥 pseudos + total — les scores restent secrets jusqu'au coup
+  d'envoi, anti-triche côté serveur) ; dès le coup d'envoi, tous les scores se dévoilent.
+- CORRECTIF FILTRE CHAMPIONNAT : après un pronostic dans l'onglet « Tous », le match
+  reste marqué « Enregistré » dans son onglet championnat (l'état vit dans le parent,
+  plus de re-saisie). Resynchronisation automatique du formulaire si la donnée arrive tard.
+- VISIBILITÉ COMMUNAUTÉ : la lecture des pronos dévoilés passe par le client SERVICE
+  côté serveur avec filtre strict match_date <= now — les pronos des autres joueurs
+  s'affichent même si la migration 012 n'est pas encore exécutée (l'anti-triche est
+  garanti par le serveur, la RLS reste en seconde couche).
+- PAGE PUBLIQUE /coupons : archive de TOUS les pronostics du site (30 derniers matchs
+  disputés, pronos dévoilés par match) + compteurs globaux (pronos, joueurs actifs,
+  matchs couverts, points distribués).
+- PAGE PUBLIQUE /joueur/[id] : le coupon de chaque joueur — points, pronos, scores
+  exacts, bonnes issues, taux de réussite, liste complète de ses pronos dévoilés.
+  Pseudos cliquables depuis les matchs dévoilés ET le classement.
+- Lien « Coupons de la communauté » dans le footer (FR/EN/DE) + sur /pronos.

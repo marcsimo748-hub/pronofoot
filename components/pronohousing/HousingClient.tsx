@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * HousingClient — recherche de logement Allemagne (MODULE 4).
+ * HousingClient — recherche de logement Allemagne (MODULE 4) — FR/EN/DE.
  * Filtres (ville, loyer max, type) → liens de recherche officiels vers
  * WG-Gesucht / ImmoScout24 / Immowelt / Kleinanzeigen (100% légal, zéro copie)
  * + tableau de référence des loyers par ville.
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useT, type Lang } from "@/lib/i18n";
 import {
   HOUSING_CITIES,
   HOUSING_TYPES,
@@ -23,6 +24,8 @@ import {
 } from "./housing-data";
 
 export function HousingClient({ prefillCity }: { prefillCity?: string }) {
+  const { t, lang } = useT();
+  const L = (lang || "fr") as Lang;
   const [cityName, setCityName] = useState(
     HOUSING_CITIES.some((c) => c.name === prefillCity) ? prefillCity! : "Berlin"
   );
@@ -38,43 +41,45 @@ export function HousingClient({ prefillCity }: { prefillCity?: string }) {
 
   const inputCls = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm";
 
+  const platformIntroWording =
+    type === "wg" ? t("hou.platformsIntroWG") : type === "studio" ? t("hou.platformsIntroStudio") : t("hou.platformsIntroApt");
+
   return (
     <div className="space-y-6">
       {/* ===== Filtres ===== */}
       <div className="rounded-xl border border-white/5 bg-card/70 p-4 backdrop-blur-sm md:p-6">
-        <h2 className="text-lg font-bold">🔎 Ta recherche</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Règle tes filtres, PRONO ouvre les recherches correspondantes sur les plateformes
-          officielles, avec ton loyer max et ta ville.
-        </p>
+        <h2 className="text-lg font-bold">{t("hou.searchTitle")}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("hou.searchIntro")}</p>
 
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <div className="space-y-1.5">
-            <Label>Ville en Allemagne</Label>
+            <Label>{t("hou.cityLabel")}</Label>
             <select className={inputCls} value={cityName} onChange={(e) => setCityName(e.target.value)}>
               {HOUSING_CITIES.map((c) => (
                 <option key={c.name} value={c.name}>
-                  {c.name}
+                  {c.labels[L]}
                 </option>
               ))}
             </select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="h-rent">Loyer max (€ / mois, charges comprises)</Label>
+            <Label htmlFor="h-rent">{t("hou.rentLabel")}</Label>
             <Input
               id="h-rent"
               type="number"
               min={0}
-              placeholder="Ex : 600"
+              placeholder={t("hou.rentPh")}
               value={rent}
               onChange={(e) => setRent(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Type de logement</Label>
+            <Label>{t("hou.typeLabel")}</Label>
             <select className={inputCls} value={type} onChange={(e) => setType(e.target.value as HousingType)}>
-              {HOUSING_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
+              {HOUSING_TYPES.map((tt) => (
+                <option key={tt.value} value={tt.value}>
+                  {tt.label[L]}
+                </option>
               ))}
             </select>
           </div>
@@ -82,20 +87,24 @@ export function HousingClient({ prefillCity }: { prefillCity?: string }) {
 
         {/* Référence loyers de la ville choisie */}
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-white/5 bg-background/40 p-3 text-sm">
-          <span className="text-muted-foreground">📊 {city.name} :</span>
-          <Badge variant="secondary">Chambre en coloc : {city.wgRoom}</Badge>
-          <Badge variant="outline">Loyer froid : {city.coldRent}</Badge>
-          <span className="text-xs text-muted-foreground">(constats indicatifs — voir tableau complet plus bas)</span>
+          <span className="text-muted-foreground">{t("hou.ref", { city: city.labels[L] })}</span>
+          <Badge variant="secondary">
+            {t("hou.refWGRoom", { price: city.wgRoom[L] })}
+          </Badge>
+          <Badge variant="outline">{t("hou.refColdRent", { price: city.coldRent[L] })}</Badge>
+          <span className="text-xs text-muted-foreground">{t("hou.refHint")}</span>
         </div>
       </div>
 
       {/* ===== Plateformes ===== */}
       <div>
-        <h2 className="text-lg font-bold">🚀 Lancer ta recherche (officiel & légal)</h2>
+        <h2 className="text-lg font-bold">{t("hou.platformsTitle")}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Chaque bouton ouvre la recherche {type === "wg" ? "de colocs" : type === "studio" ? "de studios" : "d'appartements"}{" "}
-          à {city.name}
-          {rentMax ? ` jusqu'à ${rentMax} €` : ""} sur la plateforme d'origine.
+          {t("hou.platformsIntro", {
+            wording: platformIntroWording,
+            city: city.labels[L],
+            rent: rentMax ? t("hou.upToRent", { rent: String(rentMax) }).replace(/^ /, "") : "",
+          })}
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {links.map((l, i) => (
@@ -114,11 +123,11 @@ export function HousingClient({ prefillCity }: { prefillCity?: string }) {
                   <span className="text-xl">{l.emoji}</span> {l.name}
                   <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary" />
                 </div>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">{l.note}</p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">{l.note[L]}</p>
                 <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground/60">{l.legal}</p>
               </div>
               <span className="shrink-0 rounded-lg bg-primary/15 px-3 py-1.5 text-sm font-semibold text-primary transition-colors group-hover:bg-primary/25">
-                Ouvrir ↗
+                {t("hou.openLink")}
               </span>
             </motion.a>
           ))}
@@ -127,18 +136,15 @@ export function HousingClient({ prefillCity }: { prefillCity?: string }) {
 
       {/* ===== Tableau de référence des loyers ===== */}
       <div className="rounded-xl border border-white/5 bg-card/70 p-4 backdrop-blur-sm md:p-6">
-        <h2 className="text-lg font-bold">📊 Loyers de référence par ville</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Fourchettes constatées sur les annonces publiques (2025-2026). Une chambre en coloc à
-          Leipzig coûte 2 fois moins cher qu&apos;à Munich !
-        </p>
+        <h2 className="text-lg font-bold">{t("hou.tableTitle")}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("hou.tableIntro")}</p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="py-2 pr-4">Ville</th>
-                <th className="py-2 pr-4">Chambre coloc</th>
-                <th className="py-2">Loyer froid</th>
+                <th className="py-2 pr-4">{t("hou.colCity")}</th>
+                <th className="py-2 pr-4">{t("hou.colWG")}</th>
+                <th className="py-2">{t("hou.colCold")}</th>
               </tr>
             </thead>
             <tbody>
@@ -151,9 +157,9 @@ export function HousingClient({ prefillCity }: { prefillCity?: string }) {
                   )}
                   onClick={() => setCityName(c.name)}
                 >
-                  <td className="py-2.5 pr-4 font-medium">{c.name}</td>
-                  <td className="py-2.5 pr-4 text-muted-foreground">{c.wgRoom}</td>
-                  <td className="py-2.5 text-muted-foreground">{c.coldRent}</td>
+                  <td className="py-2.5 pr-4 font-medium">{c.labels[L]}</td>
+                  <td className="py-2.5 pr-4 text-muted-foreground">{c.wgRoom[L]}</td>
+                  <td className="py-2.5 text-muted-foreground">{c.coldRent[L]}</td>
                 </tr>
               ))}
             </tbody>

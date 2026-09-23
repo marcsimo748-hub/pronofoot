@@ -1,44 +1,27 @@
 import type { MetadataRoute } from "next";
-import { SITE_NAME } from "@/lib/constants";
 
 /**
- * MANIFEST PWA (Mission 10) — rend le site installable sur mobile
- * (Android : « Ajouter à l'écran d'accueil », iOS : Partager → Sur l'écran d'accueil).
+ * 📱 Manifeste PWA — installable sur mobile (Chrome Android, iOS Safari).
+ * Les icônes existent déjà dans /public/icons (192, 512, maskable).
  */
-
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: `${SITE_NAME}, la Super-App de la Diaspora`,
-    short_name: SITE_NAME,
+    name: "PRONO · Super-App de la Diaspora",
+    short_name: "PRONO",
     description:
-      "Pronostics foot, emploi, visa, logement, annonces et covoiturage : la communauté dans ta poche. 100% gratuit.",
-    lang: "fr",
+      "Pronostics football, scores live, Emploi, Visa, Logement, Annonces et Voyage pour la diaspora africaine en Europe.",
     start_url: "/",
-    scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#0a0a0f",
-    theme_color: "#16a34a",
-    categories: ["sports", "social", "shopping"],
+    background_color: "#0a0a0b",
+    theme_color: "#10b981",
+    lang: "fr",
+    // i18n : manifest multi-langue (Chrome Android respecte ça)
+    categories: ["sports", "lifestyle", "social", "news", "productivity"],
     icons: [
-      {
-        src: "/icons/icon-192.png",
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: "/icons/icon-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: "/icons/icon-maskable-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "maskable",
-      },
+      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

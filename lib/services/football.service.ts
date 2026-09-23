@@ -10,156 +10,568 @@
  */
 
 import { LEAGUES, LEAGUE_CODES, FEATURED_TEAMS, TEAM_ALIASES } from "@/lib/constants";
-import type { LiveScoreRow, Match, StandingEntry, LeagueCode } from "@/lib/types";
+import type { LiveScoreRow, Match, StandingEntry, LeagueCode, MatchEventRow } from "@/lib/types";
 import { normalizeTeam, safeQuery } from "@/lib/utils";
 import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  apiGet,
+  getApiSportsKey,
+  LIVE_API_STATUSES,
+  FINISHED_API_STATUSES,
+  lastApiMeta,
+  fetchFixturesWithFallback,
+  apiTeamToOurs,
+  ourLeague,
+  espnFixturesForDate,
+  espnFixturesRange,
+  toOurName,
+  getFootballDataKey,
+  FD_COMPETITIONS,
+  type NormalizedFixture,
+} from "./football.providers";
+
+export { getApiSportsKey, lastApiMeta, LIVE_API_STATUSES };
+export { invalidateProviderKeyCaches } from "./football.providers";
 import { getSettings, updateSetting } from "./settings.service";
 
 const API_BASE = "https://v3.football.api-sports.io";
 
-interface ApiFixture {
-  fixture: { id: number; date: string; status: { short: string; elapsed: number | null } };
-  league: { id: number; name: string; season: number };
-  teams: { home: { id: number; name: string }; away: { id: number; name: string } };
-  goals: { home: number | null; away: number | null };
-}
 
-/** Appel GET vers API-FOOTBALL avec gestion du quota */
-async function apiGet(path: string, params: Record<string, string | number>): Promise<ApiFixture[] | null> {
-  const key = process.env.API_SPORTS_KEY;
-  if (!key) return null;
 
-  const url = new URL(API_BASE + path);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
-
-  const res = await fetch(url, {
-    headers: { "x-apisports-key": key },
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`API-Sports ${res.status}`);
-
-  // Suivi du quota → pause automatique si < 10 requêtes restantes
-  const remaining = res.headers.get("x-requests-remaining");
-  if (remaining !== null) {
-    const today = new Date().toISOString().slice(0, 10);
-    const state = (await getSettings()).sync_state;
-    if (state.requests_day !== today || state.requests_remaining !== Number(remaining)) {
-      await updateSetting("sync_state", { requests_remaining: Number(remaining), requests_day: today }).catch(() => {});
-    }
-  }
-
-  const json = (await res.json()) as { response?: ApiFixture[]; errors?: unknown };
-  if (json.errors && Object.keys(json.errors).length) {
-    console.warn("[football.service] erreurs API:", json.errors);
-  }
-  return json.response ?? [];
-}
-
-/** Traduit le nom d'une équipe API vers notre nom FR en base */
-function apiTeamToOurs(name: string): string {
-  const norm = normalizeTeam(name);
-  return TEAM_ALIASES[norm] ?? name;
-}
-
-/** Nos 6 championnats sont-ils concernés par ce fixture ? */
-function ourLeague(apiLeagueId: number): LeagueCode | null {
-  for (const code of LEAGUE_CODES) {
-    if (LEAGUES[code].apiId === apiLeagueId) return code;
-  }
-  return null;
-}
 
 // ---------------------------------------------------------------
 // SYNCHRO SCORES LIVE (appelée par /api/scores/sync toutes les ~90s)
 // ---------------------------------------------------------------
 /** Statuts API-Sports considérés comme match terminé (FT, prolong., tirs au but) */
-const FINISHED_API_STATUSES = ["FT", "AET", "PEN"];
+/** Statuts API-Sports = match réellement EN COURS (le reste ne doit jamais s'afficher LIVE) */
 
-export async function syncLiveScores(): Promise<{ synced: number; settled: number; skipped?: string }> {
+export async function syncLiveScores(
+  opts: { skipApiFootball?: boolean } = {}
+): Promise<{
+  synced: number;
+  settled: number;
+  provider?: string;
+  providerErrors?: { provider: string; error: string }[];
+  skipped?: string;
+}> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return { synced: 0, settled: 0, skipped: "no_supabase" };
 
-  const fixtures = await apiGet("/fixtures", { live: "all" });
-  if (fixtures === null) return { synced: 0, settled: 0, skipped: "no_api_key" };
+  // 1) CHAÎNE DE FOURNISSEURS : API-Football → football-data.org → ESPN.
+  //    Le premier qui répond gagne ; en cas d'échec (compte suspendu,
+  //    quota, panne) on bascule automatiquement sur le suivant.
+  const { result, attempts } = await fetchFixturesWithFallback(opts);
+  if (!result) {
+    return { synced: 0, settled: 0, skipped: "all_providers_failed", providerErrors: attempts };
+  }
 
-  // 1) Cache live_scores : uniquement nos championnats
-  const ours = fixtures.filter((f) => ourLeague(f.league.id) !== null);
-  for (const f of ours) {
-    const row = {
-      id: String(f.fixture.id),
-      league: ourLeague(f.league.id),
-      match_date: f.fixture.date,
-      home_team: apiTeamToOurs(f.teams.home.name),
-      away_team: apiTeamToOurs(f.teams.away.name),
-      home_score: f.goals.home,
-      away_score: f.goals.away,
-      status: f.fixture.status.short,
-      elapsed: f.fixture.status.elapsed,
+  // 2) Cache live_scores : uniquement les matchs EN COURS (id stable par
+  //    match → aucun doublon quand on change de fournisseur)
+  const live = result.fixtures.filter((f) => f.status === "live");
+  for (const f of live) {
+    // Recale la date du match en base si elle a dérivé (reprogrammation TV,
+    // seed approximatif) → le FT sera rattrapé naturellement au bon jour.
+    await fixDriftedMatchDate(admin, f);
+    await admin.from("live_scores").upsert({
+      id: f.id,
+      league: f.league,
+      match_date: f.date,
+      home_team: f.home,
+      away_team: f.away,
+      home_score: f.homeScore,
+      away_score: f.awayScore,
+      status: f.liveStatus,
+      elapsed: f.elapsed,
       raw: f,
       updated_at: new Date().toISOString(),
-    };
-    await admin.from("live_scores").upsert(row);
+    });
   }
 
-  // 2) Les matchs TERMINÉS alimentent la table `matches` → calcul des points
+  // 3) Les matchs TERMINÉS alimentent la table `matches` → calcul des points,
+  //    et leur ligne live_scores est SUPPRIMÉE immédiatement (sinon le match
+  //    resterait affiché « en cours » avec son dernier score pendant des heures).
   let settled = 0;
-  const finished = ours.filter((f) => FINISHED_API_STATUSES.includes(f.fixture.status.short));
+  const finished = result.fixtures.filter((f) => f.status === "ft" && f.homeScore !== null && f.awayScore !== null);
   for (const f of finished) {
-    settled += await applyApiResult(f);
+    settled += await applyResultNormalized(f);
+    await admin.from("live_scores").delete().eq("id", f.id);
   }
 
-  return { synced: ours.length, settled };
+  // 4) PURGE des lignes périmées : un match fini ou sorti du flux live ne
+  //    doit JAMAIS rester affiché comme LIVE dans live_scores.
+  //    (les matchs encore en jeu viennent d'être upsertés au-dessus avec un
+  //    updated_at frais → ils sont automatiquement épargnés par la règle b)
+  const staleBefore = new Date(Date.now() - 20 * 60_000).toISOString();
+  // a) statut terminé / annulé / reporté → sortie du cache live
+  await admin.from("live_scores").delete().not("status", "in", `("${LIVE_API_STATUSES.join('","')}")`);
+  // b) plus aucune maj depuis 20 min (match fini sorti du flux live) → périmé
+  await admin.from("live_scores").delete().lt("updated_at", staleBefore);
+
+  return {
+    synced: live.length,
+    settled,
+    provider: result.provider,
+    providerErrors: attempts.length ? attempts : undefined,
+  };
 }
 
-/** Fait correspondre un fixture API à un match en base (équipes + date ±2j) puis enregistre le résultat */
-async function applyApiResult(f: ApiFixture): Promise<number> {
+/** Recale la date d'un match en base sur la date réelle du flux live (dérive de
+ *  reprogrammation ou de seed) — uniquement si pas encore joué, écart > 2 h. */
+async function fixDriftedMatchDate(
+  admin: NonNullable<ReturnType<typeof tryGetSupabaseAdminClient>>,
+  f: NormalizedFixture
+): Promise<void> {
+  try {
+    const from = new Date(new Date(f.date).getTime() - 48 * 3600_000).toISOString();
+    const to = new Date(new Date(f.date).getTime() + 48 * 3600_000).toISOString();
+    const { data } = await admin
+      .from("matches")
+      .select("id, match_date, home_team, away_team")
+      .gte("match_date", from)
+      .lte("match_date", to)
+      .or(`home_team.eq.${f.home},away_team.eq.${f.away}`)
+      .eq("status", "scheduled")
+      .is("home_score", null);
+    const m = (data ?? []).find(
+      (x) => normalizeTeam(x.home_team) === normalizeTeam(f.home) && normalizeTeam(x.away_team) === normalizeTeam(f.away)
+    );
+    if (m && Math.abs(new Date(m.match_date).getTime() - new Date(f.date).getTime()) > 2 * 3600_000) {
+      await admin.from("matches").update({ match_date: f.date }).eq("id", m.id);
+    }
+  } catch {
+    /* silencieux — le recalage est une optimisation */
+  }
+}
+
+/** Journal des derniers échecs de settlement (diagnostic admin — les erreurs
+ *  du RPC étaient auparavant avalées silencieusement). */
+const settleErrors: string[] = [];
+export function getSettleErrors(): string[] {
+  return settleErrors.slice(-20);
+}
+export function resetSettleErrors(): void {
+  settleErrors.length = 0;
+}
+
+/** Comparaison canonique d'équipes : alias appliqués des deux côtés. */
+const normOurs = (x: string) => normalizeTeam(toOurName(x));
+
+/** Enregistre un résultat FT (tous fournisseurs confondus) : match en base par équipes + date ±2j */
+async function applyResultNormalized(f: NormalizedFixture): Promise<number> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return 0;
 
-  const home = apiTeamToOurs(f.teams.home.name);
-  const away = apiTeamToOurs(f.teams.away.name);
-  const date = new Date(f.fixture.date);
-  const from = new Date(date.getTime() - 48 * 3600_000).toISOString();
-  const to = new Date(date.getTime() + 48 * 3600_000).toISOString();
+  const from = new Date(new Date(f.date).getTime() - 48 * 3600_000).toISOString();
+  const to = new Date(new Date(f.date).getTime() + 48 * 3600_000).toISOString();
 
   const { data: candidates } = await admin
     .from("matches")
     .select("id, home_team, away_team, home_score, league")
     .gte("match_date", from)
     .lte("match_date", to)
-    .or(`home_team.eq.${home},away_team.eq.${away}`);
+    .or(`home_team.eq.${f.home},away_team.eq.${f.away}`);
 
-  const match = (candidates ?? []).find(
-    (m) =>
-      normalizeTeam(m.home_team) === normalizeTeam(home) &&
-      normalizeTeam(m.away_team) === normalizeTeam(away)
+  const norm = normOurs;
+  const rows = candidates ?? [];
+  // a) orientation exacte, b) lignes du seed dont les équipes sont inversées :
+  //    le score est alors MAPPE sur l'orientation de la ligne → les pronos
+  //    existants restent valables sans aucune modification.
+  let match = rows.find(
+    (m) => norm(m.home_team) === norm(f.home) && norm(m.away_team) === norm(f.away)
   );
-  if (!match || match.home_score !== null) return 0;
+  let swapped = false;
+  if (!match) {
+    match = rows.find((m) => norm(m.home_team) === norm(f.away) && norm(m.away_team) === norm(f.home));
+    swapped = true;
+  }
+  if (!match) {
+    settleErrors.push(
+      `${f.home}-${f.away} (${f.date.slice(0, 10)}) : aucune ligne en base ±48 h (candidats: ${rows.length})`
+    );
+    return 0;
+  }
+  if (match.home_score !== null) return 0; // déjà réglé
+
+  const home = swapped ? (f.awayScore ?? 0) : (f.homeScore ?? 0);
+  const away = swapped ? (f.homeScore ?? 0) : (f.awayScore ?? 0);
 
   // Enregistre le résultat + calcule les points de tous les pronostics (RPC SQL)
-  const { data } = await admin.rpc("set_match_result", {
+  const { data, error } = await admin.rpc("set_match_result", {
     p_match_id: match.id,
-    p_home: f.goals.home ?? 0,
-    p_away: f.goals.away ?? 0,
+    p_home: home,
+    p_away: away,
   });
+  if (error) {
+    settleErrors.push(
+      `${f.home}-${f.away} (${f.date.slice(0, 10)}) : RPC set_match_result → ${error.message}`
+    );
+    return 0;
+  }
   return typeof data === "number" ? data : 0;
+}
+
+
+// ---------------------------------------------------------------
+// RATTRAPAGE DES RÉSULTATS MANQUANTS (matchs passés sans score)
+// ⚠️ Le plan gratuit API-Football n'a pas accès à la saison en cours :
+// les requêtes team+season sont refusées ("Free plans do not have
+// access to this season"). On récupère donc les résultats passés :
+//   1) par DATE via API-Football (autorisé, 1 requête/jour concerné)
+//   2) en repli via ESPN (sans clé) si l'appel par date échoue
+// ---------------------------------------------------------------
+
+export async function backfillMissedResults(): Promise<{
+  settled: number;
+  dates: string[];
+  diag: { date: string; source: string; found: number; settled: number; error: string | null }[];
+  skipped?: string;
+}> {
+  const admin = tryGetSupabaseAdminClient();
+  if (!admin) return { settled: 0, dates: [], diag: [], skipped: "no_supabase" };
+
+  // 1) Matchs passés (30 derniers jours) sans résultat en base
+  const { data: missedRows } = await admin
+    .from("matches")
+    .select("id, home_team, away_team, match_date, league")
+    .is("home_score", null)
+    .in("status", ["scheduled", "missed"])
+    .gte("match_date", new Date(Date.now() - 30 * 86_400_000).toISOString())
+    .lt("match_date", new Date(Date.now() - 2 * 3600_000).toISOString())
+    .order("match_date", { ascending: true })
+    .limit(400);
+  if (!missedRows || missedRows.length === 0) return { settled: 0, dates: [], diag: [] };
+
+  // 2) Une passe par date concernée (date en base ± 1 jour : la date réelle
+  //    peut différer — reprogrammation TV, seed approximatif)
+  const byDate = new Map<string, typeof missedRows>();
+  for (const m of missedRows) {
+    const d = m.match_date.slice(0, 10);
+    if (!byDate.has(d)) byDate.set(d, []);
+    byDate.get(d)!.push(m);
+  }
+  const diag: { date: string; source: string; found: number; settled: number; error: string | null }[] = [];
+  let totalSettled = 0;
+  let calls = 0;
+
+  for (const [dateStr, rows] of byDate) {
+    if (calls >= 14) break; // garde-fou quota : max 14 requêtes par passe
+    const leagues = [...new Set(rows.map((r) => r.league))];
+    const dayMs = 86_400_000;
+    const variants = [
+      dateStr,
+      new Date(new Date(dateStr).getTime() - dayMs).toISOString().slice(0, 10),
+      new Date(new Date(dateStr).getTime() + dayMs).toISOString().slice(0, 10),
+    ];
+
+    let fixtures: NormalizedFixture[] = [];
+    let source = "aucune";
+    let error: string | null = null;
+    const seenIds = new Set<string>();
+    const push = (f: NormalizedFixture) => {
+      if (!seenIds.has(f.id)) {
+        seenIds.add(f.id);
+        fixtures.push(f);
+      }
+    };
+
+    // a) API-Football par date, sur CHACUNE des 3 dates (± 1 jour) —
+    //    une date fructueuse ne doit pas masquer les autres (le match peut
+    //    avoir été reprogrammé sur une autre journée que la date en base)
+    for (const d of variants) {
+      if (calls >= 14) break;
+      calls++;
+      try {
+        const day = await apiGet("/fixtures", { date: d });
+        const meta = lastApiMeta;
+        const respErr =
+          meta?.errors && Object.keys(meta.errors as Record<string, unknown>).length > 0
+            ? JSON.stringify(meta.errors).slice(0, 120)
+            : null;
+        if (respErr) {
+          error = `api-football ${d}: ${respErr}`;
+          continue; // date hors fenêtre plan gratuit → ESPN prendra le relai
+        }
+        for (const f of day ?? []) {
+          const league = ourLeague(f.league.id);
+          if (!league) continue;
+          if (!FINISHED_API_STATUSES.includes(f.fixture.status.short)) continue;
+          const home = apiTeamToOurs(f.teams.home.name);
+          const away = apiTeamToOurs(f.teams.away.name);
+          push({
+            id: `${home}-${away}-${f.fixture.date.slice(0, 10)}`,
+            sourceId: String(f.fixture.id),
+            provider: "api-football",
+            league,
+            date: f.fixture.date,
+            home,
+            away,
+            homeScore: f.goals.home,
+            awayScore: f.goals.away,
+            status: "ft",
+            liveStatus: f.fixture.status.short,
+            elapsed: null,
+          });
+        }
+      } catch (e) {
+        error = `api-football ${d}: ${(e as Error).message}`;
+      }
+    }
+    if (fixtures.length > 0) source = "api-football";
+
+    // b) Repli ESPN (sans clé, toutes ligues) sur chaque date où API-Football
+    //    n'a rien pu donner (date hors fenêtre du plan gratuit)
+    let espnCalls = 0;
+    for (const d of variants) {
+      if (espnCalls >= 18) break; // budget temps
+      espnCalls += 6;
+      try {
+        const r = await espnFixturesForDate(d); // toutes nos ligues
+        const ft = r.fixtures.filter((f) => f.status === "ft" && f.homeScore !== null && f.awayScore !== null);
+        for (const f of ft) push(f);
+        if (ft.length > 0 && source === "aucune") source = "espn";
+        if (r.failed > 0) error = (error ?? "") + ` espn ${d}: ${r.failed} appels échoués`;
+      } catch (e) {
+        error = (error ?? "") + ` espn ${d}: ${(e as Error).message}`;
+      }
+    }
+    if (fixtures.some((f) => f.provider === "espn") && source === "api-football") source = "api-football+espn";
+
+    // c) Clôture des matchs finis trouvés
+    let settledCount = 0;
+    for (const f of fixtures) {
+      settledCount += await applyResultNormalized(f);
+    }
+    totalSettled += settledCount;
+    diag.push({ date: dateStr, source, found: fixtures.length, settled: settledCount, error: error || null });
+  }
+
+  return { settled: totalSettled, dates: [...byDate.keys()], diag };
 }
 
 // ---------------------------------------------------------------
 // IMPORT DES FIXTURES des 19 équipes vedettes (nouvelles saisons,
 // ajouts automatiques de matchs) — toutes les 6h maximum
 // ---------------------------------------------------------------
-export async function importFixtures(): Promise<{ imported: number; skipped?: string }> {
+/**
+ * Met à jour la date RÉELLE d'un match à venir :
+ *   1. cherche une ligne existante pour ce duel (± 45 jours, sans résultat,
+ *      pas terminé) — orientation exacte OU inversée (seed approximatif) ;
+ *   2. si trouvée → nouvelle date + statut (l'orientation des équipes et les
+ *      pronos existants ne sont JAMAIS modifiés, le résultat sera mappé) ;
+ *   3. sinon → insertion d'un nouveau match.
+ */
+async function reshapeUpcomingFixture(
+  admin: NonNullable<ReturnType<typeof tryGetSupabaseAdminClient>>,
+  f: NormalizedFixture & { espnState: string }
+): Promise<"reshaped" | "imported" | "skipped"> {
+  const dayMs = 86_400_000;
+  const from = new Date(new Date(f.date).getTime() - 45 * dayMs).toISOString();
+  const to = new Date(new Date(f.date).getTime() + 45 * dayMs).toISOString();
+  const norm = (x: string) => normalizeTeam(x);
+
+  const { data: candidates } = await admin
+    .from("matches")
+    .select("id, home_team, away_team, home_score, status, external_id")
+    .eq("league", f.league)
+    .gte("match_date", from)
+    .lte("match_date", to)
+    .or(`home_team.eq.${f.home},away_team.eq.${f.home},home_team.eq.${f.away},away_team.eq.${f.away}`);
+
+  const rows = (candidates ?? []).filter((m) => m.home_score === null && m.status !== "finished");
+  const target =
+    rows.find((m) => norm(m.home_team) === norm(f.home) && norm(m.away_team) === norm(f.away)) ??
+    rows.find((m) => norm(m.home_team) === norm(f.away) && norm(m.away_team) === norm(f.home));
+
+  if (target) {
+    const exact =
+      norm(target.home_team) === norm(f.home) && norm(target.away_team) === norm(f.away);
+    await admin
+      .from("matches")
+      .update({
+        match_date: f.date,
+        status: f.espnState === "in" ? "live" : "scheduled",
+        // Renommage ORTHOGRAPHIQUE uniquement (même orientation) — jamais
+        // d'inversion des équipes d'une ligne qui porte des pronostics.
+        ...(exact ? { home_team: f.home, away_team: f.away } : {}),
+        ...(target.external_id ? {} : { external_id: `espn-${f.sourceId}`, source: "espn" }),
+      })
+      .eq("id", target.id);
+    return "reshaped";
+  }
+
+  // Garde anti-doublon : si ce duel existe DÉJÀ (n'importe quel statut, score
+  // posé ou pas — ex : ligne du seed déjà réglée), on n'insère RIEN.
+  const { count: twinCount } = await admin
+    .from("matches")
+    .select("id", { count: "exact", head: true })
+    .eq("league", f.league)
+    .gte("match_date", from)
+    .lte("match_date", to)
+    .or(`home_team.eq.${f.home},away_team.eq.${f.home},home_team.eq.${f.away},away_team.eq.${f.away}`);
+  if ((twinCount ?? 0) > 0) return "skipped";
+
+  await admin
+    .from("matches")
+    .upsert(
+      {
+    external_id: `espn-${f.sourceId}`,
+    league: f.league,
+    season: LEAGUES[f.league].season,
+    match_date: f.date,
+    home_team: f.home,
+    away_team: f.away,
+    status: f.espnState === "in" ? "live" : "scheduled",
+    home_score: null,
+    away_score: null,
+    source: "espn",
+      },
+      { onConflict: "external_id", ignoreDuplicates: true }
+    );
+  return "imported";
+}
+
+/**
+ * Nettoie les doublons créés par un import aux noms mal alignés (lignes
+ * "espn-*" sans pronostic dont le duel existe déjà sur une autre ligne).
+ * Ne touche JAMAIS une ligne qui porte des pronostics.
+ */
+async function dedupeEspnDuplicates(
+  admin: NonNullable<ReturnType<typeof tryGetSupabaseAdminClient>>
+): Promise<number> {
+  const dayMs = 86_400_000;
+  const from = new Date(Date.now() - 60 * dayMs).toISOString();
+  const to = new Date(Date.now() + 60 * dayMs).toISOString();
+  const { data: rows } = await admin
+    .from("matches")
+    .select("id, home_team, away_team, external_id, league")
+    .gte("match_date", from)
+    .lte("match_date", to);
+  if (!rows?.length) return 0;
+
+  const groups = new Map<string, typeof rows>();
+  for (const m of rows) {
+    const pair = [normOurs(m.home_team), normOurs(m.away_team)].sort().join("|");
+    const key = `${m.league}::${pair}`;
+    const g = groups.get(key) ?? [];
+    g.push(m);
+    groups.set(key, g);
+  }
+
+  let deleted = 0;
+  for (const g of groups.values()) {
+    if (g.length < 2) continue;
+    const espnRows = g.filter((m) => (m.external_id ?? "").startsWith("espn-"));
+    const others = g.filter((m) => !(m.external_id ?? "").startsWith("espn-"));
+    if (!espnRows.length) continue;
+    let victims = espnRows;
+    // groupe 100% espn : on garde le premier, supprime le reste
+    if (!others.length) victims = espnRows.slice(1);
+    if (!victims.length) continue;
+    // une ligne avec pronostics n'est JAMAIS supprimée
+    const { data: preds } = await admin
+      .from("predictions")
+      .select("match_id")
+      .in("match_id", victims.map((v) => v.id))
+      .limit(1);
+    const protectedIds = new Set((preds ?? []).map((p) => p.match_id));
+    const toDelete = victims.filter((v) => !protectedIds.has(v.id)).map((v) => v.id);
+    if (!toDelete.length) continue;
+    await admin.from("matches").delete().in("id", toDelete);
+    deleted += toDelete.length;
+  }
+  return deleted;
+}
+
+export async function importFixtures(): Promise<{
+  imported: number;
+  reshaped?: number;
+  settled?: number;
+  deduped?: number;
+  skipped?: string;
+  diag?: { team: string; count: number; errors: string | null }[];
+}> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return { imported: 0, skipped: "no_supabase" };
-  if (!process.env.API_SPORTS_KEY) return { imported: 0, skipped: "no_api_key" };
+
+  // ============================================================
+  // SOURCE PRINCIPALE : ESPN (sans clé, sans quota, sans limite de plan).
+  // Fenêtre J-2 → J+7 : on remet les VRAIES dates/heures des matchs à venir
+  // (le seed initial est approximatif) et on ajoute les matchs manquants.
+  // ============================================================
+  try {
+    const dayMs = 86_400_000;
+    const dates: string[] = [];
+    for (let i = -2; i <= 7; i++) {
+      dates.push(new Date(Date.now() + i * dayMs).toISOString().slice(0, 10));
+    }
+    const espn = await espnFixturesRange(dates);
+    if (espn.fixtures.length > 0 || espn.failed < 20) {
+      let imported = 0;
+      let reshaped = 0;
+      let settled = 0;
+      for (const f of espn.fixtures) {
+        if (f.espnState === "post") {
+          // Match fini avec score → on repositionne d'abord la date de la
+          // ligne (le seed peut être décalé de plus de 48 h), PUIS clôture.
+          await reshapeUpcomingFixture(admin, f).catch(() => {});
+          settled += await applyResultNormalized(f);
+        } else {
+          // À venir ou en cours → vraie date/heure dans la ligne existante
+          const res = await reshapeUpcomingFixture(admin, f);
+          if (res === "reshaped") reshaped++;
+          else if (res === "imported") imported++;
+        }
+      }
+      const deduped = await dedupeEspnDuplicates(admin).catch(() => 0);
+      await updateSetting("sync_state", { last_fixtures_import: Date.now() }).catch(() => {});
+      return {
+        imported,
+        reshaped,
+        settled,
+        deduped,
+        diag: [
+          {
+            team: `ESPN : ${espn.fixtures.length} matchs (J-2 → J+7)`,
+            count: espn.fixtures.length,
+            errors: espn.failed > 0 ? `${espn.failed} appels ESPN échoués` : null,
+          },
+        ],
+      };
+    }
+    // ESPN muet (panne ?) → on tente l'ancien chemin API-Football ci-dessous
+  } catch {
+    /* repli API-Football */
+  }
+
+  if (!(await getApiSportsKey())) return { imported: 0, skipped: "no_api_key" };
 
   const season = LEAGUES.premier.season;
   let imported = 0;
+  let settled = 0;
+  const diag: { team: string; count: number; errors: string | null }[] = [];
 
   for (const team of FEATURED_TEAMS) {
-    const fixtures = await apiGet("/fixtures", { team: team.apiId, season });
-    if (!fixtures) continue;
+    // Une équipe qui échoue (429, réseau…) n'arrête plus tout l'import
+    let fixtures: Awaited<ReturnType<typeof apiGet>>;
+    try {
+      fixtures = await apiGet("/fixtures", { team: team.apiId, season });
+    } catch (e) {
+      diag.push({ team: team.name, count: -1, errors: `throw: ${(e as Error).message}` });
+      if (diag.length >= 3 && diag.slice(0, 3).every((x) => x.errors?.includes("429"))) break; // rate-limit
+      continue;
+    }
+    // Plan gratuit sans accès à la saison → inutile de continuer (19 appels gaspillés)
+    const planErr = JSON.stringify(lastApiMeta?.errors ?? {});
+    if (planErr.includes("Free plans") || planErr.includes("this season")) {
+      return { imported: 0, settled: 0, skipped: "plan_season_forbidden", diag };
+    }
+    const meta = lastApiMeta;
+    const respErr =
+      meta?.errors && Object.keys(meta.errors as Record<string, unknown>).length > 0
+        ? JSON.stringify(meta.errors).slice(0, 160)
+        : null;
+    diag.push({ team: team.name, count: fixtures?.length ?? -1, errors: respErr });
+    if (!fixtures || fixtures.length === 0) continue;
 
     for (const f of fixtures) {
       const league = ourLeague(f.league.id);
@@ -187,8 +599,23 @@ export async function importFixtures(): Promise<{ imported: number; skipped?: st
 
       if (isFinished) {
         // 2a) Match terminé DÉJÀ connu mais sans résultat en base → settlement
-        //     (le score n'est jamais écrasé : applyApiResult vérifie home_score)
-        await applyApiResult(f);
+        //     (le score n'est jamais écrasé : applyResultNormalized vérifie home_score)
+        const homeName = apiTeamToOurs(f.teams.home.name);
+        const awayName = apiTeamToOurs(f.teams.away.name);
+        settled += await applyResultNormalized({
+          id: `${homeName}-${awayName}-${f.fixture.date.slice(0, 10)}`,
+          sourceId: String(f.fixture.id),
+          provider: "api-football",
+          league: league,
+          date: f.fixture.date,
+          home: homeName,
+          away: awayName,
+          homeScore: f.goals.home,
+          awayScore: f.goals.away,
+          status: "ft",
+          liveStatus: "FT",
+          elapsed: null,
+        });
       } else {
         // 2b) Match à venir déjà connu → on RAFRAÎCHIT l'horaire
         //     (changement d'horaire, report... les heures restent exactes)
@@ -204,7 +631,7 @@ export async function importFixtures(): Promise<{ imported: number; skipped?: st
   }
 
   await updateSetting("sync_state", { last_fixtures_import: Date.now() }).catch(() => {});
-  return { imported };
+  return { imported, settled, diag };
 }
 
 // ---------------------------------------------------------------
@@ -213,13 +640,81 @@ export async function importFixtures(): Promise<{ imported: number; skipped?: st
 export async function syncStandings(): Promise<{ updated: number; skipped?: string }> {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) return { updated: 0, skipped: "no_supabase" };
-  if (!process.env.API_SPORTS_KEY) return { updated: 0, skipped: "no_api_key" };
 
+  // ⚠️ Le plan gratuit API-Football interdit la saison en cours : les
+  // classements viennent de FOOTBALL-DATA.ORG (clé gratuite, 10 req/min,
+  // exactement nos 6 compétitions). API-Football reste en repli si un jour
+  // le plan est débloqué.
+  const fdKey = await getFootballDataKey();
+  if (fdKey) return syncStandingsFootballData(fdKey);
+  if (!(await getApiSportsKey())) return { updated: 0, skipped: "no_key" };
+  return syncStandingsApiFootball();
+}
+
+/** Classements via football-data.org (source principale) */
+async function syncStandingsFootballData(key: string): Promise<{ updated: number }> {
+  const leagues: Partial<Record<LeagueCode, StandingEntry[]>> = {};
+
+  for (const [fdCode, leagueCode] of Object.entries(FD_COMPETITIONS)) {
+    try {
+      const res = await fetch(`https://api.football-data.org/v4/competitions/${fdCode}/standings`, {
+        headers: { "X-Auth-Token": key },
+        cache: "no-store",
+      });
+      if (!res.ok) continue; // 403/429 → on garde les autres championnats
+      const json = (await res.json()) as {
+        standings?: {
+          type: string;
+          table?: {
+            position: number;
+            team: { name: string };
+            playedGames: number;
+            won: number;
+            draw: number;
+            lost: number;
+            goalsFor: number;
+            goalsAgainst: number;
+            points: number;
+            form?: string;
+          }[];
+        }[];
+      };
+      // Table générale (TOTAL) — la LDC a aussi des groupes/dom/dext
+      const rows = json.standings?.find((st) => st.type === "TOTAL")?.table ?? [];
+      if (rows.length) {
+        leagues[leagueCode] = rows.slice(0, 24).map((r) => ({
+          rank: r.position,
+          team: apiTeamToOurs(r.team.name),
+          played: r.playedGames,
+          win: r.won,
+          draw: r.draw,
+          lose: r.lost,
+          goals_for: r.goalsFor,
+          goals_against: r.goalsAgainst,
+          points: r.points,
+          form: r.form?.slice(0, 10),
+        }));
+      }
+    } catch {
+      /* championnat suivant */
+    }
+  }
+
+  await updateSetting("standings_cache", {
+    updated_at: new Date().toISOString(),
+    leagues,
+  }).catch(() => {});
+  await updateSetting("sync_state", { last_standings_sync: Date.now() }).catch(() => {});
+  return { updated: Object.keys(leagues).length };
+}
+
+/** Classements via API-Football (repli — saison bloquée en plan gratuit) */
+async function syncStandingsApiFootball(): Promise<{ updated: number }> {
   const season = LEAGUES.premier.season;
   const leagues: Partial<Record<LeagueCode, StandingEntry[]>> = {};
 
   for (const code of LEAGUE_CODES) {
-    const key = process.env.API_SPORTS_KEY!;
+    const key = (await getApiSportsKey())!;
     const url = new URL(`${API_BASE}/standings`);
     url.searchParams.set("league", String(LEAGUES[code].apiId));
     url.searchParams.set("season", String(season));
@@ -285,7 +780,8 @@ export async function getLiveScores(): Promise<LiveScoreRow[]> {
     const { data } = await supabase
       .from("live_scores")
       .select("*")
-      .neq("status", "FT")
+      .in("status", LIVE_API_STATUSES)
+      .gte("updated_at", new Date(Date.now() - 3 * 3600_000).toISOString())
       .order("updated_at", { ascending: false })
       .limit(30);
     return (data ?? []) as LiveScoreRow[];
@@ -322,5 +818,117 @@ export async function getRecentResults(limit = 20): Promise<Match[]> {
       .order("match_date", { ascending: false })
       .limit(limit);
     return (data ?? []) as Match[];
+  }, []);
+}
+
+
+// ---------------------------------------------------------------
+// ÉVÉNEMENTS DE MATCH (buteurs, cartons, penalties) — API-Football
+// /fixtures/events. QUOTA PROTÉGÉ : max 5 matchs, 1 synchro / 20 min,
+// uniquement quand des matchs sont réellement en direct.
+// ---------------------------------------------------------------
+
+interface ApiEvent {
+  time: { elapsed: number | null };
+  team: { name: string };
+  player: { name: string };
+  type: string;
+  detail: string | null;
+}
+
+/** Synchro des événements des matchs live (appelée depuis /api/scores/sync) */
+export async function syncMatchEvents(): Promise<{ events: number; skipped?: string }> {
+  const admin = tryGetSupabaseAdminClient();
+  if (!admin) return { events: 0, skipped: "no_supabase" };
+  if (!(await getApiSportsKey())) return { events: 0, skipped: "no_api_key" };
+
+  // Throttle : une synchro des événements max toutes les 20 minutes
+  const settings = await getSettings();
+  const now = Date.now();
+  if (now - (settings.sync_state.last_events_sync ?? 0) < 20 * 60_000) {
+    return { events: 0, skipped: "throttled" };
+  }
+  await updateSetting("sync_state", { last_events_sync: now }).catch(() => {});
+
+  // Garde-fou quota : il faut rester au-dessus de 15 requêtes
+  const { requests_remaining, requests_day } = settings.sync_state;
+  const today = new Date().toISOString().slice(0, 10);
+  if (requests_remaining !== null && requests_day === today && requests_remaining < 15) {
+    return { events: 0, skipped: "quota_low" };
+  }
+
+  // Matchs réellement en direct — les événements (buteurs/cartons) ne sont
+  // disponibles que chez API-Football : on n'interroge que les matchs
+  // synchronisés par ce fournisseur (id source dans raw.sourceId).
+  const { data: liveRows } = await admin
+    .from("live_scores")
+    .select("id, raw")
+    .in("status", LIVE_API_STATUSES)
+    .limit(10);
+  const apiRows = (liveRows ?? []).filter(
+    (r) => (r.raw as { provider?: string } | null)?.provider === "api-football"
+  );
+  if (apiRows.length === 0) return { events: 0, skipped: "no_live" };
+
+  let count = 0;
+  for (const row of apiRows.slice(0, 5)) {
+    const sourceId = (row.raw as { sourceId?: string } | null)?.sourceId ?? row.id;
+    const events = await apiGetEvents("/fixtures/events", { fixture: sourceId });
+    for (const ev of events) {
+      const isGoal = ev.type === "Goal";
+      const isCard = ev.type === "Card";
+      const isPen = ev.type === "Var" || /penalty/i.test(ev.detail ?? "");
+      if (!isGoal && !isCard && !isPen) continue; // on garde buts + cartons + VAR/penalty
+      const { error } = await admin.from("prono_match_events").upsert(
+        {
+          fixture_id: row.id,
+          team: apiTeamToOurs(ev.team.name),
+          player: ev.player.name || "?",
+          type: isGoal ? "Goal" : isCard ? "Card" : "Penalty",
+          detail: ev.detail,
+          minute: ev.time.elapsed,
+        },
+        { onConflict: "fixture_id,team,player,type,detail,minute" }
+      );
+      if (!error) count++;
+    }
+  }
+  return { events: count };
+}
+
+/** Appel GET API-Football générique (events) */
+async function apiGetEvents(path: string, params: Record<string, string | number>): Promise<ApiEvent[]> {
+  const key = await getApiSportsKey();
+  if (!key) return [];
+  const url = new URL("https://v3.football.api-sports.io" + path);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
+  try {
+    const res = await fetch(url, { headers: { "x-apisports-key": key }, cache: "no-store" });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { response?: ApiEvent[] };
+    return json.response ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Événements des matchs live actuels (lecture publique, pour /scores) */
+export async function getLiveEvents(): Promise<MatchEventRow[]> {
+  const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+  return safeQuery(async () => {
+    const supabase = createSupabaseServerClient();
+    const { data: live } = await supabase
+      .from("live_scores")
+      .select("id")
+      .in("status", LIVE_API_STATUSES)
+      .limit(10);
+    if (!live || live.length === 0) return [];
+    const ids = live.map((r: { id: string }) => r.id);
+    const { data } = await supabase
+      .from("prono_match_events")
+      .select("fixture_id, team, player, type, detail, minute")
+      .in("fixture_id", ids)
+      .order("minute", { ascending: true });
+    return (data ?? []) as MatchEventRow[];
   }, []);
 }

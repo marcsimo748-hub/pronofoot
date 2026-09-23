@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * JobPrefsForm — "Mon profil emploi" (alimente le PronoScore).
+ * JobPrefsForm — "Mon profil emploi" (alimente le PronoScore) — FR/EN/DE.
  * Mots-clés métier, ville souhaitée, télétravail, niveau d'allemand/anglais,
  * type de contrat. Sauvegardé dans prono_job_prefs (RLS : propriétaire).
  */
@@ -14,26 +14,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import type { JobPrefs } from "@/lib/types";
 
-const LEVELS = [
-  { v: "none", label: "Aucun" },
-  { v: "A1", label: "A1 — Débutant" },
-  { v: "A2", label: "A2 — Élémentaire" },
-  { v: "B1", label: "B1 — Intermédiaire" },
-  { v: "B2", label: "B2 — Avancé" },
-  { v: "C1", label: "C1 — Autonome" },
-  { v: "C2", label: "C2 — Maîtrise" },
-];
+const LEVEL_KEYS = [
+  { v: "none", key: "job.lvNone" },
+  { v: "A1", key: "job.lvA1" },
+  { v: "A2", key: "job.lvA2" },
+  { v: "B1", key: "job.lvB1" },
+  { v: "B2", key: "job.lvB2" },
+  { v: "C1", key: "job.lvC1" },
+  { v: "C2", key: "job.lvC2" },
+] as const;
 
-const CONTRACTS = [
-  { v: "", label: "Tous les contrats" },
-  { v: "full-time", label: "Temps plein" },
-  { v: "part-time", label: "Temps partiel" },
-  { v: "contract", label: "CDD / Mission" },
-  { v: "internship", label: "Stage / Alternance" },
-  { v: "freelance", label: "Freelance" },
-];
+const CONTRACT_KEYS = [
+  { v: "", key: "job.contractAll" },
+  { v: "full-time", key: "job.cFull" },
+  { v: "part-time", key: "job.cPart" },
+  { v: "contract", key: "job.cCdd" },
+  { v: "internship", key: "job.cIntern" },
+  { v: "freelance", key: "job.cFree" },
+] as const;
 
 export function JobPrefsForm({
   prefs,
@@ -46,6 +47,7 @@ export function JobPrefsForm({
   dbReady: boolean;
   onSaved: (prefs: JobPrefs) => void;
 }) {
+  const { t } = useT();
   const [open, setOpen] = useState(!prefs); // ouvert par défaut si pas encore de profil
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -76,14 +78,14 @@ export function JobPrefsForm({
       const json = await res.json();
       if (json.ok) {
         onSaved(form);
-        setMessage("✅ Profil enregistré — PronoScore mis à jour !");
+        setMessage(t("job.prefsSaved"));
       } else if (json.code === "no_table") {
-        setMessage("⚠️ Sauvegarde momentanément indisponible, réessaie dans un instant.");
+        setMessage(t("job.prefsNoTable"));
       } else {
-        setMessage("❌ Erreur d'enregistrement, réessaie.");
+        setMessage(t("job.prefsErr"));
       }
     } catch {
-      setMessage("❌ Connexion impossible, réessaie.");
+      setMessage(t("job.prefsNet"));
     } finally {
       setSaving(false);
     }
@@ -97,9 +99,9 @@ export function JobPrefsForm({
       >
         <span className="flex items-center gap-2 font-semibold">
           <Sparkles className="h-4 w-4 text-primary" />
-          Mon profil emploi
+          {t("job.prefsTitle")}
           <span className="text-xs font-normal text-muted-foreground">
-            — active ton PronoScore personnalisé
+            · {t("job.prefsHint")}
           </span>
         </span>
         <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
@@ -111,78 +113,76 @@ export function JobPrefsForm({
             <p className="rounded-lg bg-secondary/50 p-3 text-sm">
               🔐{" "}
               <Link href="/login" className="font-medium text-primary underline underline-offset-2">
-                Connecte-toi
+                {t("job.loginA")}
               </Link>{" "}
-              pour enregistrer ton profil emploi et suivre tes candidatures.
+              {t("job.loginB")}
             </p>
           ) : !dbReady ? (
             <p className="rounded-lg bg-amber-500/10 p-3 text-sm text-amber-400">
-              💾 Module en mode lecture seule : exécute le script{" "}
-              <code className="rounded bg-black/30 px-1">004_prono_jobs.sql</code> dans Supabase
-              (SQL Editor) pour activer le PronoScore personnalisé et le suivi des candidatures.
+              💾 {t("job.prefsNoTable")}
             </p>
           ) : null}
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="jp-keywords">Métiers / mots-clés</Label>
+              <Label htmlFor="jp-keywords">{t("job.prefsKeywords")}</Label>
               <Input
                 id="jp-keywords"
-                placeholder="Ex : chauffeur, cuisine, logistique, développeur…"
+                placeholder={t("job.prefsKeywordsPh")}
                 value={form.keywords}
                 onChange={(e) => set("keywords", e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="jp-city">Ville souhaitée</Label>
+              <Label htmlFor="jp-city">{t("job.prefsCity")}</Label>
               <Input
                 id="jp-city"
-                placeholder="Ex : Berlin"
+                placeholder={t("job.prefsCityPh")}
                 value={form.city}
                 onChange={(e) => set("city", e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="jp-german">Niveau d&apos;allemand</Label>
+              <Label htmlFor="jp-german">{t("job.prefsGerman")}</Label>
               <select
                 id="jp-german"
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={form.german_level}
                 onChange={(e) => set("german_level", e.target.value)}
               >
-                {LEVELS.map((l) => (
-                  <option key={l.v} value={l.v}>{l.label}</option>
+                {LEVEL_KEYS.map((l) => (
+                  <option key={l.v} value={l.v}>{t(l.key)}</option>
                 ))}
               </select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="jp-english">Niveau d&apos;anglais</Label>
+              <Label htmlFor="jp-english">{t("job.prefsEnglish")}</Label>
               <select
                 id="jp-english"
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={form.english_level}
                 onChange={(e) => set("english_level", e.target.value)}
               >
-                {LEVELS.map((l) => (
-                  <option key={l.v} value={l.v}>{l.label}</option>
+                {LEVEL_KEYS.map((l) => (
+                  <option key={l.v} value={l.v}>{t(l.key)}</option>
                 ))}
               </select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="jp-contract">Contrat recherché</Label>
+              <Label htmlFor="jp-contract">{t("job.prefsContract")}</Label>
               <select
                 id="jp-contract"
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={form.contract}
                 onChange={(e) => set("contract", e.target.value)}
               >
-                {CONTRACTS.map((c) => (
-                  <option key={c.v} value={c.v}>{c.label}</option>
+                {CONTRACT_KEYS.map((c) => (
+                  <option key={c.v} value={c.v}>{t(c.key)}</option>
                 ))}
               </select>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-white/5 bg-background/50 px-3 py-2">
-              <Label htmlFor="jp-remote">Télétravail uniquement</Label>
+              <Label htmlFor="jp-remote">{t("job.prefsRemote")}</Label>
               <Switch
                 id="jp-remote"
                 checked={form.remote_only}
@@ -193,7 +193,7 @@ export function JobPrefsForm({
 
           <div className="flex flex-wrap items-center gap-3">
             <Button size="sm" onClick={save} disabled={!loggedIn || saving}>
-              {saving ? "Enregistrement…" : "💾 Enregistrer mon profil"}
+              {saving ? t("job.saving") : t("job.prefsSave")}
             </Button>
             {message && <span className="text-sm text-muted-foreground">{message}</span>}
           </div>

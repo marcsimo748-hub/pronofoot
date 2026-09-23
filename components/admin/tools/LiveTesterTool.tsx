@@ -41,7 +41,7 @@ export function LiveTesterTool({
     try {
       await adminFetch("/api/admin/test-live", { action: value ? "start" : "stop" });
       onChange({ active: value });
-      toast.success(value ? "🔴 Mode testeur activé — des scores fictifs apparaissent dans le ticker." : "Mode testeur désactivé.");
+      toast.success(value ? "🔴 Mode testeur activé · des scores fictifs apparaissent dans le ticker." : "Mode testeur désactivé.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     }
@@ -60,7 +60,7 @@ export function LiveTesterTool({
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Génère de faux matchs « en direct » dans le cache <code>live_scores</code> pour vérifier le ticker,
-        la page Scores et le temps réel — <b>sans impact sur les pronostics ni les points</b>.
+        la page Scores et le temps réel · <b>sans impact sur les pronostics ni les points</b>.
       </p>
       <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-3 font-semibold">

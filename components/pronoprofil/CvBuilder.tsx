@@ -17,9 +17,9 @@ import type { PronoProfile } from "@/lib/types";
 type TemplateKey = "modern" | "classic" | "german";
 
 const TEMPLATES: { key: TemplateKey; name: string; desc: string; emoji: string }[] = [
-  { key: "modern", name: "Moderne", desc: "Sidebar colorée, dynamique — startups et métiers tech", emoji: "🚀" },
-  { key: "classic", name: "Classique", desc: "Sobre et élégant — banques, administration, tous secteurs", emoji: "🎩" },
-  { key: "german", name: "Allemand Ausbildung", desc: "Lebenslauf structuré — candidatures en Allemagne", emoji: "🇩🇪" },
+  { key: "modern", name: "Moderne", desc: "Sidebar colorée, dynamique · startups et métiers tech", emoji: "🚀" },
+  { key: "classic", name: "Classique", desc: "Sobre et élégant · banques, administration, tous secteurs", emoji: "🎩" },
+  { key: "german", name: "Allemand Ausbildung", desc: "Lebenslauf structuré · candidatures en Allemagne", emoji: "🇩🇪" },
 ];
 
 export function CvBuilder({
@@ -66,9 +66,9 @@ export function CvBuilder({
     <div className="space-y-6">
       {/* Choix du template */}
       <div className="rounded-xl border border-white/5 bg-card/70 p-4 backdrop-blur-sm md:p-6">
-        <h2 className="text-xl font-bold">📄 Mon CV — généré automatiquement</h2>
+        <h2 className="text-xl font-bold">📄 Mon CV · généré automatiquement</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Ton CV se remplit tout seul avec ton profil Emploi. Choisis un modèle puis exporte en PDF —
+          Ton CV se remplit tout seul avec ton profil Emploi. Choisis un modèle puis exporte en PDF -
           c&apos;est gratuit et illimité.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -96,7 +96,7 @@ export function CvBuilder({
             ⬇️ Télécharger mon CV en PDF
           </Button>
           {exported && (
-            <span className="text-sm text-green-400">✓ PDF téléchargé — vérifie tes téléchargements !</span>
+            <span className="text-sm text-green-400">✓ PDF téléchargé · vérifie tes téléchargements !</span>
           )}
         </div>
       </div>
@@ -104,7 +104,7 @@ export function CvBuilder({
       {/* Aperçu A4 (défilement horizontal sur mobile) */}
       <div className="rounded-xl border border-white/5 bg-card/70 p-2 backdrop-blur-sm md:p-4">
         <p className="mb-2 px-1 text-xs text-muted-foreground">
-          Aperçu réel (A4) — le PDF téléchargé est exactement identique.
+          Aperçu réel (A4) · le PDF téléchargé est exactement identique.
         </p>
         <div className="overflow-x-auto">
           <div ref={targetRef} style={{ width: 794 }} className="mx-auto shadow-2xl">

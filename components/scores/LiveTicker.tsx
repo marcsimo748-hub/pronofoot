@@ -30,6 +30,7 @@ export function LiveTicker({ initialLive, upcoming }: LiveTickerProps) {
       const { data } = await supabase
         .from("live_scores")
         .select("*")
+        .in("status", ["1H", "2H", "HT", "ET", "BT", "P", "LIVE", "INT", "SUSP"])
         .order("updated_at", { ascending: false })
         .limit(15);
       if (data) setLive(data as LiveScoreRow[]);

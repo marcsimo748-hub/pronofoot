@@ -15,6 +15,7 @@ import {
   Home,
   Heart,
   Plane,
+  Send,
   ArrowRight,
   type LucideIcon,
 } from "lucide-react";
@@ -99,6 +100,17 @@ const SERVICES: Service[] = [
     hoverCard: "hover:bg-[#0891b2] hover:border-[#0891b2] hover:text-white",
     ctaColor: "text-[#0891b2]",
   },
+  {
+    href: "/prono-transferts",
+    name: "PRONO Transferts",
+    desc: "Comparer les envois d'argent légaux vers l'Afrique : Mobile Money, cash ou banque.",
+    icon: Send,
+    border: "border-[#16a34a]/40",
+    iconBox: "bg-[#16a34a]/15 text-[#16a34a]",
+    iconHover: "group-hover:bg-white/20 group-hover:text-white",
+    hoverCard: "hover:bg-[#16a34a] hover:border-[#16a34a] hover:text-white",
+    ctaColor: "text-[#16a34a]",
+  },
 ];
 
 export function ServicesGrid() {
@@ -106,7 +118,7 @@ export function ServicesGrid() {
     <section className="container py-14" id="services">
       <div className="mb-10 text-center">
         <h2 className="text-3xl font-black md:text-4xl">
-          Une seule app, <span className="text-gradient">six services</span>
+          Une seule app, <span className="text-gradient">sept services</span>
         </h2>
         <p className="mt-3 text-muted-foreground">
           Chaque service a sa couleur. Choisis le tien, tout est gratuit.

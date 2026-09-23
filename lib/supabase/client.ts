@@ -20,7 +20,7 @@ export function getSupabaseBrowserClient(): SupabaseClient {
   if (!url || !anonKey) {
     // En développement sans config, on laisse supabase-js échouer proprement
     // (les composants catchent les erreurs et affichent des états vides).
-    console.warn("[pronofoot] Variables Supabase manquantes — mode dégradé.");
+    console.warn("[pronofoot] Variables Supabase manquantes · mode dégradé.");
   }
 
   browserClient = createBrowserClient(url ?? "https://placeholder.supabase.co", anonKey ?? "public-anon-key");

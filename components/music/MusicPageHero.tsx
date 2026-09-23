@@ -34,8 +34,8 @@ export function MusicPageHero({ count }: { count: number }) {
           </h1>
           <p className="mt-2 max-w-md text-muted-foreground">
             {count > 0
-              ? `${count} titre${count > 1 ? "s" : ""} dans la playlist du site — lecture aléatoire, répétition et navigation sans coupure.`
-              : "La playlist du site apparaîtra ici dès que l'admin aura ajouté des MP3."}
+              ? `${count} titre${count > 1 ? "s" : ""} dans la playlist du site.`
+              : "La playlist du site apparaîtra ici dès que des titres seront ajoutés."}
           </p>
         </div>
         {songs.length > 0 && (

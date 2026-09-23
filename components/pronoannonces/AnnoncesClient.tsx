@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnnonceCard } from "./AnnonceCard";
 import { AnnonceDetail } from "./AnnonceDetail";
 import { AnnonceForm } from "./AnnonceForm";
-import { CATEGORIES } from "./annonces-data";
+import { CATEGORIES, catLabel } from "./annonces-data";
+import { useT } from "@/lib/i18n";
+import Link from "next/link";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { setRedirectAfterLogin } from "@/lib/auth-redirect";
 import type { PronoAnnonce } from "@/lib/types";
@@ -32,27 +35,28 @@ interface Props {
   loggedIn: boolean;
   userId?: string;
   prefill?: { city?: string; country?: string; email?: string };
+  /** ?cat=logement : catégorie présélectionnée dans le filtre et le formulaire */
+  initialCategory?: string;
+  /** ?publier=1 : ouvrir directement le formulaire de publication */
+  openFormInitially?: boolean;
   /** Deep link après connexion (?annonce=id) : rouvrir cette annonce */
   deeplinkAnnonce?: string;
   /** ?discuter=1 : démarrer directement le chat privé sur l'annonce du deep link */
   deeplinkChat?: boolean;
 }
 
-const PLACEHOLDER = [
-  "Aucune annonce pour l'instant, sois le premier à publier ! 🚀",
-  "Rien dans cette catégorie… reviens bientôt !",
-];
 
-export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, deeplinkAnnonce, deeplinkChat }: Props) {
+export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, deeplinkAnnonce, deeplinkChat, initialCategory, openFormInitially }: Props) {
+  const { lang, t } = useT();
   const [annonces, setAnnonces] = useState<PronoAnnonce[]>(initialAnnonces);
   const [myAnnonces, setMyAnnonces] = useState<PronoAnnonce[]>([]);
   const [tab, setTab] = useState<"all" | "mine">("all");
-  const [category, setCategory] = useState<string>("");
+  const [category, setCategory] = useState<string>(initialCategory ?? "");
   const [q, setQ] = useState("");
   const [cityFilter, setCityFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<PronoAnnonce | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(Boolean(openFormInitially));
   const [reloadKey, setReloadKey] = useState(0);
   const [authOpen, setAuthOpen] = useState(false);
   const [chatStarting, setChatStarting] = useState<string | null>(null);
@@ -233,26 +237,27 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, dee
   return (
     <div className="space-y-5">
       {/* Barre d'actions */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* Barre de recherche premium */}
+      <div className="glass sticky top-14 z-20 flex flex-col gap-3 rounded-2xl p-3 shadow-lg shadow-black/10 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between md:top-16">
         <div className="flex flex-1 flex-col gap-2 sm:flex-row">
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="🔍 Rechercher…"
-            className="sm:max-w-xs"
+            placeholder={t("ann.search")}
+            className="border-white/10 bg-background/50 transition-all focus-visible:ring-primary/40 sm:max-w-xs"
             maxLength={60}
           />
           <Input
             value={cityFilter}
             onChange={(e) => setCityFilter(e.target.value)}
-            placeholder="📍 Ville"
-            className="sm:max-w-[160px]"
+            placeholder={t("ann.locSearch")}
+            className="border-white/10 bg-background/50 transition-all focus-visible:ring-primary/40 sm:max-w-[160px]"
             maxLength={40}
           />
         </div>
         {loggedIn ? (
           <Button variant="glow" className="gap-2" onClick={() => setFormOpen(true)}>
-            ➕ Publier une annonce
+            {t("ann.publish")}
           </Button>
         ) : (
           <Button
@@ -272,66 +277,124 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, dee
       <div className="flex items-center justify-between gap-3">
         <Tabs value={tab} onValueChange={(v) => setTab(v as "all" | "mine")}>
           <TabsList>
-            <TabsTrigger value="all">📣 Toutes ({annonces.length})</TabsTrigger>
-            {loggedIn && <TabsTrigger value="mine">👤 Mes annonces ({myAnnonces.length})</TabsTrigger>}
+            <TabsTrigger value="all">{t("ann.tabAll")} ({annonces.length})</TabsTrigger>
+            {loggedIn && <TabsTrigger value="mine">{t("ann.tabMine")} ({myAnnonces.length})</TabsTrigger>}
           </TabsList>
         </Tabs>
-        {loading && <span className="text-xs text-muted-foreground">Actualisation…</span>}
+        {loading && <span className="text-xs text-muted-foreground">{t("ann.loading")}</span>}
       </div>
 
-      {/* Catégories */}
+      {/* Catégories · pilules fluides */}
       {tab === "all" && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex snap-x gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
             type="button"
             onClick={() => setCategory("")}
-            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`shrink-0 snap-start rounded-full border px-4 py-2 text-xs font-bold transition-all duration-300 ${
               category === ""
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-white/10 bg-secondary/40 text-muted-foreground hover:border-primary/40"
+                ? "scale-105 border-primary bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/30"
+                : "border-white/10 bg-secondary/40 text-muted-foreground hover:scale-105 hover:border-primary/40 hover:text-foreground"
             }`}
           >
-            ✨ Toutes
+            {t("ann.all")}
           </button>
           {CATEGORIES.map((c) => (
             <button
               key={c.value}
               type="button"
               onClick={() => setCategory(category === c.value ? "" : c.value)}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`group flex shrink-0 snap-start items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition-all duration-300 ${
                 category === c.value
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-white/10 bg-secondary/40 text-muted-foreground hover:border-primary/40"
+                  ? "scale-105 border-primary bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/30"
+                  : "border-white/10 bg-secondary/40 text-muted-foreground hover:scale-105 hover:border-primary/40 hover:text-foreground"
               }`}
             >
-              {c.emoji} {c.short} {counts[c.value] ? `(${counts[c.value]})` : ""}
+              <span className="transition-transform duration-300 group-hover:scale-125">{c.emoji}</span>
+              {catLabel(c.value, lang)}
+              {counts[c.value] ? (
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                    category === c.value ? "bg-white/20 text-white" : "bg-primary/15 text-primary"
+                  }`}
+                >
+                  {counts[c.value]}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
       )}
 
-      {/* Grille */}
-      {list.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/10 p-10 text-center text-sm text-muted-foreground">
-          {tab === "mine"
-            ? "Tu n'as pas encore publié d'annonce. Clique sur Publier pour ta première !"
-            : PLACEHOLDER[category ? 1 : 0]}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {list.map((a) => (
-            <AnnonceCard
-              key={a.id}
-              annonce={a}
-              isOwner={!!userId && a.user_id === userId}
-              onOpen={() => {
-                // On prend la version à jour de la liste (statut inclus)
-                const fresh = list.find((x) => x.id === a.id) ?? a;
-                setSelected(fresh);
+      {/* Invitation visiteurs non connectés : eux aussi peuvent proposer */}
+      {!loggedIn && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-6 text-center"
+        >
+          <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/20 blur-3xl" />
+          <p className="relative text-lg font-black">
+            {t("ann.ctaTitle")}
+          </p>
+          <p className="relative mt-2 text-sm text-muted-foreground">
+            <>{t("ann.ctaSub")}</>
+            <span className="mt-1 block text-xs">
+              Publish your service for free · Veröffentliche deinen Service kostenlos
+            </span>
+          </p>
+          <div className="relative mt-4 flex flex-col justify-center gap-2 sm:flex-row">
+            <Button
+              variant="glow"
+              onClick={() => {
+                setRedirectAfterLogin("/prono-annonces");
+                setAuthOpen(true);
               }}
-              onHide={() => void onHide(a)}
-              onDelete={() => void onDelete(a)}
-            />
+            >
+              {t("ann.ctaAccount")}
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/boutiques">{t("ann.ctaSeeShops")}</Link>
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Grille animée */}
+      {list.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="glass rounded-2xl border-dashed p-14 text-center"
+        >
+          <p className="text-5xl">🪄</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            {tab === "mine" ? t("ann.emptyMine") : category ? t("ann.emptyCat") : t("ann.emptyAll")}
+          </p>
+        </motion.div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {list.map((a, i) => (
+            <motion.div
+              key={`${a.id}-${category}`}
+              initial={{ opacity: 0, y: 24, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.45, delay: Math.min(i, 8) * 0.05, ease: [0.21, 0.6, 0.35, 1] }}
+            >
+              <AnnonceCard
+                annonce={a}
+                isOwner={!!userId && a.user_id === userId}
+                onOpen={() => {
+                  // On prend la version à jour de la liste (statut inclus)
+                  const fresh = list.find((x) => x.id === a.id) ?? a;
+                  setSelected(fresh);
+                }}
+                onHide={() => void onHide(a)}
+                onDelete={() => void onDelete(a)}
+              />
+            </motion.div>
           ))}
         </div>
       )}
@@ -366,7 +429,7 @@ export function AnnoncesClient({ initialAnnonces, loggedIn, userId, prefill, dee
               inappropriées sont masquées après 3 signalements.
             </DialogDescription>
           </DialogHeader>
-          <AnnonceForm prefill={prefill} onCreated={onCreated} onCancel={() => setFormOpen(false)} />
+          <AnnonceForm prefill={prefill} defaultCategory={initialCategory} onCreated={onCreated} onCancel={() => setFormOpen(false)} />
         </DialogContent>
       </Dialog>
     </div>

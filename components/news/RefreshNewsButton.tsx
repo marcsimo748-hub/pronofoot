@@ -18,7 +18,7 @@ export function RefreshNewsButton() {
       const res = await fetch("/api/news/sync", { method: "POST" });
       const json = await res.json();
       if (json.skipped === "throttled") {
-        toast.info("Déjà à jour — le cache de 10 minutes protège les quotas 😉");
+        toast.info("Déjà à jour · le cache de 10 minutes protège les quotas 😉");
       } else {
         toast.success(`${json.fetched ?? 0} articles récupérés (${json.source ?? "?"}) ✅`);
         router.refresh();

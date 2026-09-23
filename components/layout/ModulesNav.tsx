@@ -13,11 +13,12 @@ import { cn } from "@/lib/utils";
 /** Thème couleur du module actif : le bandeau prend l'identité du service ouvert */
 const THEME_BY_MODULE: Record<string, string> = {
   "/prono-job": "theme-job",
-  "/prono-profil": "theme-job",
+  "/prono-profil": "theme-profil",
   "/prono-visa": "theme-visa",
   "/prono-housing": "theme-housing",
   "/prono-annonces": "theme-annonces",
   "/prono-voyage": "theme-voyage",
+  "/prono-transferts": "theme-transferts",
 };
 
 interface ModuleLink {
@@ -34,6 +35,7 @@ const MODULES: ModuleLink[] = [
   { href: "/prono-housing", label: "Logement", icon: "🏠" },
   { href: "/prono-annonces", label: "Annonces", icon: "📢" },
   { href: "/prono-voyage", label: "Voyage", icon: "🌍" },
+  { href: "/prono-transferts", label: "Transferts", icon: "💸" },
 ];
 
 export function ModulesNav() {

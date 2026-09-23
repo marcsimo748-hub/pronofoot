@@ -12,7 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Radio, Newspaper, Music4, BarChart3, LayoutDashboard, Settings, LogOut,
-  Menu, X, User2, Zap, Briefcase, UserRound, ShieldCheck, Home, Megaphone, ChevronDown, Plane, MessageCircle } from "lucide-react";
+  Menu, X, User2, Zap, Briefcase, CreditCard, UserRound, ShieldCheck, Home, Megaphone, ChevronDown, Plane, MessageCircle, Globe2 } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications/NotificationsBell";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import type { SessionUser } from "@/lib/types";
 
 const NAV_LINKS = [
   { href: "/pronos", tKey: "nav.pronos", icon: Trophy },
+  { href: "/tarifs", tKey: "nav.tarifs", icon: CreditCard },
   { href: "/scores", tKey: "nav.scores", icon: Radio },
   { href: "/news", tKey: "nav.news", icon: Newspaper },
   { href: "/music", tKey: "nav.music", icon: Music4 },
@@ -38,6 +39,7 @@ const MODULE_LINKS = [
   { href: "/prono-housing", tKey: "nav.housing", icon: Home },
   { href: "/prono-annonces", tKey: "nav.annonces", icon: Megaphone },
   { href: "/prono-voyage", tKey: "nav.voyage", icon: Plane },
+  { href: "/prono-afrique", tKey: "nav.afrique", icon: Globe2 },
 ] as const;
 
 export function Header({ user }: { user: SessionUser | null }) {
@@ -85,13 +87,15 @@ export function Header({ user }: { user: SessionUser | null }) {
   // --- Easter egg : 5 clics sur le logo ---
   const clicks = useRef(0);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleLogoClick = useCallback(() => {
+  const handleLogoClick = useCallback((e?: React.MouseEvent) => {
     clicks.current += 1;
     if (resetTimer.current) clearTimeout(resetTimer.current);
     resetTimer.current = setTimeout(() => (clicks.current = 0), 1600);
 
     if (clicks.current >= 5) {
       clicks.current = 0;
+      // 5e clic rapide : on reste sur place, l'easter egg prend la main
+      e?.preventDefault();
       if (user?.is_admin) {
         setAdminUnlocked(true);
         toast.success("🔓 PASS VIP ADMIN ACTIVÉ !", {
@@ -127,17 +131,18 @@ export function Header({ user }: { user: SessionUser | null }) {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-background/80 backdrop-blur-xl">
       <div className="container flex h-16 items-center justify-between gap-4">
-        {/* Logo (5 clics = admin) */}
-        <button
+        {/* Logo : 1 clic = retour accueil · 5 clics rapides = easter egg admin */}
+        <Link
+          href="/"
           onClick={handleLogoClick}
           className="flex items-center gap-2 select-none"
-          aria-label="PRONO, accueil"
+          aria-label="PRONO, retour à l'accueil"
         >
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/15 shadow-glow-sm text-xl">⚽</span>
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/15 shadow-glow-sm font-black text-xl text-gradient">P.</span>
           <span className="text-lg font-black tracking-tight">
             <span className="text-gradient">PRONO</span>
           </span>
-        </button>
+        </Link>
 
         {/* Navigation desktop */}
         <nav className="hidden md:flex items-center gap-1">
@@ -214,7 +219,7 @@ export function Header({ user }: { user: SessionUser | null }) {
         {/* Zone utilisateur */}
         <div className="flex items-center gap-2">
           {/* Sélecteur de langue FR / EN / DE */}
-          <div className="hidden items-center gap-0.5 rounded-lg border border-white/5 bg-secondary/50 p-0.5 sm:flex" role="group" aria-label="Langue / Language / Sprache">
+          <div className="flex items-center gap-0.5 rounded-lg border border-white/5 bg-secondary/50 p-0.5" role="group" aria-label="Langue / Language / Sprache">
             {LANGS.map((l) => (
               <button
                 key={l.code}

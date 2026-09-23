@@ -18,24 +18,24 @@ import type { PronoProfile, PronoIntention, ProfileExperience, ProfileEducation 
 
 const LEVELS = [
   { v: "none", label: "Aucun" },
-  { v: "A1", label: "A1 — Débutant" },
-  { v: "A2", label: "A2 — Élémentaire" },
-  { v: "B1", label: "B1 — Intermédiaire" },
-  { v: "B2", label: "B2 — Avancé" },
-  { v: "C1", label: "C1 — Autonome" },
-  { v: "C2", label: "C2 — Maîtrise" },
+  { v: "A1", label: "A1 · Débutant" },
+  { v: "A2", label: "A2 · Élémentaire" },
+  { v: "B1", label: "B1 · Intermédiaire" },
+  { v: "B2", label: "B2 · Avancé" },
+  { v: "C1", label: "C1 · Autonome" },
+  { v: "C2", label: "C2 · Maîtrise" },
 ];
 
 const INTENT_META: Record<PronoIntention, { title: string; desc: string; icon: string; bioLabel: string }> = {
   emploi: {
     title: "Profil Emploi",
-    desc: "CV, expériences, diplômes, langues — alimente le PronoScore de PronoJob et ton CV.",
+    desc: "CV, expériences, diplômes, langues · alimente le PronoScore de PronoJob et ton CV.",
     icon: "💼",
     bioLabel: "Ton accroche professionnelle (2-3 phrases)",
   },
   logement: {
     title: "Profil Logement",
-    desc: "Ta recherche de logement en Allemagne / Europe — utile pour les lettres de motivation.",
+    desc: "Ta recherche de logement en Allemagne / Europe · utile pour les lettres de motivation.",
     icon: "🏠",
     bioLabel: "Ta présentation pour les propriétaires (professionnel, non-fumeur, garanties…)",
   },
@@ -157,7 +157,7 @@ export function PronoProfileForm({
       } else if (json.code === "no_table") {
         setMessage("⚠️ Sauvegarde momentanément indisponible, réessaie dans un instant.");
       } else {
-        setMessage("❌ Erreur — réessaie.");
+        setMessage("❌ Erreur · réessaie.");
       }
     } catch {
       setMessage("❌ Connexion impossible.");

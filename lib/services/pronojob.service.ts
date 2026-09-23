@@ -267,23 +267,45 @@ interface AdzunaJob {
 // SOURCE 4 — JSearch / RapidAPI (Indeed + LinkedIn agrégés, clé optionnelle)
 // ============================================================
 
+/** Clé RapidAPI effective : Admin (prono_secrets) > variables Vercel */
+let rapidKeyCache: { at: number; key: string | null } | null = null;
+export async function getRapidApiKey(): Promise<string | null> {
+  if (rapidKeyCache && Date.now() - rapidKeyCache.at < 60_000) return rapidKeyCache.key;
+  let key = process.env.RAPIDAPI_KEY ?? process.env.JSEARCH_API_KEY ?? null;
+  try {
+    const admin = tryGetSupabaseAdminClient();
+    if (admin) {
+      const { data } = await admin.from("prono_secrets").select("value").eq("key", "rapidapi_key").maybeSingle();
+      if (data?.value) key = String(data.value); // la clé Admin prime
+    }
+  } catch { /* env seulement */ }
+  rapidKeyCache = { at: Date.now(), key };
+  return key;
+}
+
 async function fetchJsearch(): Promise<InsertableJob[]> {
-  const key = process.env.RAPIDAPI_KEY ?? process.env.JSEARCH_API_KEY;
+  // Quota : JSearch gratuit ≈ 100 requêtes/mois → uniquement les synchros
+  // de 00 h à 12 h UTC (≈ 2 appels/jour = 60/mois). L'après-midi, les
+  // autres sources (Arbeitnow, Remotive, Adzuna) continuent de nourrir le site.
+  if (new Date().getUTCHours() >= 12) return [];
+  const key = await getRapidApiKey();
   if (!key) return []; // pas de clé → source désactivée
 
   const query = process.env.JSEARCH_QUERY || "jobs in germany";
-  const json = await fetchJson<{ data?: JsearchJob[] }>(
-    `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&num_pages=1`,
+  const country = process.env.JSEARCH_COUNTRY || "de"; // offres affichées depuis l'Allemagne
+  // JSearch v2 (LetScrape/OpenWeb Ninja) : endpoint /search-v2, réponse data.jobs[]
+  const json = await fetchJson<{ data?: { jobs?: JsearchJob[] } }>(
+    `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(query)}&num_pages=1&country=${country}`,
     { headers: { "X-RapidAPI-Key": key, "X-RapidAPI-Host": "jsearch.p.rapidapi.com" } }
   );
 
-  return (json.data ?? []).map((j) => ({
+  return (json.data?.jobs ?? []).map((j) => ({
     source: "jsearch",
     source_id: String(j.job_id ?? j.job_apply_link),
     title: j.job_title ?? "Offre",
     company: j.employer_name ?? "",
     city: j.job_city ?? null,
-    country: j.job_country === "Germany" ? "Allemagne" : (j.job_country ?? null),
+    country: /^(Germany|Deutschland)$/i.test(j.job_country ?? "") ? "Allemagne" : (j.job_country ?? null),
     contract_type: normalizeContract(j.job_employment_type),
     remote: /remote|hybrid/i.test(`${j.job_title ?? ""} ${j.job_description ?? ""}`),
     description_short: htmlToExcerpt(j.job_description),
@@ -296,6 +318,7 @@ async function fetchJsearch(): Promise<InsertableJob[]> {
 
 interface JsearchJob {
   job_id?: string;
+  job_employment_types?: string[]; // enum anglais (FULLTIME, PARTTIME…) · plus fiable que le texte localisé
   employer_name?: string;
   job_title?: string;
   job_apply_link?: string;
@@ -531,13 +554,13 @@ export function scoreForJob(
   // 4) Allemand (max 15 pts)
   const needsGerman = /(deutsch|german|b1|b2|c1|c2)/i.test(`${job.title} ${desc}`);
   const dePts = LEVEL_POINTS[prefs.german_level] ?? 0;
-  if (needsGerman) { score += dePts; if (dePts >= 9) reasons.push("Allemand requis — ton niveau passe"); }
+  if (needsGerman) { score += dePts; if (dePts >= 9) reasons.push("Allemand requis · ton niveau passe"); }
   else if (dePts >= 9) { score += 4; }
 
   // 5) Anglais (max 8 pts)
   const needsEnglish = /(english|englisch)/i.test(`${job.title} ${desc}`);
   const enPts = Math.round((LEVEL_POINTS[prefs.english_level] ?? 0) * 0.5);
-  if (needsEnglish) { score += enPts; if (enPts >= 4) reasons.push("Anglais requis — ton niveau passe"); }
+  if (needsEnglish) { score += enPts; if (enPts >= 4) reasons.push("Anglais requis · ton niveau passe"); }
 
   // 6) Type de contrat (max 10 pts)
   if (prefs.contract) {

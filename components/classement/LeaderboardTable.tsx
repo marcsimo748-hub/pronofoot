@@ -4,6 +4,7 @@
  * Tableau de classement (général, championnat, mensuel, groupes).
  */
 
+import Link from "next/link";
 import { Trophy, Medal } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +30,7 @@ export function LeaderboardTable({
     return (
       <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
         <Trophy className="mx-auto mb-3 h-8 w-8 opacity-40" />
-        Pas encore de classement — sois le premier à marquer des points ! ⚽
+        Pas encore de classement · sois le premier à marquer des points ! ⚽
       </div>
     );
   }
@@ -68,21 +69,25 @@ export function LeaderboardTable({
                   <Avatar className="h-8 w-8 border border-white/10">
                     <AvatarFallback className="text-xs">{row.username.slice(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
-                  <span className="truncate font-medium">
+                  <Link
+                    href={`/joueur/${row.user_id}`}
+                    className="truncate font-medium hover:text-primary hover:underline"
+                    title={`Coupon et stats de ${row.username}`}
+                  >
                     {row.username}
                     {currentUserId && row.user_id === currentUserId && (
                       <Badge className="ml-2" variant="outline">toi</Badge>
                     )}
-                  </span>
+                  </Link>
                 </div>
               </td>
               {showPreds && (
-                <td className="hidden px-2 py-3 text-right tabular-nums text-muted-foreground sm:table-cell">
-                  {row.preds || "—"}
+                <td className="hidden px-2 py-3 text-right font-mono tabular-nums text-muted-foreground sm:table-cell">
+                  {row.preds || "-"}
                 </td>
               )}
               <td className="px-4 py-3 text-right">
-                <span className="font-black tabular-nums text-primary">{row.points}</span>
+                <span className="font-black font-mono tabular-nums text-primary">{row.points}</span>
               </td>
             </tr>
           ))}

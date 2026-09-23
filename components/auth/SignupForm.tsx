@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "./PasswordInput";
+import { TurnstileWidget, useCaptchaConfig } from "./TurnstileWidget";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { consumeRedirectAfterLogin } from "@/lib/auth-redirect";
 
@@ -32,6 +33,10 @@ export function SignupForm({
   const [loading, setLoading] = useState(false);
   // 🧩 Module 2 : intention choisie à l'inscription (Emploi/Logement/Visa/Rencontre)
   const [intent, setIntent] = useState("");
+  const [captchaToken, setCaptchaToken] = useState(""); // anti-robot Turnstile
+  const captchaConf = useCaptchaConfig();
+  const captchaRequired = captchaConf?.enabled ?? false;
+  // Bouton bloqué tant que la config anti-robot n'est pas connue (évite un envoi sans jeton)
   const INTENTS = [
     { v: "emploi", label: "💼 Emploi" },
     { v: "logement", label: "🏠 Logement" },
@@ -66,15 +71,20 @@ export function SignupForm({
         options: {
           data: { username: username.trim() },
           emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
+          ...(captchaToken ? { captchaToken } : {}), // vérifié par Supabase (Turnstile)
         },
       });
 
       if (error) {
         toast.error(
-          error.message === "User already registered"
+          /captcha/i.test(error.message)
+            ? "Attends la vérification anti-robot (✓), puis clique à nouveau."
+            : error.message === "User already registered"
             ? "Un compte existe déjà avec cet email."
             : error.message
         );
+        setCaptchaToken(""); // jeton à usage unique → nouveau jeton pour la prochaine tentative
+        if (typeof window !== "undefined") window.dispatchEvent(new Event("turnstile:reset"));
         return;
       }
 
@@ -175,11 +185,15 @@ export function SignupForm({
           ))}
         </div>
         <p className="text-xs text-muted-foreground">
-          Ton profil s&apos;adapte à ton objectif — CV, logement, visa ou rencontre.
+          Ton profil s&apos;adapte à ton objectif · CV, logement, visa ou rencontre.
         </p>
       </div>
 
-      <Button type="submit" className="w-full" variant="glow" size="lg" disabled={loading}>
+      {captchaRequired && !captchaToken && (
+          <p className="text-center text-xs text-muted-foreground">Passe la vérification anti-robot pour créer ton compte 🤖</p>
+        )}
+        <TurnstileWidget onToken={setCaptchaToken} />
+        <Button type="submit" className="w-full" variant="glow" size="lg" disabled={loading || captchaConf === null || (captchaRequired && !captchaToken)}>
         <UserPlus className="h-4 w-4" />
         {loading ? "Création…" : "Créer mon compte gratuit"}
       </Button>

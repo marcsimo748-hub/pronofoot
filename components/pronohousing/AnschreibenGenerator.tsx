@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * AnschreibenGenerator : Postuler via PRONO (MODULE 4).
- * Génère automatiquement une lettre de motivation logement (allemand + français)
- * à partir du profil du joueur (module 2), éditable, avec copie / WhatsApp /
- * e-mail / impression. Sauvegardable dans prono_housing_letters.
+ * AnschreibenGenerator : Postuler via PRONO (MODULE 4) — FR/EN/DE.
+ * Génère automatiquement une lettre de motivation logement (3 langues :
+ * allemand, français, anglais) à partir du profil du joueur, éditable,
+ * avec copie / WhatsApp / e-mail / impression.
+ * Sauvegardable dans prono_housing_letters.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -15,10 +16,10 @@ import { setRedirectAfterLogin } from "@/lib/auth-redirect";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useT, type Lang } from "@/lib/i18n";
 import {
   DEFAULT_LETTER_DATA,
-  generateLetterDe,
-  generateLetterFr,
+  generateLetter,
   type LetterData,
 } from "./housing-data";
 
@@ -37,20 +38,27 @@ export function AnschreibenGenerator({
   saved: SavedLetter | null;
   prefill: Partial<LetterData>;
 }) {
+  const { t, lang } = useT();
+  const L = (lang || "fr") as Lang;
+
   const [data, setData] = useState<LetterData>({ ...DEFAULT_LETTER_DATA, ...saved?.data, ...prefill });
-  const [lang, setLang] = useState<"de" | "fr">("de");
-  const [editable, setEditable] = useState<string | null>(saved?.letter_de ?? null);
+  const [chosenLang, setChosenLang] = useState<Lang>("de");
+  const [editable, setEditable] = useState<string | null>(
+    saved ? saved.letter_de ?? saved.letter_fr ?? null : null
+  );
   const [flash, setFlash] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
 
   // La lettre affichée : version éditée si le joueur l'a modifiée, sinon générée
-  const generatedDe = useMemo(() => generateLetterDe(data), [data]);
-  const generatedFr = useMemo(() => generateLetterFr(data), [data]);
-  const letter = editable ?? (lang === "de" ? generatedDe : generatedFr);
+  const generatedDe = useMemo(() => generateLetter(data, "de"), [data]);
+  const generatedFr = useMemo(() => generateLetter(data, "fr"), [data]);
+  const generatedEn = useMemo(() => generateLetter(data, "en"), [data]);
+  const byLang = { de: generatedDe, fr: generatedFr, en: generatedEn } as const;
+  const letter = editable ?? byLang[chosenLang];
 
+  // Si on change la langue d'affichage et qu'on n'a pas d'édition, la lettre suit
   useEffect(() => {
-    // Si le joueur n'a pas encore édité, la lettre suit le formulaire en direct
     if (editable === null) return;
   }, [editable]);
 
@@ -64,9 +72,9 @@ export function AnschreibenGenerator({
   async function copy() {
     try {
       await navigator.clipboard.writeText(letter);
-      setFlash("✅ Lettre copiée ! Colle-la dans ton message WG-Gesucht / e-mail.");
+      setFlash(t("hou.letterFlashCopied"));
     } catch {
-      setFlash("⚠️ Copie impossible — sélectionne le texte manuellement.");
+      setFlash(t("hou.letterFlashCopyFail"));
     }
     setTimeout(() => setFlash(null), 4000);
   }
@@ -99,18 +107,18 @@ export function AnschreibenGenerator({
       const res = await fetch("/api/prono-housing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data, letter_de: editable ?? generatedDe, letter_fr: editable ?? generatedFr }),
+        body: JSON.stringify({ data, letter_de: generatedDe, letter_fr: generatedFr }),
       });
       const json = await res.json();
       setFlash(
         json.ok
-          ? "✅ Lettre sauvegardée dans ton compte !"
+          ? t("hou.letterFlashSaved")
           : json.code === "no_table"
-            ? "⚠️ Exécute 007_prono_housing.sql dans Supabase pour activer la sauvegarde."
-            : "⚠️ Sauvegarde impossible."
+            ? t("hou.letterFlashNoTable")
+            : t("hou.letterFlashSaveFail")
       );
     } catch {
-      setFlash("⚠️ Réseau indisponible.");
+      setFlash(t("hou.letterFlashNet"));
     } finally {
       setSaving(false);
       setTimeout(() => setFlash(null), 4000);
@@ -122,94 +130,91 @@ export function AnschreibenGenerator({
   return (
     <div className="space-y-6 rounded-xl border border-white/5 bg-card/70 p-4 backdrop-blur-sm md:p-6">
       <div>
-        <h2 className="text-xl font-bold">✍️ Ta lettre de motivation logement</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Générée en allemand (Anschreiben) et en français à partir de ton profil — le document
-          n°1 demandé par les propriétaires et les colocs allemands. Modifie, copie, envoie.
-        </p>
+        <h2 className="text-xl font-bold">{t("hou.letterTitle")}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("hou.letterIntro")}</p>
       </div>
 
       {/* Formulaire */}
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-1.5">
-          <Label>Type de lettre</Label>
+          <Label>{t("hou.letterType")}</Label>
           <div className="grid grid-cols-2 gap-2">
             {(
               [
-                { v: "wg", label: "🛏️ Chambre en coloc" },
-                { v: "apartment", label: "🏠 Appartement" },
+                { v: "wg", lk: "hou.letterWG" },
+                { v: "apartment", lk: "hou.letterApt" },
               ] as const
-            ).map((t) => (
+            ).map((tt) => (
               <button
-                key={t.v}
-                onClick={() => set("target", t.v)}
+                key={tt.v}
+                onClick={() => set("target", tt.v)}
                 className={cn(
                   "rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
-                  data.target === t.v
+                  data.target === tt.v
                     ? "border-primary/60 bg-primary/15"
                     : "border-white/10 bg-background/40 hover:border-primary/30"
                 )}
               >
-                {t.label}
+                {t(tt.lk)}
               </button>
             ))}
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label>Nom complet</Label>
-          <Input value={data.name} onChange={(e) => set("name", e.target.value)} placeholder="Prénom Nom" />
+          <Label>{t("hou.letterName")}</Label>
+          <Input value={data.name} onChange={(e) => set("name", e.target.value)} placeholder={t("hou.letterNamePh")} />
         </div>
         <div className="space-y-1.5">
-          <Label>Âge</Label>
-          <Input value={data.age} onChange={(e) => set("age", e.target.value)} placeholder="Ex : 26" />
+          <Label>{t("hou.letterAge")}</Label>
+          <Input value={data.age} onChange={(e) => set("age", e.target.value)} placeholder={t("hou.letterAgePh")} />
         </div>
         <div className="space-y-1.5">
-          <Label>Pays d&apos;origine</Label>
-          <Input value={data.country} onChange={(e) => set("country", e.target.value)} placeholder="Ex : Cameroun" />
+          <Label>{t("hou.letterCountry")}</Label>
+          <Input value={data.country} onChange={(e) => set("country", e.target.value)} placeholder={t("hou.letterCountryPh")} />
         </div>
         <div className="space-y-1.5">
-          <Label>Profession / études</Label>
-          <Input value={data.profession} onChange={(e) => set("profession", e.target.value)} placeholder="Ex : cuisinier dans un restaurant" />
+          <Label>{t("hou.letterProfession")}</Label>
+          <Input value={data.profession} onChange={(e) => set("profession", e.target.value)} placeholder={t("hou.letterProfessionPh")} />
         </div>
         <div className="space-y-1.5">
-          <Label>Disponible à partir du</Label>
-          <Input value={data.moveIn} onChange={(e) => set("moveIn", e.target.value)} placeholder="Ex : 01.10.2026" />
+          <Label>{t("hou.letterMoveIn")}</Label>
+          <Input value={data.moveIn} onChange={(e) => set("moveIn", e.target.value)} placeholder={t("hou.letterMoveInPh")} />
         </div>
         <div className="space-y-1.5">
-          <Label>Ville recherchée</Label>
-          <Input value={data.city} onChange={(e) => set("city", e.target.value)} placeholder="Ex : Berlin" />
+          <Label>{t("hou.letterCity")}</Label>
+          <Input value={data.city} onChange={(e) => set("city", e.target.value)} placeholder={t("hou.letterCityPh")} />
         </div>
         <div className="space-y-1.5">
-          <Label>Budget max (€ warm)</Label>
-          <Input value={data.budget} onChange={(e) => set("budget", e.target.value)} placeholder="Ex : 550" />
+          <Label>{t("hou.letterBudget")}</Label>
+          <Input value={data.budget} onChange={(e) => set("budget", e.target.value)} placeholder={t("hou.letterBudgetPh")} />
         </div>
         <div className="space-y-1.5">
-          <Label>Niveau d&apos;allemand</Label>
+          <Label>{t("hou.letterGerman")}</Label>
           <select className={inputCls} value={data.germanLevel} onChange={(e) => set("germanLevel", e.target.value)}>
             {["none", "A1", "A2", "B1", "B2", "C1", "C2"].map((l) => (
-              <option key={l} value={l}>{l === "none" ? "Pas encore" : l}</option>
+              <option key={l} value={l}>{l === "none" ? t("hou.letterGermanNone") : l}</option>
             ))}
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label>Autres langues</Label>
-          <Input value={data.otherLanguages} onChange={(e) => set("otherLanguages", e.target.value)} placeholder="Ex : français (natif), anglais B2" />
+          <Label>{t("hou.letterOtherLangs")}</Label>
+          <Input value={data.otherLanguages} onChange={(e) => set("otherLanguages", e.target.value)} placeholder={t("hou.letterOtherLangsPh")} />
         </div>
         <div className="space-y-1.5">
-          <Label>Hobbies / passions</Label>
-          <Input value={data.hobbies} onChange={(e) => set("hobbies", e.target.value)} placeholder="Ex : cuisine, football, musique" />
+          <Label>{t("hou.letterHobbies")}</Label>
+          <Input value={data.hobbies} onChange={(e) => set("hobbies", e.target.value)} placeholder={t("hou.letterHobbiesPh")} />
         </div>
         <div className="space-y-1.5">
-          <Label>Revenus / garantie</Label>
-          <Input value={data.income} onChange={(e) => set("income", e.target.value)} placeholder="Ex : 2 300 €/mois net, contrat CDI" />
+          <Label>{t("hou.letterIncome")}</Label>
+          <Input value={data.income} onChange={(e) => set("income", e.target.value)} placeholder={t("hou.letterIncomePh")} />
         </div>
         <div className="space-y-1.5">
-          <Label>Téléphone</Label>
-          <Input value={data.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+49…" />
+          <Label>{t("hou.letterPhone")}</Label>
+          <Input value={data.phone} onChange={(e) => set("phone", e.target.value)} placeholder={t("hou.letterPhonePh")} />
         </div>
         <div className="space-y-1.5">
-          <Label>E-mail</Label>
-          <Input value={data.email} onChange={(e) => set("email", e.target.value)} placeholder="toi@exemple.com" />
+          <Label>{t("hou.letterEmail")}</Label>
+          <Input value={data.email} onChange={(e) => set("email", e.target.value)} placeholder={t("hou.letterEmailPh")} />
         </div>
       </div>
 
@@ -219,16 +224,17 @@ export function AnschreibenGenerator({
           <div className="flex gap-1 rounded-lg border border-white/10 bg-background/40 p-1">
             {(
               [
-                { v: "de", label: "🇩🇪 Deutsch" },
-                { v: "fr", label: "🇫🇷 Français" },
-              ] as const
+                { v: "de" as Lang, label: "🇩🇪 Deutsch" },
+                { v: "fr" as Lang, label: "🇫🇷 Français" },
+                { v: "en" as Lang, label: "🇬🇧 English" },
+              ]
             ).map((l) => (
               <button
                 key={l.v}
-                onClick={() => setLang(l.v)}
+                onClick={() => setChosenLang(l.v)}
                 className={cn(
                   "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  lang === l.v ? "bg-primary/20 text-foreground" : "text-muted-foreground hover:text-foreground"
+                  chosenLang === l.v ? "bg-primary/20 text-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {l.label}
@@ -237,7 +243,7 @@ export function AnschreibenGenerator({
           </div>
           {editable !== null && (
             <button onClick={resetEdits} className="text-xs text-primary hover:underline">
-              ↺ Revenir à la version générée automatiquement
+              {t("hou.letterReset")}
             </button>
           )}
         </div>
@@ -251,16 +257,16 @@ export function AnschreibenGenerator({
       {/* Actions */}
       <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-4">
         <Button onClick={copy} className="gap-1.5">
-          <Copy className="h-4 w-4" /> Copier la lettre
+          <Copy className="h-4 w-4" /> {t("hou.letterCopy")}
         </Button>
         <Button variant="outline" onClick={whatsapp}>📲 WhatsApp</Button>
         <Button variant="outline" onClick={mailto}>✉️ E-mail</Button>
         <Button variant="outline" onClick={print} className="gap-1.5">
-          <Printer className="h-4 w-4" /> Imprimer / PDF
+          <Printer className="h-4 w-4" /> PDF / 🖨
         </Button>
         {loggedIn ? (
           <Button variant="secondary" onClick={save} disabled={saving} className="gap-1.5">
-            <Save className="h-4 w-4" /> {saving ? "Sauvegarde…" : "Sauvegarder"}
+            <Save className="h-4 w-4" /> {saving ? t("hou.letterSaving") : t("job.saving")}
           </Button>
         ) : (
           <Button
@@ -271,7 +277,7 @@ export function AnschreibenGenerator({
               setAuthOpen(true);
             }}
           >
-            <Save className="h-4 w-4" /> Se connecter pour sauvegarder
+            <Save className="h-4 w-4" /> {t("hou.letterSave")}
           </Button>
         )}
         {flash && <span className="text-sm text-muted-foreground">{flash}</span>}
@@ -281,7 +287,7 @@ export function AnschreibenGenerator({
       <AuthModal
         open={authOpen}
         onOpenChange={setAuthOpen}
-        message="Connecte-toi ou crée ton compte gratuit pour sauvegarder ta lettre, tu reviendras directement dessus."
+        message={t("hou.letterAuthMsg")}
       />
     </div>
   );

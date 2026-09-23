@@ -1,30 +1,31 @@
 "use client";
 
 /**
- * HousingGuides — guides logement du MODULE PRONO-HOUSING.
- * Accordéons : méthode de recherche, dossier parfait, loyers allemands,
- * arnaques, WBS & alternatives. Accordéon animé (même style que PronoVisa).
+ * HousingGuides — guides logement du MODULE PRONO-HOUSING (FR/EN/DE).
  */
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
-import { HOUSING_GUIDES, HOUSING_LEGAL_NOTE } from "./housing-data";
+import { useT } from "@/lib/i18n";
+import { getHousingGuides, HOUSING_LEGAL_NOTE_BY_LANG } from "./housing-data";
 
 export function HousingGuides() {
+  const { t, lang } = useT();
+  const L = (lang || "fr") as "fr" | "en" | "de";
   const [open, setOpen] = useState<string | null>(null);
+
+  const guides = getHousingGuides(L);
+  const legalNote = HOUSING_LEGAL_NOTE_BY_LANG[L] ?? HOUSING_LEGAL_NOTE_BY_LANG.fr;
 
   return (
     <div className="space-y-3">
       <div>
-        <h2 className="text-2xl font-black">📚 Guides logement</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          La méthode, le dossier, les vrais coûts, les arnaques et les astuces — tout ce qu&apos;un
-          nouvel arrivant doit savoir avant de signer.
-        </p>
+        <h2 className="text-2xl font-black">{t("hou.guidesTitle")}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("hou.guidesIntro")}</p>
       </div>
 
-      {HOUSING_GUIDES.map((g) => {
+      {guides.map((g) => {
         const isOpen = open === g.id;
         return (
           <div
@@ -80,9 +81,7 @@ export function HousingGuides() {
         );
       })}
 
-      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
-        {HOUSING_LEGAL_NOTE}
-      </p>
+      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">{legalNote}</p>
     </div>
   );
 }

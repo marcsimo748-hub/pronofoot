@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * PRONO-VOYAGE — client principal (MODULE 6).
+ * PRONO-VOYAGE — client principal (MODULE 6) — FR/EN/DE.
  * Onglet Billets : lanceur de recherche officiel (avion ici ↔ là-bas,
  * train & bus en Europe) avec les filtres du joueur, 100% légal.
  * Onglet Covoiturage : trajets de la communauté (TripsSection).
@@ -23,11 +23,12 @@ import {
   buildFlightLinks,
   buildGroundLinks,
   BLABLACAR_LINK,
-  VOYAGE_LEGAL_NOTE,
-  humanDateFr,
+  VOYAGE_LEGAL_NOTE_BY_LANG,
+  humanDate,
   type FlightLink,
 } from "./voyage-data";
 import type { PronoVoyageTrip } from "@/lib/types";
+import { useT, type Lang } from "@/lib/i18n";
 
 interface Props {
   loggedIn: boolean;
@@ -35,7 +36,6 @@ interface Props {
   initialTrips: PronoVoyageTrip[];
   prefillCity?: string;
   deeplinkTrip?: string;
-  /** ?discuter=1 : démarrer directement le chat privé sur le trajet */
   deeplinkChat?: boolean;
   autoPublish?: boolean;
 }
@@ -47,42 +47,40 @@ function defaultDate(): string {
 }
 
 export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deeplinkTrip, deeplinkChat, autoPublish }: Props) {
+  const { t, lang } = useT();
+  const L = (lang || "fr") as Lang;
   const [tab, setTab] = useState<"billets" | "trajets" | "guides">("billets");
 
-  // ---- Filtres billets ----
-  const prefillOrigin = ORIGINS.find((o) => o.name === prefillCity) ?? ORIGINS[0];
+  const prefillOrigin = ORIGINS.find((o) => o.nameFr === prefillCity) ?? ORIGINS[0];
   const [mode, setMode] = useState<"avion" | "terre">("avion");
-  const [origin, setOrigin] = useState(prefillOrigin.name);
-  const [destAfrica, setDestAfrica] = useState(DEST_AFRICA[0].name);
-  const [destEurope, setDestEurope] = useState(DEST_EUROPE[0].name);
+  const [origin, setOrigin] = useState(prefillOrigin.key);
+  const [destAfrica, setDestAfrica] = useState(DEST_AFRICA[0].key);
+  const [destEurope, setDestEurope] = useState(DEST_EUROPE[0].key);
   const [date, setDate] = useState(defaultDate());
 
-  const originCity = ORIGINS.find((o) => o.name === origin) ?? ORIGINS[0];
+  const originCity = ORIGINS.find((o) => o.key === origin) ?? ORIGINS[0];
   const destCity =
     mode === "avion"
-      ? DEST_AFRICA.find((d) => d.name === destAfrica) ?? DEST_AFRICA[0]
-      : DEST_EUROPE.find((d) => d.name === destEurope) ?? DEST_EUROPE[0];
+      ? DEST_AFRICA.find((d) => d.key === destAfrica) ?? DEST_AFRICA[0]
+      : DEST_EUROPE.find((d) => d.key === destEurope) ?? DEST_EUROPE[0];
 
   const links: FlightLink[] = useMemo(() => {
-    if (mode === "avion") return buildFlightLinks(originCity, destCity, date);
-    return [...buildGroundLinks(originCity, destCity, date), BLABLACAR_LINK];
+    const base = mode === "avion" ? buildFlightLinks(originCity, destCity, date) : buildGroundLinks(originCity, destCity, date);
+    return mode === "avion" ? base : [...base, BLABLACAR_LINK];
   }, [mode, originCity, destCity, date]);
 
   return (
     <div className="space-y-6">
-      {/* Onglets */}
       <Tabs value={tab} onValueChange={(v) => setTab(v as "billets" | "trajets" | "guides")}>
         <TabsList className="flex-wrap">
-          <TabsTrigger value="billets">🎫 Billets</TabsTrigger>
-          <TabsTrigger value="trajets">🚗 Covoiturage</TabsTrigger>
-          <TabsTrigger value="guides">📋 Formalités</TabsTrigger>
+          <TabsTrigger value="billets">{t("voy.tabTickets")}</TabsTrigger>
+          <TabsTrigger value="trajets">{t("voy.tabCarpool")}</TabsTrigger>
+          <TabsTrigger value="guides">{t("voy.tabGuides")}</TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {/* ================= BILLETS ================= */}
       {tab === "billets" && (
         <div className="space-y-6">
-          {/* Mode */}
           <div className="flex gap-2">
             <button
               type="button"
@@ -93,7 +91,7 @@ export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deep
                   : "border-white/10 bg-secondary/40 text-muted-foreground hover:border-primary/40"
               }`}
             >
-              ✈️ Avion, ici ↔ là-bas
+              {t("voy.modePlane")}
             </button>
             <button
               type="button"
@@ -104,29 +102,28 @@ export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deep
                   : "border-white/10 bg-secondary/40 text-muted-foreground hover:border-primary/40"
               }`}
             >
-              🚆 Train & Bus, Europe
+              {t("voy.modeGround")}
             </button>
           </div>
 
-          {/* Filtres */}
           <div className="grid gap-4 rounded-xl border border-white/10 bg-card/60 p-4 sm:grid-cols-3">
             <div className="space-y-1.5">
-              <Label>Départ</Label>
+              <Label>{t("voy.dep")}</Label>
               <Select value={origin} onValueChange={setOrigin}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {ORIGINS.map((o) => (
-                    <SelectItem key={o.name} value={o.name}>
-                      {o.name} ({o.country})
+                    <SelectItem key={o.key} value={o.key}>
+                      {o.labels[L]} ({o.country[L]})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Destination</Label>
+              <Label>{t("voy.dest")}</Label>
               {mode === "avion" ? (
                 <Select value={destAfrica} onValueChange={setDestAfrica}>
                   <SelectTrigger>
@@ -134,8 +131,8 @@ export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deep
                   </SelectTrigger>
                   <SelectContent>
                     {DEST_AFRICA.map((d) => (
-                      <SelectItem key={d.iata} value={d.name}>
-                        {d.name} ({d.country})
+                      <SelectItem key={d.key} value={d.key}>
+                        {d.labels[L]} ({d.country[L]})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -147,8 +144,8 @@ export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deep
                   </SelectTrigger>
                   <SelectContent>
                     {DEST_EUROPE.map((d) => (
-                      <SelectItem key={d.iata} value={d.name}>
-                        {d.name} ({d.country})
+                      <SelectItem key={d.key} value={d.key}>
+                        {d.labels[L]} ({d.country[L]})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -156,7 +153,7 @@ export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deep
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>Date de départ</Label>
+              <Label>{t("voy.date")}</Label>
               <Input
                 type="date"
                 value={date}
@@ -166,14 +163,14 @@ export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deep
             </div>
           </div>
 
-          {/* Résumé */}
           <p className="text-center text-sm text-muted-foreground">
-            🔎 {originCity.name} → {destCity.name}
-            {date ? `, le ${humanDateFr(date)}` : ""} · PRONO ouvre les recherches
-            correspondantes sur les plateformes officielles.
+            {t("voy.summary", {
+              origin: originCity.labels[L],
+              dest: destCity.labels[L],
+              date: date ? t("voy.summaryDate", { date: humanDate(date, L) }) : "",
+            })}
           </p>
 
-          {/* Plateformes */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {links.map((l) => (
               <div
@@ -189,10 +186,10 @@ export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deep
                     <p className="text-[11px] text-muted-foreground">{l.official}</p>
                   </div>
                 </div>
-                <p className="mb-4 flex-1 text-sm text-muted-foreground">{l.desc}</p>
+                <p className="mb-4 flex-1 text-sm text-muted-foreground">{l.desc[L]}</p>
                 <a href={l.url} target="_blank" rel="noopener noreferrer">
                   <Button className="w-full gap-2" variant="glow">
-                    🚀 Ouvrir la recherche
+                    {t("voy.openSearch")}
                   </Button>
                 </a>
               </div>
@@ -200,12 +197,11 @@ export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deep
           </div>
 
           <p className="rounded-xl border border-white/5 bg-background/50 p-4 text-xs leading-relaxed text-muted-foreground">
-            {VOYAGE_LEGAL_NOTE}
+            {VOYAGE_LEGAL_NOTE_BY_LANG[L] ?? VOYAGE_LEGAL_NOTE_BY_LANG.fr}
           </p>
         </div>
       )}
 
-      {/* ================= COVOITURAGE ================= */}
       {tab === "trajets" && (
         <TripsSection
           loggedIn={loggedIn}
@@ -217,7 +213,6 @@ export function VoyageClient({ loggedIn, userId, initialTrips, prefillCity, deep
         />
       )}
 
-      {/* ================= FORMALITÉS ================= */}
       {tab === "guides" && <VoyageGuides />}
     </div>
   );

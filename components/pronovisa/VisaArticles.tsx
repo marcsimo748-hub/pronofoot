@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * VisaArticles — section conseils du MODULE PRONOVISA.
+ * VisaArticles — section conseils du MODULE PRONOVISA (FR/EN/DE).
  * Articles informatifs : Ausbildung, Studium, Chancenkarte, tourisme,
  * étudier en Europe, étudiants africains. Accordéons animés + liens officiels.
  */
@@ -9,22 +9,22 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ExternalLink } from "lucide-react";
-import { VISA_ARTICLES, VISA_DISCLAIMER } from "./visa-data";
+import { useT } from "@/lib/i18n";
+import { getArticles } from "./visa-data";
 
 export function VisaArticles() {
+  const { lang, t } = useT();
   const [open, setOpen] = useState<string | null>(null);
+  const articles = getArticles(lang);
 
   return (
     <div className="space-y-3">
       <div>
-        <h2 className="text-2xl font-black">📚 Guides & conseils</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Ausbildung, Studium, Chancenkarte, tourisme, études en Europe et depuis l&apos;Afrique —
-          les infos essentielles, avec les liens officiels.
-        </p>
+        <h2 className="text-2xl font-black">{t("visa.guidesTitle")}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("visa.guidesIntro")}</p>
       </div>
 
-      {VISA_ARTICLES.map((a) => {
+      {articles.map((a) => {
         const isOpen = open === a.id;
         return (
           <div
@@ -89,10 +89,7 @@ export function VisaArticles() {
                       ))}
                     </div>
 
-                    <p className="text-[11px] text-muted-foreground">
-                      ⚠️ Informations générales susceptibles d&apos;évoluer — vérifie toujours les
-                      montants et critères à jour sur les sites officiels.
-                    </p>
+                    <p className="text-[11px] text-muted-foreground">{t("visa.infoNote")}</p>
                   </div>
                 </motion.div>
               )}
@@ -100,10 +97,6 @@ export function VisaArticles() {
           </div>
         );
       })}
-
-      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
-        {VISA_DISCLAIMER}
-      </p>
     </div>
   );
 }

@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   PRONOFOOT — Design System Dark Mode
+   Thème piloté par variables CSS (modifiable via Admin > Couleur du Thème)
+   ============================================ */
+
+@layer base {
+  :root {
+    --background: 240 12% 3%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 12% 5%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 8% 12%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 8% 12%;
+    --muted-foreground: 240 5% 60%;
+    --accent: 240 8% 14%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 8% 14%;
+    --input: 240 8% 14%;
+    --ring: 160 84% 39%;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, hsl(var(--primary) / 0.09), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 100%, hsl(var(--primary) / 0.04), transparent);
+    background-attachment: fixed;
+    min-height: 100dvh;
+  }
+}
+
+@layer components {
+  /* Effet verre dépoli pour cartes / header */
+  .glass {
+    @apply bg-card/60 backdrop-blur-xl border border-white/5;
+  }
+
+  /* Texte dégradé (logo, titres) */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--primary)),
+      hsl(var(--primary) / 0.65) 60%,
+      hsl(var(--foreground) / 0.9)
+    );
+  }
+
+  /* Bordure lumineuse au survol */
+  .card-hover {
+    @apply transition-all duration-300 hover:border-primary/40 hover:shadow-glow-sm hover:-translate-y-0.5;
+  }
+}
+
+@layer utilities {
+  /* Barre de défilement fine */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.4);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.35);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.6);
+  }
+
+  /* Masquer les flèches des input number (pronostics) */
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .no-spinner {
+    -moz-appearance: textfield;
+  }
+
+  /* ============================================
+     Cohabitation des éléments fixes :
+     MobileNav (mobile, 56px) < MusicPlayer < Assistant IA
+     ============================================ */
+  #music-player {
+    bottom: 56px; /* au-dessus de la barre de navigation mobile */
+  }
+  @media (min-width: 768px) {
+    #music-player {
+      bottom: 0;
+    }
+  }
+
+  /* Réserve la place quand le lecteur est affiché */
+  body:has(#music-player) {
+    padding-bottom: 148px;
+  }
+  @media (min-width: 768px) {
+    body:has(#music-player) {
+      padding-bottom: 84px;
+    }
+  }
+
+  /* L'assistant IA passe au-dessus du lecteur quand il est actif */
+  body:has(#music-player) #ai-assistant-widget {
+    bottom: 140px;
+  }
+  @media (min-width: 768px) {
+    body:has(#music-player) #ai-assistant-widget {
+      bottom: 88px;
+    }
+    body:has(#music-player) #ai-chat-panel {
+      bottom: 150px;
+    }
+  }
+
+  /* Fond dégradé de secours pour les pochettes / images news manquantes */
+  .cover-fallback {
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.35), hsl(var(--secondary)));
+  }
+
+  /* Animation égaliseur du lecteur */
+  .equalizer {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 14px;
+  }
+  .equalizer span {
+    width: 3px;
+    border-radius: 2px;
+    background: hsl(var(--primary));
+    animation: eq 0.9s ease-in-out infinite;
+  }
+  .equalizer span:nth-child(2) { animation-delay: 0.2s; }
+  .equalizer span:nth-child(3) { animation-delay: 0.4s; }
+  .equalizer span:nth-child(4) { animation-delay: 0.1s; }
+  @keyframes eq {
+    0%, 100% { height: 4px; }
+    50% { height: 14px; }
+  }
+}

@@ -22,7 +22,7 @@ export default async function PronoProfilPage() {
 
   if (!user) {
     return (
-      <div className="theme-job container flex min-h-[60vh] max-w-lg flex-col items-center justify-center py-12 text-center">
+      <div className="theme-profil container flex min-h-[60vh] max-w-lg flex-col items-center justify-center py-12 text-center">
         <span className="text-5xl">🧩</span>
         <h1 className="mt-4 text-2xl font-black">Mes profils PRONO</h1>
         <p className="mt-2 text-muted-foreground">

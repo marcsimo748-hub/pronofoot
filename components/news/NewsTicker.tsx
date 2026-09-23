@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import Marquee from "react-fast-marquee";
+import Link from "next/link";
 import { Globe2 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ClientTimeAgo } from "@/components/ui/ClientTimeAgo";
@@ -46,11 +47,9 @@ export function NewsTicker({ initialNews }: { initialNews: NewsItem[] }) {
         </div>
         <Marquee pauseOnHover speed={55} gradient gradientColor="hsl(240 12% 5%)" className="flex-1">
           {news.map((n) => (
-            <a
+            <Link
               key={n.id}
-              href={n.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/news"
               className="mx-4 flex items-center gap-2 py-1.5 text-xs text-muted-foreground hover:text-foreground"
             >
               <span className="font-semibold text-foreground/80">{n.source ?? "Presse"}</span>
@@ -60,7 +59,7 @@ export function NewsTicker({ initialNews }: { initialNews: NewsItem[] }) {
                   <ClientTimeAgo date={n.published_at} />
                 </span>
               )}
-            </a>
+            </Link>
           ))}
         </Marquee>
       </div>

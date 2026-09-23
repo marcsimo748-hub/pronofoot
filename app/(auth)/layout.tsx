@@ -13,7 +13,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden p-4">
-      {/* Fond rotatif (tunnel de stade) — le réglage admin prime s'il existe */}
+      {/* Fond rotatif (tunnel de stade) · le réglage admin prime s'il existe */}
       <SiteBackground forcePage="login" overrides={{ login: bg }} />
 
       <Link href="/" className="relative mb-8 flex select-none items-center gap-2.5">

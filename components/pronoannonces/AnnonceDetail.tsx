@@ -18,7 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { categoryInfo, timeAgoFr, REPORT_REASONS } from "./annonces-data";
+import { categoryInfo, timeAgoFr, REPORT_REASONS, priceFr, SHIPPING_LABEL, CUSTOMS_LABEL, placeFr } from "./annonces-data";
+import { ShareButton } from "@/components/shared/ShareButton";
+import { useT } from "@/lib/i18n";
+import Link from "next/link";
 import type { PronoAnnonce } from "@/lib/types";
 
 interface Props {
@@ -42,6 +45,7 @@ export function AnnonceDetail({
   onClose,
   onReported,
 }: Props) {
+  const { t } = useT();
   const [photoIdx, setPhotoIdx] = useState(0);
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState(REPORT_REASONS[0]);
@@ -62,20 +66,20 @@ export function AnnonceDetail({
         body: JSON.stringify({ id: annonce.id, reason }),
       });
       if (res.status === 409) {
-        setReportMsg("Tu as déjà signalé cette annonce ✅");
+        setReportMsg(t("det.reportAlready"));
       } else if (res.ok) {
         const json = await res.json();
         setReportMsg(
           json.hidden
-            ? "Merci ! Signalement enregistré — l'annonce a été masquée automatiquement (3 signalements)."
-            : "Merci ! L'équipe va examiner cette annonce."
+            ? t("det.reportDoneHidden")
+            : t("det.reportDone")
         );
         onReported(annonce.id);
       } else {
-        setReportMsg("Signalement impossible pour le moment.");
+        setReportMsg(t("det.reportFail"));
       }
     } catch {
-      setReportMsg("Erreur réseau — réessaie.");
+      setReportMsg("Erreur réseau · réessaie.");
     } finally {
       setSending(false);
     }
@@ -89,7 +93,7 @@ export function AnnonceDetail({
             {cat.emoji} {annonce.title}
           </DialogTitle>
           <DialogDescription className="text-left">
-            📍 {annonce.city || "—"}
+            📍 {placeFr(annonce)}
             {annonce.country ? `, ${annonce.country}` : ""} · {timeAgoFr(annonce.created_at)}
           </DialogDescription>
         </DialogHeader>
@@ -155,6 +159,20 @@ export function AnnonceDetail({
           </Badge>
         </div>
 
+        {/* Prix & logistique (annonces biens) */}
+        {(annonce.price_eur != null || annonce.shipping === "aide" || (annonce.customs && annonce.customs !== "aucun")) && (
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
+            {annonce.price_eur != null && (
+              <p className="text-lg font-black text-primary">{priceFr(annonce.price_eur)}</p>
+            )}
+            <ul className="mt-1 space-y-1 text-muted-foreground">
+              {annonce.shipping === "aide" && <li>{t("ship.help")}</li>}
+              {annonce.customs === "vendeur" && <li>{t("cust.seller")}</li>}
+              {annonce.customs === "acheteur" && <li>{t("cust.buyer")}</li>}
+            </ul>
+          </div>
+        )}
+
         {/* Description */}
         {annonce.description && (
           <p className="whitespace-pre-wrap rounded-lg bg-secondary/40 p-3 text-sm leading-relaxed text-foreground/90">
@@ -165,17 +183,53 @@ export function AnnonceDetail({
         {/* Contact : tout passe par le chat privé, coordonnées protégées */}
         {isOwner ? (
           <p className="rounded-lg bg-primary/10 p-3 text-sm text-primary">
-            🔒 Ton contact reste privé. Les membres te contactent par le chat PRONO
-            et tu choisis quand révéler tes coordonnées.
+            {t("det.ownerNote")}
           </p>
         ) : (
-          <Button
-            className="w-full gap-2"
-            variant="glow"
-            onClick={() => onChat?.(annonce.id)}
-          >
-            💬 Discuter avec {annonce.author?.username ?? "l'auteur"}
-          </Button>
+          <div className="space-y-2">
+            <Button
+              className="w-full gap-2"
+              variant="glow"
+              onClick={() => onChat?.(annonce.id)}
+            >
+              {t("det.talk")} {annonce.author?.username ?? "…"}
+            </Button>
+            <ShareButton
+              title={`${annonce.title} · PRONO`}
+              text={`🏪 ${annonce.title}${annonce.price_eur != null ? ` · ${priceFr(annonce.price_eur)}` : ""} · 📍 ${placeFr(annonce)} · ${t("share.seenOn")}`}
+              url={`/prono-annonces?annonce=${annonce.id}`}
+              variant="outline"
+              className="h-9 w-full justify-center text-xs"
+            />
+          </div>
+        )}
+
+        {/* Invitation : toi aussi, propose ton service (visiteurs non connectés) */}
+        {!isOwner && !loggedIn && (
+          <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/10 to-transparent p-4 text-center">
+            <p className="text-sm font-bold">
+              {t("det.ctaTitle")}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("det.ctaSub")}
+              / Publish your service for free. / Deinen Service kostenlos anbieten.
+            </p>
+            <div className="mt-3 flex flex-col justify-center gap-2 sm:flex-row">
+              <Link
+                href="/boutiques"
+                className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-transform duration-300 hover:scale-105"
+              >
+                🛍️ Créer ma boutique gratuite
+              </Link>
+              <button
+                type="button"
+                onClick={() => onAuthRequired?.(annonce.id)}
+                className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-secondary px-4 py-2 text-xs font-bold transition-transform duration-300 hover:scale-105"
+              >
+                {t("ann.ctaAccount")}
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Signalement */}
@@ -187,11 +241,11 @@ export function AnnonceDetail({
                 onClick={() => (loggedIn ? setReporting(true) : onAuthRequired?.(annonce.id))}
                 className="text-xs text-muted-foreground hover:text-red-400"
               >
-                🚩 Signaler cette annonce
+                {t("det.report")}
               </button>
             ) : (
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Pourquoi signales-tu cette annonce ?</p>
+                <p className="text-xs font-medium text-muted-foreground">{t("det.reportWhy")}</p>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Select value={reason} onValueChange={setReason}>
                     <SelectTrigger className="flex-1">
@@ -206,14 +260,14 @@ export function AnnonceDetail({
                     </SelectContent>
                   </Select>
                   <Button size="sm" variant="destructive" onClick={sendReport} disabled={sending}>
-                    {sending ? "…" : "Envoyer"}
+                    {sending ? "…" : t("det.send")}
                   </Button>
                 </div>
               </div>
             )}
             {reportMsg && <p className="mt-2 text-xs text-muted-foreground">{reportMsg}</p>}
             <p className="mt-1 text-[10px] text-muted-foreground/60">
-              3 signalements différents = masquage automatique de l'annonce.
+              {t("det.reportNote")}
             </p>
           </div>
         )}

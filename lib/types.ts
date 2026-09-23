@@ -9,7 +9,16 @@ export type LeagueCode =
   | "laliga"
   | "seriea"
   | "ligue1"
-  | "bundesliga";
+  | "bundesliga"
+  // Compétitions africaines + qualifs CDM + amicaux (sélections nationales)
+  | "can"          // CAN seniors (Coupe d'Afrique des Nations)
+  | "can_u17"      // CAN U17
+  | "can_u20"      // CAN U20
+  | "can_u23"      // CAN U23 / Jeux Africains
+  | "qwc_afrique"  // Qualifications Coupe du Monde (zone Afrique)
+  | "wcq_afrique"  // Idem (alias court)
+  | "afriendly"    // Matchs amicaux internationaux (sélections africaines)
+  | "international" // Compétition internationale (autre)
 
 export type MatchStatus = "scheduled" | "live" | "finished" | "missed" | "archived";
 
@@ -87,6 +96,16 @@ export interface LiveScoreRow {
   elapsed: number | null;
 }
 
+/** Événement d'un match en direct (buteur, carton, penalty...) */
+export interface MatchEventRow {
+  fixture_id: string;
+  team: string;
+  player: string;
+  type: string; // Goal | Card | Var | Sub
+  detail: string | null; // Normal Goal | Yellow Card | Red Card | Penalty...
+  minute: number | null;
+}
+
 /** Article d'actualité en cache (table `news`) */
 export interface NewsItem {
   id: string;
@@ -135,6 +154,15 @@ export interface StandingRow {
 /** Réglages du site (table `site_settings`, JSONB par clé) */
 export interface SiteSettings {
   theme: { primary: string };
+  /**
+   * Surcharge du visage automatique du site :
+   *   "auto" → thème du jour (saison / événement)
+   *   "season:<id>" → forcer une saison (spring/summer/autumn/winter)
+   *   "event:<id>" → forcer un événement (noel/paques/ramadan/...)
+   *   "template:<id>" → forcer un template brut (emerald/ocean/sunset/...)
+   *   "off" → désactiver les thèmes automatiques
+   */
+  theme_override?: string;
   announcement: { active: boolean; message: string; level: "info" | "warn" | "success" };
   wallpapers: { login: string; home: string };
   leagues: Record<LeagueCode, { banner_url: string; background_url: string }>;
@@ -144,6 +172,13 @@ export interface SiteSettings {
     last_cleanup: number;
     last_standings_sync: number;
     last_fixtures_import: number;
+    last_fixtures_import_espn?: number;
+    last_events_sync: number;
+    last_jobs_sync?: number;
+    /** Diagnostic : résultat JSON de la dernière vraie synchro (debug) */
+    last_scores_result?: string | null;
+    /** Erreur du fournisseur API-Football (ex : compte suspendu) — affichée à l'admin */
+    api_error?: string | null;
     requests_remaining: number | null;
     requests_day: string | null;
   };
@@ -290,7 +325,10 @@ export interface PronoProfile {
 }
 
 // ---------- MODULE 5 : PRONO-ANNONCES ----------
-export type AnnonceCategory = "rencontre" | "partenaire" | "ami" | "logement" | "service";
+export type AnnonceCategory =
+  | "rencontre" | "partenaire" | "ami" | "logement" | "service"
+  | "voitures" | "transport" | "electronique" | "mode" | "maison" | "objets"
+  | "coiffure" | "demenagement" | "dj" | "chauffeur" | "gardenfant";
 
 export interface PronoAnnonce {
   id: string;
@@ -300,7 +338,12 @@ export interface PronoAnnonce {
   description: string;
   city: string;
   country: string;
+  quartier?: string;                  // quartier / voisinage
+  postal?: string;                    // code postal (PLZ)
   photos: string[];
+  price_eur?: number | null;          // marketplace (optionnel)
+  shipping?: "non" | "aide";          // envoi vers l'Afrique
+  customs?: "aucun" | "vendeur" | "acheteur"; // dédouanement
   status: string; // active | hidden | removed
   reports_count: number;
   created_at: string;

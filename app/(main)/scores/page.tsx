@@ -4,41 +4,72 @@ import { ScoreCard } from "@/components/scores/ScoreCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Radio, CalendarDays, History, Trophy, Info } from "lucide-react";
-import { getLiveScores, getUpcomingMatches, getRecentResults } from "@/lib/services/football.service";
+import { getLiveScores, getUpcomingMatches, getRecentResults, getLiveEvents } from "@/lib/services/football.service";
 import { getSettings } from "@/lib/services/settings.service";
+import { getSessionUser } from "@/lib/supabase/server";
 import { LEAGUES, LEAGUE_CODES } from "@/lib/constants";
+import { pageMetadata } from "@/lib/seo";
 import type { LeagueCode, StandingEntry } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Scores live" };
+export const metadata: Metadata = pageMetadata({
+  title: "Scores foot live : 6 grands championnats · PRONO",
+  description:
+    "Scores en direct des matchs de Bundesliga, Premier League, Liga, Serie A, Ligue 1 et autres championnats. Résultats récents, prochains matchs et classements officiels. Gratuit.",
+  path: "/scores",
+  ogImage: "/og-scores.png",
+  keywords: [
+    "scores live",
+    "scores foot",
+    "Bundesliga scores",
+    "Premier League live",
+    "Ligue 1 live",
+  ],
+});
 
 /**
  * Page /scores — live, résultats, classements.
  * ⭐ Le front lit UNIQUEMENT Supabase (cache + temps réel), jamais l'API externe.
  */
 export default async function ScoresPage() {
-  const [live, upcoming, results, settings] = await Promise.all([
+  const [live, upcoming, results, settings, events, user] = await Promise.all([
     getLiveScores(),
     getUpcomingMatches(10),
     getRecentResults(12),
     getSettings(),
+    getLiveEvents(),
+    getSessionUser(),
   ]);
 
   const standings = settings.standings_cache;
 
   return (
-    <div className="container space-y-10 py-8">
+    <div className="theme-foot container space-y-10 py-8">
       <header className="space-y-2">
-        <h1 className="flex items-center gap-3 text-3xl font-black">
+        <h1 className="flex items-center gap-3 font-display text-4xl font-black">
           <Radio className="h-8 w-8 text-primary" /> Scores
           {live.length > 0 && <Badge variant="live" className="gap-1.5">
             <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-red-500" /> {live.length} en direct
           </Badge>}
         </h1>
         <p className="text-muted-foreground">
-          Résultats mis à jour automatiquement toutes les 90 secondes (cache Supabase + temps réel).
+          Les matchs des six grands championnats, en direct.
         </p>
       </header>
+
+      {/* ⚠️ Alerte admin : fournisseur de données en erreur (ex : compte API suspendu) */}
+      {user?.is_admin && settings.sync_state.api_error && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
+          <p className="font-bold text-amber-400">⚠️ Fournisseur API-Football en erreur</p>
+          <p className="mt-1 text-amber-200/80">
+            Les scores live et les imports sont désactivés : {settings.sync_state.api_error}
+          </p>
+          <p className="mt-1 text-amber-200/60">
+            Vérifie ton compte sur dashboard.api-football.com puis mets à jour la clé API_SPORTS_KEY
+            (Admin ⚙️ ou variables Vercel). Les résultats peuvent être saisis manuellement en attendant.
+          </p>
+        </div>
+      )}
 
       <LiveTicker initialLive={live} upcoming={upcoming} />
 
@@ -52,7 +83,7 @@ export default async function ScoresPage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {live.filter((m) => m.status !== "FT").map((m) => (
-              <ScoreCard key={m.id} match={m} />
+              <ScoreCard key={m.id} match={m} events={events.filter((e) => e.fixture_id === m.id)} />
             ))}
           </div>
         )}
@@ -64,7 +95,7 @@ export default async function ScoresPage() {
           <History className="h-5 w-5 text-primary" /> Derniers résultats
         </h2>
         {results.length === 0 ? (
-          <EmptyCard text="Les résultats apparaîtront ici dès qu'un match sera terminé (synchro automatique ou saisie admin)." />
+          <EmptyCard text="Les résultats apparaîtront ici dès la fin des matchs." />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {results.map((m) => (
@@ -95,9 +126,9 @@ export default async function ScoresPage() {
           <div className="flex items-start gap-3 rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
             <Info className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <div>
-              Classements disponibles dès qu'une clé <b>API_SPORTS_KEY</b> est configurée et la première
-              synchronisation effectuée (Admin → ⚡ Synchro API-Sports). En attendant, le classement des
-              <b> joueurs </b> est toujours disponible sur la page <a href="/classement" className="text-primary hover:underline">Classement</a>.
+              Les classements des championnats seront affichés ici dès leur première mise à jour.
+              En attendant, le classement des <b>joueurs</b> est disponible sur la page{" "}
+              <a href="/classement" className="text-primary hover:underline">Classement</a>.
             </div>
           </div>
         ) : (

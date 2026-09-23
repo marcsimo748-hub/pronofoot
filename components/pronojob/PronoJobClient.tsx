@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * PronoJobClient — moteur de recherche d'emploi du module PRONOJOB.
+ * PronoJobClient — moteur de recherche d'emploi du module PRONOJOB (FR/EN/DE).
  * Filtres (recherche, ville, pays, contrat, télétravail, source), PronoScore,
  * pagination "Charger plus" et bouton "Postuler depuis Pronofoot"
  * (enregistre la candidature + ouvre l'offre originale).
@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, SlidersHorizontal, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BannerRotator } from "@/components/shared/BannerRotator";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,25 +18,39 @@ import { JobCard } from "./JobCard";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { setRedirectAfterLogin } from "@/lib/auth-redirect";
 import { JobPrefsForm } from "./JobPrefsForm";
+import { useT, type Lang } from "@/lib/i18n";
 import type { PronoScoredJob, JobPrefs } from "@/lib/types";
 
-const COUNTRIES = [
-  "Allemagne", "France", "Royaume-Uni", "Autriche", "Suisse", "Pays-Bas",
-  "Belgique", "Espagne", "Italie", "Luxembourg", "Pologne", "Portugal",
-  "Irlande", "Télétravail", "Europe / Monde",
+// Valeurs envoyées à l'API (inchangées) + clé de traduction pour l'affichage
+const COUNTRIES: { v: string; key: "job.co.Allemagne" | "job.co.France" | "job.co.Royaume-Uni" | "job.co.Autriche" | "job.co.Suisse" | "job.co.Pays-Bas" | "job.co.Belgique" | "job.co.Espagne" | "job.co.Italie" | "job.co.Luxembourg" | "job.co.Pologne" | "job.co.Portugal" | "job.co.Irlande" | "job.co.Télétravail" | "job.co.Europe / Monde" }[] = [
+  { v: "Allemagne", key: "job.co.Allemagne" },
+  { v: "France", key: "job.co.France" },
+  { v: "Royaume-Uni", key: "job.co.Royaume-Uni" },
+  { v: "Autriche", key: "job.co.Autriche" },
+  { v: "Suisse", key: "job.co.Suisse" },
+  { v: "Pays-Bas", key: "job.co.Pays-Bas" },
+  { v: "Belgique", key: "job.co.Belgique" },
+  { v: "Espagne", key: "job.co.Espagne" },
+  { v: "Italie", key: "job.co.Italie" },
+  { v: "Luxembourg", key: "job.co.Luxembourg" },
+  { v: "Pologne", key: "job.co.Pologne" },
+  { v: "Portugal", key: "job.co.Portugal" },
+  { v: "Irlande", key: "job.co.Irlande" },
+  { v: "Télétravail", key: "job.co.Télétravail" },
+  { v: "Europe / Monde", key: "job.co.Europe / Monde" },
 ];
 
 const CONTRACTS = [
-  { v: "", label: "Tous" },
-  { v: "full-time", label: "Temps plein" },
-  { v: "part-time", label: "Temps partiel" },
-  { v: "contract", label: "CDD / Mission" },
-  { v: "internship", label: "Stage / Alternance" },
-  { v: "freelance", label: "Freelance" },
-];
+  { v: "", key: "job.cAll" },
+  { v: "full-time", key: "job.cFull" },
+  { v: "part-time", key: "job.cPart" },
+  { v: "contract", key: "job.cCdd" },
+  { v: "internship", key: "job.cIntern" },
+  { v: "freelance", key: "job.cFree" },
+] as const;
 
 const SOURCES = [
-  { v: "", label: "Toutes" },
+  { v: "", key: "job.sAll" },
   { v: "arbeitnow", label: "Arbeitnow 🇩🇪" },
   { v: "remotive", label: "Remotive 🌍" },
   { v: "adzuna", label: "Adzuna 🌐" },
@@ -67,6 +82,8 @@ export function PronoJobClient({
   /** Arrive de redirectAfterLogin : rouvrir l'offre exacte cliquée avant connexion */
   autoApply?: boolean;
 }) {
+  const { lang, t } = useT();
+  const locale = lang === "de" ? "de-DE" : lang === "en" ? "en-GB" : "fr-FR";
   const [jobs, setJobs] = useState<PronoScoredJob[]>(initial.jobs);
   const [total, setTotal] = useState(initial.total);
   const [mode, setMode] = useState(initial.mode);
@@ -121,7 +138,7 @@ export function PronoJobClient({
       sessionStorage.removeItem("prono-pending-job");
       const job = JSON.parse(raw) as PronoScoredJob;
       window.open(job.url, "_blank", "noopener,noreferrer");
-      setFlash("✅ Offre rouverte ! Bonne chance pour ta candidature 🍀");
+      setFlash(t("job.flashReopened"));
       if (dbReady) {
         void fetch("/api/prono-jobs/apply", {
           method: "POST",
@@ -147,8 +164,8 @@ export function PronoJobClient({
       firstRender.current = false;
       return;
     }
-    const t = setTimeout(() => fetchJobs(0, false, filters), 500);
-    return () => clearTimeout(t);
+    const tm = setTimeout(() => fetchJobs(0, false, filters), 500);
+    return () => clearTimeout(tm);
   }, [filters, fetchJobs]);
 
   /** "Postuler depuis PRONO" : modale si non connecté, puis enregistre et ouvre l'offre */
@@ -165,7 +182,7 @@ export function PronoJobClient({
     window.open(job.url, "_blank", "noopener,noreferrer");
 
     if (!dbReady) {
-      setFlash("💡 Offre ouverte ! Le suivi des candidatures sera bientôt disponible.");
+      setFlash(t("job.flashNoFollow"));
       return;
     }
     try {
@@ -177,21 +194,22 @@ export function PronoJobClient({
       const json = await res.json();
       if (json.ok) {
         setApplied((s) => new Set(s).add(job.id));
-        setFlash("✅ Candidature enregistrée — retrouve-la dans ton dashboard !");
+        setFlash(t("job.flashSaved"));
       } else if (json.code === "no_table") {
-        setFlash("💡 Offre ouverte ! Le suivi des candidatures sera bientôt disponible.");
+        setFlash(t("job.flashNoFollow"));
       } else {
-        setFlash("⚠️ Impossible d'enregistrer la candidature — l'offre reste ouverte.");
+        setFlash(t("job.flashErr"));
       }
     } catch {
-      setFlash("⚠️ Réseau indisponible — l'offre reste ouverte.");
+      setFlash(t("job.flashNet"));
     }
   }
 
   /** Après sauvegarde du profil → recalcule les scores */
   function onPrefsSaved(prefs: JobPrefs) {
+    void prefs;
     fetchJobs(0, false, filters);
-    setFlash("✨ PronoScore recalculé avec ton profil !");
+    setFlash(t("job.flashPrefs"));
   }
 
   const selectCls =
@@ -199,25 +217,26 @@ export function PronoJobClient({
 
   return (
     <div className="theme-job container space-y-6 py-8">
+      <BannerRotator
+        images={["/banners/job/01.jpg", "/banners/job/02.jpg", "/banners/job/03.jpg", "/banners/job/04.jpg", "/banners/job/05.jpg"]}
+        title={t("job.bannerTitle")}
+        subtitle={t("job.bannerSub")}
+      />
       {/* ===== En-tête ===== */}
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="flex items-center gap-2 text-3xl font-black tracking-tight">
-            <Briefcase className="h-7 w-7 text-primary" /> PRONO Emploi
+            <Briefcase className="h-7 w-7 text-primary" /> PRONO {t("job.h1")}
           </h1>
-          <Badge variant="default" className="bg-primary/15 text-primary">NOUVEAU</Badge>
+          <Badge variant="default" className="bg-primary/15 text-primary">{t("job.new")}</Badge>
         </div>
-        <p className="max-w-2xl text-muted-foreground">
-          Agrégateur d&apos;offres d&apos;emploi <strong>100% légal</strong> — Allemagne, Europe et
-          télétravail. Sources officielles : Arbeitnow, Remotive, Adzuna, JSearch (Indeed/LinkedIn).
-          Ton <strong>PronoScore</strong> estime la compatibilité entre ton profil et chaque offre.
-        </p>
+        <p className="max-w-2xl text-muted-foreground">{t("job.intro")}</p>
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <Badge variant="secondary">{total.toLocaleString("fr-FR")} offres</Badge>
+          <Badge variant="secondary">{total.toLocaleString(locale)} {t("job.offers")}</Badge>
           <Badge variant="outline">
-            {mode === "db" ? "📦 Cache actualisé toutes les 6 h" : "⚡ Lecture directe des API"}
+            {mode === "db" ? t("job.cache") : t("job.live")}
           </Badge>
-          <Badge variant="outline" className="text-muted-foreground">⚖️ Liens vers les sources originales</Badge>
+          <Badge variant="outline" className="text-muted-foreground">{t("job.links")}</Badge>
         </div>
       </header>
 
@@ -239,20 +258,20 @@ export function PronoJobClient({
       {/* ===== Filtres ===== */}
       <div className="rounded-xl border border-white/5 bg-card/70 p-4 backdrop-blur-sm">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-          <SlidersHorizontal className="h-4 w-4" /> Filtres
+          <SlidersHorizontal className="h-4 w-4" /> {t("job.filters")}
         </h2>
         <div className="grid gap-3 md:grid-cols-3">
           <div className="relative md:col-span-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-9"
-              placeholder="Métier, entreprise, mot-clé…"
+              placeholder={t("job.searchPh")}
               value={filters.q}
               onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
             />
           </div>
           <Input
-            placeholder="Ville (ex : Berlin)"
+            placeholder={t("job.cityPh")}
             value={filters.city}
             onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
           />
@@ -261,9 +280,9 @@ export function PronoJobClient({
             value={filters.country}
             onChange={(e) => setFilters((f) => ({ ...f, country: e.target.value }))}
           >
-            <option value="">Tous les pays</option>
+            <option value="">{t("job.allCountries")}</option>
             {COUNTRIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c.v} value={c.v}>{t(c.key)}</option>
             ))}
           </select>
           <select
@@ -272,7 +291,7 @@ export function PronoJobClient({
             onChange={(e) => setFilters((f) => ({ ...f, contract: e.target.value }))}
           >
             {CONTRACTS.map((c) => (
-              <option key={c.v} value={c.v}>{`Contrat : ${c.label}`}</option>
+              <option key={c.v} value={c.v}>{`${t("job.contractWord")} : ${t(c.key)}`}</option>
             ))}
           </select>
           <select
@@ -281,11 +300,11 @@ export function PronoJobClient({
             onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value }))}
           >
             {SOURCES.map((s) => (
-              <option key={s.v} value={s.v}>{`Source : ${s.label}`}</option>
+              <option key={s.v} value={s.v}>{`${t("job.sourceWord")} : ${("key" in s && s.key) ? t(s.key as "job.sAll") : s.label}`}</option>
             ))}
           </select>
           <label className="flex cursor-pointer items-center justify-between rounded-lg border border-white/5 bg-background/50 px-3 py-2 text-sm">
-            🌍 Télétravail uniquement
+            {t("job.remoteOnly")}
             <input
               type="checkbox"
               className="h-4 w-4 accent-primary"
@@ -294,6 +313,20 @@ export function PronoJobClient({
             />
           </label>
         </div>
+
+        {/* Pastille de réinitialisation : visible dès qu'un filtre est actif */}
+        {(filters.q || filters.city || filters.country || filters.contract || filters.source || filters.remote) && (
+          <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>{t("job.filtersOn")}</span>
+            <button
+              type="button"
+              onClick={() => setFilters({ q: "", city: "", country: "", contract: "", remote: false, source: "" })}
+              className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 font-semibold text-primary transition-colors hover:bg-primary/20"
+            >
+              {t("job.reset")}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ===== Résultats ===== */}
@@ -310,9 +343,7 @@ export function PronoJobClient({
         </div>
       ) : jobs.length === 0 ? (
         <div className="rounded-xl border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">
-            Aucune offre ne correspond à ces filtres — essaie d&apos;élargir ta recherche.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("job.empty")}</p>
         </div>
       ) : (
         <>
@@ -334,7 +365,7 @@ export function PronoJobClient({
                 disabled={loading}
                 onClick={() => fetchJobs(page + 1, true, filters)}
               >
-                {loading ? "Chargement…" : `Charger plus (${jobs.length}/${total})`}
+                {loading ? t("job.loading") : `${t("job.more")} (${jobs.length}/${total})`}
               </Button>
             </div>
           )}
@@ -343,17 +374,14 @@ export function PronoJobClient({
 
       {/* ===== Mention légale ===== */}
       <footer className="rounded-xl border border-white/5 bg-background/50 p-4 text-xs text-muted-foreground">
-        ⚖️ <strong>Offres agrégées via les API officielles</strong> (Arbeitnow, Remotive, Adzuna,
-        JSearch/RapidAPI). PRONO affiche uniquement le titre, un extrait court et le lien vers
-        l&apos;offre originale, toute candidature se fait sur le site source. Ce service est
-        fourni à titre informatif.
+        {t("job.legal")}
       </footer>
 
       {/* Modale connexion / inscription (postuler sans compte) */}
       <AuthModal
         open={authOpen}
         onOpenChange={setAuthOpen}
-        message="Connecte-toi ou crée ton compte gratuit pour postuler, l'offre s'ouvrira automatiquement après."
+        message={t("job.authMsg")}
       />
     </div>
   );

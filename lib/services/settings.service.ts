@@ -31,8 +31,12 @@ export async function getSettings(): Promise<SiteSettings> {
   );
 
   for (const row of rows) {
-    if (row.key in merged && row.value && typeof row.value === "object") {
-      Object.assign(merged[row.key as SettingsKey], row.value);
+    if (row.value && typeof row.value === "object") {
+      const k = row.key as SettingsKey;
+      if (k in merged) {
+        // Object.assign typed-bypass : la valeur de la DB est validée côté admin
+        Object.assign(merged[k] as unknown as object, row.value as unknown as object);
+      }
     }
   }
 
@@ -46,13 +50,14 @@ export function invalidateSettingsCache() {
 }
 
 /** Écrit une clé de réglages (service role uniquement) */
-export async function updateSetting(key: SettingsKey, value: Partial<SiteSettings[SettingsKey]>) {
+export async function updateSetting(key: SettingsKey, value: Record<string, unknown>) {
   const admin = tryGetSupabaseAdminClient();
   if (!admin) throw new Error("Service role non configuré");
 
   // Fusionne avec l'existant pour ne pas écraser les autres champs de la clé
   const { data: existing } = await admin.from("site_settings").select("value").eq("key", key).single();
-  const merged = { ...(existing?.value ?? {}), ...value };
+  const existingValue = (existing?.value ?? {}) as Record<string, unknown>;
+  const merged: Record<string, unknown> = { ...existingValue, ...value };
 
   const { error } = await admin
     .from("site_settings")

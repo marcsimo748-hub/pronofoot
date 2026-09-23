@@ -6,16 +6,35 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { AboutSection } from "@/components/landing/AboutSection";
 import { NextMatches } from "@/components/landing/NextMatches";
 import { LiveTicker } from "@/components/scores/LiveTicker";
-import { getUpcomingMatches } from "@/lib/services/football.service";
-import { getLiveScores } from "@/lib/services/football.service";
+import { getUpcomingMatches, getLiveScores } from "@/lib/services/football.service";
 import { getSettings } from "@/lib/services/settings.service";
 import { getSessionUser } from "@/lib/supabase/server";
 import { safeQuery } from "@/lib/utils";
 import { FEATURED_TEAMS } from "@/lib/constants";
+import { pageMetadata } from "@/lib/seo";
 import { Button } from "@/components/ui/button";
 import { Zap } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = pageMetadata({
+  title: "PRONO · La Super-App de la Diaspora (pronostics, scores, vie en Europe)",
+  description:
+    "Pronostics football entre potes, scores live de 6 championnats, Emploi, Visa, Logement, Voyage et Annonces : la super-app gratuite de la diaspora africaine et camerounaise en Europe.",
+  path: "/",
+  ogImage: "/og-annonces.png",
+  keywords: [
+    "PRONO",
+    "super-app diaspora",
+    "pronostics foot",
+    "scores live",
+    "Cameroun",
+    "diaspora africaine",
+    "vie en Allemagne",
+    "emploi diaspora",
+    "logement diaspora",
+  ],
+});
 
 /**
  * Landing publique — hero, ticker live, fonctionnalités, prochains matchs, barème.
@@ -40,7 +59,7 @@ export default async function LandingPage() {
   }, { players: 0, matches: 629 });
 
   return (
-    <>
+    <div className="theme-foot">
       <Hero
         stats={{ ...stats, teams: FEATURED_TEAMS.length }}
         loggedIn={Boolean(user)}
@@ -72,6 +91,6 @@ export default async function LandingPage() {
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }

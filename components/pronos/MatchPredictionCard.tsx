@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Check, Lock, TimerReset, Save, Pencil, Eye } from "lucide-react";
+import { Check, Lock, TimerReset, Save, Pencil, Eye, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,15 +34,27 @@ interface Props {
   prediction?: Prediction;
   /** Admin : pronos des autres joueurs avant le coup d'envoi */
   adminPeek?: PublicPrediction[];
+  /** Qui a déjà pronostiqué (pseudos seulement — les scores restent secrets) */
+  participants?: { count: number; usernames: string[] };
+  /** Appelé après un enregistrement réussi (met à jour toutes les vues) */
+  onSaved?: (matchId: string, home: number, away: number) => void;
 }
 
-export function MatchPredictionCard({ match, prediction, adminPeek }: Props) {
+export function MatchPredictionCard({ match, prediction, adminPeek, participants, onSaved }: Props) {
   const [home, setHome] = useState<number | null>(prediction?.home_score ?? null);
   const [away, setAway] = useState<number | null>(prediction?.away_score ?? null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(Boolean(prediction));
   const [peekOpen, setPeekOpen] = useState(false);
   const [, forceTick] = useState(0);
+
+  // La prop prediction peut arriver APRÈS le premier montage (état parent
+  // mis à jour) : on resynchronise le formulaire au lieu de rester vide.
+  useEffect(() => {
+    setHome(prediction?.home_score ?? null);
+    setAway(prediction?.away_score ?? null);
+    setSaved(Boolean(prediction));
+  }, [prediction]);
 
   const league = LEAGUES[match.league];
   const kickoff = new Date(match.match_date).getTime();
@@ -89,6 +101,7 @@ export function MatchPredictionCard({ match, prediction, adminPeek }: Props) {
         return;
       }
       setSaved(true);
+      onSaved?.(match.id, home, away);
       toast.success("Pronostic enregistré ! 🎯", { description: `${match.home_team} ${home} - ${away} ${match.away_team}` });
     } catch {
       toast.error("Erreur réseau, réessaie.");
@@ -144,7 +157,7 @@ export function MatchPredictionCard({ match, prediction, adminPeek }: Props) {
               disabled={locked}
               placeholder="–"
               aria-label={`Score ${match.home_team}`}
-              className="no-spinner order-first h-11 w-14 rounded-lg border border-input bg-background text-center text-xl font-bold tabular-nums focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+              className="no-spinner order-first h-11 w-14 rounded-lg border border-input bg-background text-center font-mono text-xl font-bold tabular-nums focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
             />
           )}
         </div>
@@ -170,7 +183,7 @@ export function MatchPredictionCard({ match, prediction, adminPeek }: Props) {
               disabled={locked}
               placeholder="–"
               aria-label={`Score ${match.away_team}`}
-              className="no-spinner h-11 w-14 rounded-lg border border-input bg-background text-center text-xl font-bold tabular-nums focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+              className="no-spinner h-11 w-14 rounded-lg border border-input bg-background text-center font-mono text-xl font-bold tabular-nums focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
             />
           )}
           <TeamName name={match.away_team} />
@@ -189,7 +202,7 @@ export function MatchPredictionCard({ match, prediction, adminPeek }: Props) {
             </Badge>
           </>
         ) : finished && !prediction ? (
-          <span className="text-xs italic text-muted-foreground">Match terminé — aucun pronostic</span>
+          <span className="text-xs italic text-muted-foreground">Match terminé · aucun pronostic</span>
         ) : locked ? (
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Lock className="h-3 w-3" /> Pronostics verrouillés
@@ -207,6 +220,24 @@ export function MatchPredictionCard({ match, prediction, adminPeek }: Props) {
           </>
         )}
       </div>
+
+      {/* 👥 Qui a déjà pronostiqué ici ? (pseudos visibles, scores secrets) */}
+      {!locked && participants && participants.count > 0 && (
+        <div className="mt-2 border-t border-white/5 pt-2">
+          <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Users className="h-3 w-3" />
+            <span className="font-semibold text-foreground">{participants.count}</span>
+            prono{participants.count > 1 ? "s" : ""} :
+            {participants.usernames.map((u, i) => (
+              <span key={i} className="rounded-full bg-secondary/60 px-2 py-0.5">{u}</span>
+            ))}
+            {participants.count > participants.usernames.length && (
+              <span>+{participants.count - participants.usernames.length} autre{participants.count - participants.usernames.length > 1 ? "s" : ""}</span>
+            )}
+            <span className="ml-auto text-[10px]">🔒 scores dévoilés au coup d&apos;envoi</span>
+          </p>
+        </div>
+      )}
 
       {/* Aperçu admin : pronos de tous les joueurs (même avant le coup d'envoi) */}
       {adminPeek && adminPeek.length > 0 && (

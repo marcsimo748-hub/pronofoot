@@ -108,7 +108,7 @@ export function AnnoncesModerationTool() {
         </div>
       ) : annonces.length === 0 ? (
         <p className="rounded-lg border border-dashed border-white/10 p-8 text-center text-sm text-muted-foreground">
-          Aucune annonce (ou table pas encore créée — SQL 008).
+          Aucune annonce (ou table pas encore créée · SQL 008).
         </p>
       ) : (
         <div className="space-y-2">
@@ -124,7 +124,7 @@ export function AnnoncesModerationTool() {
                     {cat.emoji} {a.title}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    📍 {a.city || "—"} · {a.author?.username ?? "?"} · {timeAgoFr(a.created_at)}
+                    📍 {a.city || "-"} · {a.author?.username ?? "?"} · {timeAgoFr(a.created_at)}
                     {a.reports_count > 0 && (
                       <span className="ml-1 text-red-400">· 🚩 {a.reports_count} signalement(s)</span>
                     )}

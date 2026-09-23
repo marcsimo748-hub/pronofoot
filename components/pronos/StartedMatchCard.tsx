@@ -6,12 +6,14 @@
  * (protégés par la RLS jusqu'au coup d'envoi — migration 012).
  */
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatMatchDate } from "@/lib/utils";
 import { LEAGUES } from "@/lib/constants";
 import { TeamLogo } from "@/components/ui/TeamLogo";
+import { ShareButton } from "@/components/shared/ShareButton";
 import type { StartedMatch } from "@/lib/services/predictions.service";
 
 export function StartedMatchCard({ data }: { data: StartedMatch }) {
@@ -39,6 +41,15 @@ export function StartedMatchCard({ data }: { data: StartedMatch }) {
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" /> En cours
           </Badge>
         ) : null}
+        <span className={cn("ml-auto", (finished || live) && "ml-1")}>
+          <ShareButton
+            title={`${match.home_team} - ${match.away_team} | Les pronos de la communauté sur PRONO`}
+            text={`${predictions.length} pronos déjà déposés sur ${match.home_team} - ${match.away_team}`}
+            url="/pronos"
+            variant="ghost"
+            className="h-6 px-2 text-[11px]"
+          />
+        </span>
       </div>
 
       {/* Affiche */}
@@ -48,7 +59,7 @@ export function StartedMatchCard({ data }: { data: StartedMatch }) {
           <span className="truncate">{match.home_team}</span>
         </span>
         {finished ? (
-          <span className="shrink-0 rounded-lg bg-secondary px-3 py-1 text-base tabular-nums">
+          <span className="shrink-0 rounded-lg bg-secondary px-3 py-1 text-base font-mono tabular-nums">
             {match.home_score} - {match.away_score}
           </span>
         ) : (
@@ -88,14 +99,20 @@ export function StartedMatchCard({ data }: { data: StartedMatch }) {
                       {(p.username ?? "?").slice(0, 1).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="min-w-0 flex-1 truncate font-medium">{p.username ?? "Joueur"}</span>
-                  <span className="shrink-0 rounded-md bg-background/60 px-2 py-0.5 font-bold tabular-nums">
+                  <Link
+                    href={`/joueur/${p.user_id}`}
+                    className="min-w-0 flex-1 truncate font-medium hover:text-primary hover:underline"
+                    title={`Voir le coupon de ${p.username ?? "ce joueur"}`}
+                  >
+                    {p.username ?? "Joueur"}
+                  </Link>
+                  <span className="shrink-0 rounded-md bg-background/60 px-2 py-0.5 font-bold font-mono tabular-nums">
                     {p.home_score} - {p.away_score}
                   </span>
                   {p.calculated ? (
                     <span
                       className={cn(
-                        "w-12 shrink-0 text-right text-xs font-bold tabular-nums",
+                        "w-12 shrink-0 text-right text-xs font-bold font-mono tabular-nums",
                         exact ? "text-emerald-400" : good ? "text-primary" : "text-muted-foreground"
                       )}
                     >

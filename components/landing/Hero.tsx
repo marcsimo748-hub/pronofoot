@@ -43,7 +43,7 @@ export function Hero({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-5xl font-black leading-tight tracking-tight sm:text-6xl md:text-8xl"
+          className="font-display text-5xl font-black leading-tight tracking-tight sm:text-6xl md:text-8xl"
         >
           <span className="text-gradient">PRONO</span>
         </motion.h1>
@@ -52,7 +52,7 @@ export function Hero({
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.18 }}
-          className="text-xl font-black md:text-3xl"
+          className="font-display text-xl font-black italic md:text-3xl"
         >
           {t("hero.t2")}
         </motion.p>
@@ -114,7 +114,7 @@ export function Hero({
             { value: stats.teams, label: t("hero.statTeams") },
           ].map((s) => (
             <div key={s.label}>
-              <dt className="text-2xl font-black text-primary md:text-3xl">{s.value.toLocaleString("fr-FR")}</dt>
+              <dt className="font-mono text-2xl font-black text-primary md:text-3xl">{s.value.toLocaleString("fr-FR")}</dt>
               <dd className="text-[11px] uppercase tracking-wide text-muted-foreground md:text-xs">{s.label}</dd>
             </div>
           ))}

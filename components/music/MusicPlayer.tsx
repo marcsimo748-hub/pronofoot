@@ -91,7 +91,7 @@ export function MusicPlayer({ initialSongs }: { initialSongs: Song[] }) {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{currentSong.title}</p>
-                  <p className="truncate text-xs text-muted-foreground">{currentSong.artist ?? "—"}</p>
+                  <p className="truncate text-xs text-muted-foreground">{currentSong.artist ?? "-"}</p>
                 </div>
                 {isPlaying && (
                   <span className="equalizer ml-1 hidden sm:inline-flex" aria-hidden>

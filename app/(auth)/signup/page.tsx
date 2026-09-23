@@ -9,7 +9,7 @@ export default function SignupPage() {
     <Card className="glass shadow-2xl">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Rejoins l'arène 🏟️</CardTitle>
-        <CardDescription>Compte gratuit — pseudo, email, mot de passe. C'est tout.</CardDescription>
+        <CardDescription>Compte gratuit · pseudo, email, mot de passe. C'est tout.</CardDescription>
       </CardHeader>
       <CardContent>
         <SignupForm />

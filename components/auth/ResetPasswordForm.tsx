@@ -70,7 +70,7 @@ export function ResetPasswordForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-400">
-        <ShieldCheck className="h-4 w-4" /> Identité vérifiée — choisis ton nouveau mot de passe.
+        <ShieldCheck className="h-4 w-4" /> Identité vérifiée · choisis ton nouveau mot de passe.
       </div>
       <div className="space-y-2">
         <Label htmlFor="new-password">Nouveau mot de passe</Label>

@@ -159,7 +159,7 @@ export function ModernCv({ data }: { data: CvData }) {
               <div key={i} style={{ marginBottom: 12 }}>
                 <div style={{ fontWeight: 700, color: DARK }}>{e.role}</div>
                 <div style={{ fontSize: 11.5, color: MUTED, fontStyle: "italic" }}>
-                  {e.company}{e.company && e.period ? " — " : ""}{e.period}
+                  {e.company}{e.company && e.period ? " · " : ""}{e.period}
                 </div>
                 {e.description && <div style={{ fontSize: 11.5, color: "#475569", marginTop: 2 }}>{e.description}</div>}
               </div>
@@ -173,7 +173,7 @@ export function ModernCv({ data }: { data: CvData }) {
             {data.educations.map((e, i) => (
               <div key={i} style={{ marginBottom: 8 }}>
                 <div style={{ fontWeight: 700, color: DARK }}>{e.degree}</div>
-                <div style={{ fontSize: 11.5, color: MUTED }}>{e.school}{e.school && e.year ? " — " : ""}{e.year}</div>
+                <div style={{ fontSize: 11.5, color: MUTED }}>{e.school}{e.school && e.year ? " · " : ""}{e.year}</div>
               </div>
             ))}
           </>
@@ -242,7 +242,7 @@ export function ClassicCv({ data }: { data: CvData }) {
             <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
               <span style={{ fontWeight: 700, color: "#111" }}>
                 {e.degree}
-                {e.school ? <span style={{ fontWeight: 400, color: "#555" }}> — {e.school}</span> : null}
+                {e.school ? <span style={{ fontWeight: 400, color: "#555" }}> · {e.school}</span> : null}
               </span>
               <span style={{ fontSize: 11, color: "#666" }}>{e.year}</span>
             </div>
@@ -262,10 +262,10 @@ export function ClassicCv({ data }: { data: CvData }) {
             <div style={{ flex: 1 }}>
               <strong style={{ color: "#111" }}>Langues :</strong>
               <div style={{ color: "#444" }}>
-                {data.germanLevel !== "none" && <div>Allemand — {data.germanLevel}</div>}
-                {data.englishLevel !== "none" && <div>Anglais — {data.englishLevel}</div>}
+                {data.germanLevel !== "none" && <div>Allemand · {data.germanLevel}</div>}
+                {data.englishLevel !== "none" && <div>Anglais · {data.englishLevel}</div>}
                 {data.otherLanguages && <div>{data.otherLanguages}</div>}
-                {data.germanLevel === "none" && data.englishLevel === "none" && !data.otherLanguages && <div>—</div>}
+                {data.germanLevel === "none" && data.englishLevel === "none" && !data.otherLanguages && <div>-</div>}
               </div>
             </div>
           </div>
@@ -306,7 +306,7 @@ export function GermanCv({ data }: { data: CvData }) {
         <div>
           <h1 style={{ margin: 0, fontSize: 32, fontWeight: 800, color: DARK }}>Lebenslauf</h1>
           <div style={{ color: ACCENT, fontWeight: 700, fontSize: 14, marginTop: 4 }}>
-            {data.fullName} {data.jobTitle ? `— ${data.jobTitle}` : ""}
+            {data.fullName} {data.jobTitle ? `- ${data.jobTitle}` : ""}
           </div>
         </div>
         <div style={{
@@ -365,8 +365,8 @@ export function GermanCv({ data }: { data: CvData }) {
 
       <Section title="Sprachkenntnisse / Langues">
         <div style={{ display: "flex", gap: 26, fontSize: 12 }}>
-          <span>🇩🇪 Deutsch — <strong>{data.germanLevel === "none" ? "–" : data.germanLevel}</strong></span>
-          <span>🇬🇧 Englisch — <strong>{data.englishLevel === "none" ? "–" : data.englishLevel}</strong></span>
+          <span>🇩🇪 Deutsch · <strong>{data.germanLevel === "none" ? "–" : data.germanLevel}</strong></span>
+          <span>🇬🇧 Englisch · <strong>{data.englishLevel === "none" ? "–" : data.englishLevel}</strong></span>
           {data.otherLanguages && <span>🌍 {data.otherLanguages}</span>}
         </div>
       </Section>
