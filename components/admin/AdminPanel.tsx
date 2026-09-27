@@ -25,6 +25,7 @@ import { AnnoncesModerationTool } from "./tools/AnnoncesModerationTool";
 import { TripsModerationTool } from "./tools/TripsModerationTool";
 import { AiKeysTool } from "./tools/AiKeysTool";
 import { SecurityEmailTool } from "./tools/SecurityEmailTool";
+import { SyncAfricanMatchesButton } from "./SyncAfricanMatchesButton";
 import type { SiteSettings } from "@/lib/types";
 
 export function AdminPanel({ settings }: { settings: SiteSettings }) {
@@ -83,6 +84,9 @@ export function AdminPanel({ settings }: { settings: SiteSettings }) {
           </span>
         )}
       </div>
+
+      {/* Bouton rapide : Synchronisation des matchs africains (ESPN) */}
+      <SyncAfricanMatchesButton />
 
       {/* Grille des outils */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
