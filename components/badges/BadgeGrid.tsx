@@ -10,8 +10,7 @@
 
 import { Lock } from "lucide-react";
 import { BadgeChip } from "./BadgeChip";
-import { BADGES, type Lang } from "@/lib/badges";
-import { tBadgeName, tBadgeDesc } from "@/lib/services/badges.service";
+import { BADGES, type Lang, tBadgeName, tBadgeDesc } from "@/lib/badges";
 
 interface BadgeGridProps {
   badges: { code: string; awarded_at: string }[];

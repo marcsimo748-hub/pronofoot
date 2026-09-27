@@ -139,9 +139,9 @@ export default async function PronoAfriquePage({
           <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
             🌍 {matches.length} match{matches.length > 1 ? "s" : ""} africain{matches.length > 1 ? "s" : ""} à venir
           </span>
-          {startedMatches.filter((s) => africanLeaguesSet.has(s.league)).length > 0 && (
+          {startedMatches.filter((s) => africanLeaguesSet.has(s.match.league)).length > 0 && (
             <span className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-              <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-red-500" /> {startedMatches.filter((s) => africanLeaguesSet.has(s.league)).length} en direct / récents
+              <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-red-500" /> {startedMatches.filter((s) => africanLeaguesSet.has(s.match.league)).length} en direct / récents
             </span>
           )}
           {selectedCountry && (
@@ -287,7 +287,7 @@ export default async function PronoAfriquePage({
           matches={filteredMatches}
           predictions={predictions}
           settings={settings}
-          startedMatches={startedMatches.filter((s) => africanLeaguesSet.has(s.league))}
+          startedMatches={startedMatches.filter((s) => africanLeaguesSet.has(s.match.league))}
           adminPeek={adminPeek}
           participants={participants}
         />

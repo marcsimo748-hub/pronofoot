@@ -335,6 +335,15 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     seriea: { banner_url: "", background_url: "" },
     ligue1: { banner_url: "", background_url: "" },
     bundesliga: { banner_url: "", background_url: "" },
+    // Compétitions africaines (sélections nationales)
+    can: { banner_url: "", background_url: "" },
+    can_u17: { banner_url: "", background_url: "" },
+    can_u20: { banner_url: "", background_url: "" },
+    can_u23: { banner_url: "", background_url: "" },
+    qwc_afrique: { banner_url: "", background_url: "" },
+    wcq_afrique: { banner_url: "", background_url: "" },
+    afriendly: { banner_url: "", background_url: "" },
+    international: { banner_url: "", background_url: "" },
   },
   sync_state: {
     last_scores_sync: 0,

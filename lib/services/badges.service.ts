@@ -118,10 +118,4 @@ export async function getUserBadges(userId: string): Promise<{ code: string; awa
 /**
  * Helper : traduit le nom d'un badge dans la langue courante.
  */
-export function tBadgeName(badge: BadgeDef, lang: Lang): string {
-  return badge.name[lang] ?? badge.name.fr;
-}
 
-export function tBadgeDesc(badge: BadgeDef, lang: Lang): string {
-  return badge.description[lang] ?? badge.description.fr;
-}

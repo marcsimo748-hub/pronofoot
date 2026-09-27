@@ -146,7 +146,7 @@ export async function getUserCountryBadges(
 }
 
 /** Décode un code badge pays → infos (slug, tier). */
-export function decodeCountryBadge(code: string): { slug: string; tier: number; label: string; emoji: string; tierLabel: string; country: AfricaCountry | undefined } | null {
+export function decodeCountryBadge(code: string): { slug: string; tier: number; label: string; emoji: string; tierLabel: string; country: { slug: string; flag: string; name: Record<Lang, string> } | undefined } | null {
   const m = code.match(/^(supporter|fidele|ambassadeur)-(.+)$/);
   if (!m) return null;
   const [, label, slug] = m;

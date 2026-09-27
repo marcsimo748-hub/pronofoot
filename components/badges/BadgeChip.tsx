@@ -9,8 +9,7 @@
 
 import { Award } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { badgeColor, type BadgeDef, type Lang } from "@/lib/badges";
-import { tBadgeName, tBadgeDesc } from "@/lib/services/badges.service";
+import { badgeColor, type BadgeDef, type Lang, tBadgeName, tBadgeDesc } from "@/lib/badges";
 
 interface BadgeChipProps {
   badge: BadgeDef;

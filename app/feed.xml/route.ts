@@ -55,7 +55,7 @@ ${items
     const title = escape(a.title ?? "");
     const description = escape(a.description ?? a.title ?? "");
     const link = escape(a.url ?? `${SITE_URL}/news`);
-    const pubDate = rfc822(a.published_at);
+    const pubDate = rfc822(a.published_at ?? undefined);
     const source = escape(a.source ?? "Presse");
     const imageTag = a.image_url
       ? `      <media:content url="${escape(a.image_url)}" type="image/jpeg" medium="image" />\n`

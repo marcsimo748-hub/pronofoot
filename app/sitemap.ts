@@ -27,7 +27,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/prono-visa", priority: 0.9, freq: "weekly" },
     { path: "/prono-afrique", priority: 0.9, freq: "weekly" },
     { path: "/prono-profil", priority: 0.7, freq: "monthly" },
-    { path: "/prono-transferts", priority: 0.8, freq: "monthly" },</old_text>
+    { path: "/prono-transferts", priority: 0.8, freq: "monthly" },
     // Contenu live
     { path: "/scores", priority: 0.8, freq: "daily" },
     { path: "/news", priority: 0.7, freq: "daily" },
