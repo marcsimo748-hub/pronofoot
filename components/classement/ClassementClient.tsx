@@ -6,11 +6,10 @@
  */
 
 import { useEffect, useState } from "react";
-import { Trophy, CalendarDays, Medal, Users, Globe2 } from "lucide-react";
+import { Trophy, CalendarDays, Medal, Users } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LeaderboardTable } from "./LeaderboardTable";
 import { GroupsPanel } from "./GroupsPanel";
-import { ClassementByCountry } from "./ClassementByCountry";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { LEAGUES, LEAGUE_CODES } from "@/lib/constants";
 import type { StandingRow } from "@/lib/types";
@@ -48,7 +47,6 @@ export function ClassementClient({
         <TabsTrigger value="league" className="gap-1.5"><Medal className="h-3.5 w-3.5" /> Par championnat</TabsTrigger>
         <TabsTrigger value="monthly" className="gap-1.5"><CalendarDays className="h-3.5 w-3.5" /> Mensuel</TabsTrigger>
         <TabsTrigger value="groups" className="gap-1.5"><Users className="h-3.5 w-3.5" /> Entre amis</TabsTrigger>
-        <TabsTrigger value="country" className="gap-1.5"><Globe2 className="h-3.5 w-3.5" /> Par pays 🌍</TabsTrigger>
       </TabsList>
 
       <TabsContent value="general" className="mt-4">
@@ -85,10 +83,6 @@ export function ClassementClient({
             Connecte-toi pour créer ou rejoindre un groupe d'amis 🔑
           </p>
         )}
-      </TabsContent>
-
-      <TabsContent value="country" className="mt-4">
-        <ClassementByCountry />
       </TabsContent>
     </Tabs>
   );
