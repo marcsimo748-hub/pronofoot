@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 export default async function MesPronosPage() {
   const sessionUser = await getSessionUser();
-  if (!sessionUser) redirect("/login?next=/mes-pronos");
+  if (!sessionUser) redirect("/login?next=/mes-pronostics");
   return (
     <div className="container py-12 text-center">
       <h1 className="text-3xl font-black">📲 Mes derniers pronos</h1>
