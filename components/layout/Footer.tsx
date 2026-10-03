@@ -5,7 +5,7 @@
  */
 
 import Link from "next/link";
-import { Trophy, Radio, Newspaper, Music4, BarChart3, MessageCircle, Mail, Ticket, Settings2, Coffee, Store, Shirt, Code2, Sparkles } from "lucide-react";
+import { Trophy, Radio, Newspaper, Music4, BarChart3, MessageCircle, Mail, Ticket, Settings2, Coffee, Store, Shirt, Code2, Sparkles, Download } from "lucide-react";
 import { SITE_NAME } from "@/lib/constants";
 import { useT } from "@/lib/i18n";
 
@@ -34,6 +34,7 @@ export function Footer({ isAdmin = false }: { isAdmin?: boolean }) {
             <li><Link href="/coupons" className="flex items-center gap-2 hover:text-foreground"><Ticket className="h-3.5 w-3.5" /> {t("footer.linkCoupons")}</Link></li>
             <li><Link href="/widgets" className="flex items-center gap-2 hover:text-foreground"><Code2 className="h-3.5 w-3.5" /> {t("footer.linkWidgets")}</Link></li>
             <li><Link href="/quiz" className="flex items-center gap-2 hover:text-foreground"><Sparkles className="h-3.5 w-3.5 text-amber-400" /> Quiz ⚽ Quel club africain ?</Link></li>
+            <li><Link href="/mes-pronos" className="flex items-center gap-2 hover:text-foreground"><Download className="h-3.5 w-3.5 text-emerald-400" /> Mes pronos en PNG</Link></li>
           {isAdmin && (
             <li><Link href="/admin" className="flex items-center gap-2 hover:text-foreground"><Settings2 className="h-3.5 w-3.5" /> Admin ⚙️</Link></li>
           )}
