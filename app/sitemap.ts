@@ -28,6 +28,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/prono-afrique", priority: 0.9, freq: "weekly" },
     { path: "/prono-profil", priority: 0.7, freq: "monthly" },
     { path: "/prono-transferts", priority: 0.8, freq: "monthly" },
+    // Quiz viral diaspora
+    { path: "/quiz", priority: 0.9, freq: "weekly" },
     // Contenu live
     { path: "/scores", priority: 0.8, freq: "daily" },
     { path: "/news", priority: 0.7, freq: "daily" },
