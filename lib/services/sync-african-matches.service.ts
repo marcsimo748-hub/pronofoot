@@ -14,6 +14,7 @@
 // =====================================================================
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { tryGetSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   toOurName,
   stableId,
@@ -220,11 +221,10 @@ export async function syncAfricanMatches(options?: {
   }
 
   // Upsert en base
-  const supabase = createSupabaseServerClient();
-  // L'upsert doit utiliser `service_role` côté serveur pour bypasser RLS.
-  // Mais createSupabaseServerClient() a déjà la service role si dispo (via cookies).
-  // Si pas de service role dispo, on fallback sur un upsert avec RLS (lecture OK,
-  // écriture peut échouer — d'où le try/catch).
+  // On utilise le client service_role (admin) pour bypasser les policies RLS
+  // sur la table matches. Si SUPABASE_SERVICE_ROLE_KEY n'est pas configurée,
+  // on fallback sur le client serveur (avec RLS) — qui peut bloquer en écriture.
+  const supabase = tryGetSupabaseAdminClient() ?? createSupabaseServerClient();
   let upserted = 0;
   try {
     const { data, error } = await supabase
