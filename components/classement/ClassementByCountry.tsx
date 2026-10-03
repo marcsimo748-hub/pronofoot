@@ -1,15 +1,12 @@
 "use client";
 // components/classement/ClassementByCountry.tsx
 // =====================================================================
-// Classement par pays africain : pour chaque pays, on agrège les
-// pronostiqueurs qui ont parié sur ses matchs.
-//
-// Fierté diaspora : "Cameroun domine ! Sénégal 2e !"
-// Classement cumulatif sur tous les pays africains du catalogue.
+// Classement par pays africain : pour chaque pays, on compte le nombre
+// de pronostiqueurs qui ont parié sur ses matchs + le total de pronos.
+// Fierté diaspora : Cameroun domine ? Sénégal 2e ?
 // =====================================================================
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { Globe2, Loader2, Trophy, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { AFRICA_COUNTRIES } from "@/lib/services/country-badges.service";
@@ -21,27 +18,12 @@ interface CountryRow {
   name: string;
   totalPronos: number;
   uniquePronostiqueurs: number;
-  successRate: number; // % de réussite moyenne
 }
 
 interface UserPronosPerCountry {
   user_id: string;
   country_key: string;
   prono_count: number;
-}
-
-interface PredictionRow {
-  user_id: string;
-  match_id: string;
-  points_earned: number;
-  calculated: boolean;
-  matches?: {
-    home_team?: string;
-    away_team?: string;
-    home_score?: number | null;
-    away_score?: number | null;
-    status?: string;
-  };
 }
 
 export function ClassementByCountry() {
@@ -58,49 +40,29 @@ export function ClassementByCountry() {
 
         const supabase = getSupabaseBrowserClient();
 
-        // 1. Récupère les pronos par (user, pays)
+        // Récupère les pronos par (user, pays)
         const { data: perUserCountry, error: e1 } = await supabase
           .from("v_user_country_pronos")
-          .select("country_key, prono_count");
+          .select("user_id, country_key, prono_count");
         if (e1) throw e1;
 
-        const map = new Map<string, number>();
-        const pronostiqueurs = new Map<string, Set<string>>();
+        const totalByCountry: Record<string, number> = {};
+        const pronostiqueursByCountry: Record<string, Set<string>> = {};
         ((perUserCountry as UserPronosPerCountry[]) ?? []).forEach((r) => {
-          map.set(r.country_key, (map.get(r.country_key) ?? 0) + r.prono_count);
-          if (!pronostiqueurs.has(r.country_key))
-            pronostiqueurs.set(r.country_key, new Set());
-          // On ne peut pas récupérer user_id via la vue (security_invoker)
-          // mais on peut au moins compter les lignes
-          pronostiqueurs.get(r.country_key)!.add(String(r.prono_count));
+          if (!r.user_id) return;
+          totalByCountry[r.country_key] =
+            (totalByCountry[r.country_key] ?? 0) + r.prono_count;
+          if (!pronostiqueursByCountry[r.country_key])
+            pronostiqueursByCountry[r.country_key] = new Set();
+          pronostiqueursByCountry[r.country_key].add(r.user_id);
         });
 
-        // 2. Calcule le taux de réussite par pays (moyenne sur les pronos calculés)
-        const successByCountry = new Map<string, { sum: number; n: number }>();
-        // On parcourt tous les pronos calculés
-        const { data: preds, error: e2 } = await supabase
-          .from("predictions")
-          .select(
-            "user_id, match_id, points_earned, calculated, matches:match_id (home_team, away_team, home_score, away_score, status)"
-          )
-          .eq("calculated", true)
-          .limit(2000);
-        if (e2) throw e2;
-
-        ((preds as PredictionRow[]) ?? []).forEach((p) => {
-          if (!p.matches || p.matches.status !== "finished") return;
-          // On ne peut pas matcher user_id → pays depuis la vue sans re-jointure
-          // On compte juste les pays finaux qui ont au moins un match terminé
-        });
-
-        // 3. Compose le classement
         const out: CountryRow[] = AFRICA_COUNTRIES.map((c) => ({
           slug: c.slug,
           flag: c.flag,
           name: c.name.fr,
-          totalPronos: map.get(c.slug) ?? 0,
-          uniquePronostiqueurs: pronostiqueurs.get(c.slug)?.size ?? 0,
-          successRate: 0,
+          totalPronos: totalByCountry[c.slug] ?? 0,
+          uniquePronostiqueurs: pronostiqueursByCountry[c.slug]?.size ?? 0,
         })).sort((a, b) => b.totalPronos - a.totalPronos);
 
         if (mounted) setRows(out);
@@ -137,12 +99,6 @@ export function ClassementByCountry() {
     return (
       <div className="rounded-lg border border-white/10 bg-card/50 p-8 text-center text-muted-foreground">
         🌍 Aucun prono africain enregistré pour le moment.
-        <br />
-        Sois le premier à pronostiquer un match sur{" "}
-        <a href="/prono-afrique" className="text-emerald-400 underline">
-          /prono-afrique
-        </a>{" "}
-        !
       </div>
     );
   }
@@ -173,12 +129,9 @@ export function ClassementByCountry() {
 
       <div className="space-y-2">
         {rows.slice(0, 20).map((r, idx) => (
-          <motion.div
+          <div
             key={r.slug}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: idx * 0.03 }}
-            className="flex items-center gap-3 rounded-xl border border-white/10 bg-card/60 p-3"
+            className="flex items-center gap-3 rounded-xl border border-white/10 bg-card/60 p-3 transition hover:bg-card/80"
           >
             <div
               className={`grid h-8 w-8 place-items-center rounded-full text-sm font-black ${
@@ -211,7 +164,7 @@ export function ClassementByCountry() {
               </div>
               <div className="text-xs text-muted-foreground">pronostics</div>
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
 
