@@ -1,26 +1,104 @@
 "use client";
 // app/(main)/mes-pronos/MesPronosClient.tsx
 // =====================================================================
-// Liste des pronos dévoilés de l'utilisateur avec bouton "Partager PNG".
+// Composant client qui charge ses propres données depuis Supabase
+// (contourne le build error TS côté serveur).
 // =====================================================================
 
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { TeamLogo } from "@/components/ui/TeamLogo";
 import { PronoCard } from "@/components/shared/PronoCard";
-import { Trophy } from "lucide-react";
+import { Trophy, Loader2 } from "lucide-react";
 import { LEAGUES } from "@/lib/constants";
 import { formatMatchDate } from "@/lib/utils";
-import type { Match, Prediction } from "@/lib/types";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type PredictionWithMatch = Prediction & { match: Match };
+interface MatchInfo {
+  home_team: string;
+  away_team: string;
+  match_date: string;
+  league: string;
+  status: string;
+}
+
+interface UserPrediction {
+  id: string;
+  match_id: string;
+  home_score: number;
+  away_score: number;
+  points_earned: number;
+  calculated: boolean;
+  match: MatchInfo;
+}
 
 interface Props {
-  predictions: PredictionWithMatch[];
+  userId: string;
   username: string;
   totalPoints: number;
 }
 
-export function MesPronosClient({ predictions, username, totalPoints }: Props) {
+export function MesPronosClient({ userId, username, totalPoints }: Props) {
+  const [predictions, setPredictions] = useState<UserPrediction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const supabase = getSupabaseBrowserClient();
+        // Filtre : on prend les matchs dévoilés (passés) pour permettre
+        // le partage PNG. Les pronos à venir restent secrets (anti-triche).
+        const { data, error: e } = await supabase
+          .from("predictions")
+          .select(
+            "id, match_id, home_score, away_score, points_earned, calculated, match:matches(home_team, away_team, match_date, league, status)"
+          )
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(20);
+        if (e) throw e;
+        if (!mounted) return;
+        // Filtre : uniquement les matchs passés (déjà commencés)
+        const now = Date.now();
+        const visible = ((data ?? []) as unknown as UserPrediction[]).filter(
+          (p) => p.match && new Date(p.match.match_date).getTime() <= now
+        );
+        setPredictions(visible.slice(0, 12));
+      } catch (e) {
+        if (mounted)
+          setError(e instanceof Error ? e.message : "Erreur de chargement");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [userId]);
+
+  if (loading) {
+    return (
+      <div className="container py-12 flex items-center justify-center gap-2 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        Chargement de mes pronos…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container py-12">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-400">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   if (predictions.length === 0) {
     return (
       <div className="container py-12 text-center">
@@ -48,12 +126,11 @@ export function MesPronosClient({ predictions, username, totalPoints }: Props) {
       </header>
 
       <div className="space-y-4">
-        {predictions.slice(0, 12).map((p) => {
+        {predictions.map((p) => {
           const league = LEAGUES[p.match.league as keyof typeof LEAGUES];
           return (
             <Card key={p.id} className="overflow-hidden border-white/10 bg-card/60">
               <CardContent className="space-y-4 p-5">
-                {/* En-tête match */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
                   <div className="flex items-center gap-2">
                     <span
@@ -90,7 +167,6 @@ export function MesPronosClient({ predictions, username, totalPoints }: Props) {
                   </div>
                 </div>
 
-                {/* Le match */}
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
                   <div className="flex items-center justify-end gap-2 text-right">
                     <span className="font-bold">{p.match.home_team}</span>
@@ -107,7 +183,6 @@ export function MesPronosClient({ predictions, username, totalPoints }: Props) {
                   </div>
                 </div>
 
-                {/* Bouton partage PNG */}
                 <PronoCard
                   homeTeam={p.match.home_team}
                   awayTeam={p.match.away_team}
