@@ -14,6 +14,7 @@ import { cn, formatMatchDate } from "@/lib/utils";
 import { LEAGUES } from "@/lib/constants";
 import { TeamLogo } from "@/components/ui/TeamLogo";
 import { ShareButton } from "@/components/shared/ShareButton";
+import { PronoCard } from "@/components/shared/PronoCard";
 import type { StartedMatch } from "@/lib/services/predictions.service";
 
 export function StartedMatchCard({ data }: { data: StartedMatch }) {
@@ -126,6 +127,21 @@ export function StartedMatchCard({ data }: { data: StartedMatch }) {
             })}
           </div>
         </div>
+      )}
+
+      {/* Bouton PNG partageable — ne s'affiche que si le match est fini */}
+      {finished && match.home_score !== null && match.away_score !== null && (
+        <PronoCard
+          homeTeam={match.home_team}
+          awayTeam={match.away_team}
+          homeScore={match.home_score}
+          awayScore={match.away_score}
+          username="PRONO · communauté"
+          matchDate={formatMatchDate(match.match_date)}
+          league={league?.short ?? match.league}
+          totalPoints={predictions.reduce((s, p) => s + (p.points_earned ?? 0), 0)}
+          accentColor={league?.color ?? "#16a34a"}
+        />
       )}
     </motion.div>
   );
