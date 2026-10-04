@@ -1,0 +1,12 @@
+# ads.txt — Google AdSense
+# Format: google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0941
+#
+# Remplace NEXT_PUBLIC_ADSENSE_CLIENT par ton vrai ID éditeur AdSense
+# (format: ca-pub-XXXXXXXXXXXXXXXX) sur https://www.google.com/adsense/
+#
+# Une fois ton ID connu :
+# 1. Édite ce fichier et remplace la ligne ci-dessous
+# 2. Renseigne NEXT_PUBLIC_ADSENSE_CLIENT dans .env.local et Vercel
+#
+# En attendant (phase de test sans ID), la ligne est commentée :
+# google.com, pub-0000000000000000, DIRECT, f08c47fec0941
